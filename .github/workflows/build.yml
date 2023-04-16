@@ -31,7 +31,8 @@ jobs:
         run: sudo apt update && sudo apt install qemu-system-x86
       - name: "Print QEMU Version"
         run: qemu-system-x86_64 --version
-
+      - name: "Install target"
+        run: rustup target add x86_64-unknown-none
       - name: Build and run all tests
         run: cargo test --workspace ${{ matrix.mode }}
 
