@@ -4,10 +4,15 @@
 use bootloader_api::{entry_point, BootInfo};
 use core::arch::asm;
 use core::panic::PanicInfo;
+use kernel::kernel_init;
 
+#[cfg(not(test))]
 entry_point!(kernel_main);
 
-fn kernel_main(_boot_info: &'static mut BootInfo) -> ! {
+#[cfg(not(test))]
+fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+    kernel_init(boot_info);
+
     todo!()
 }
 
