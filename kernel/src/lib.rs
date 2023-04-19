@@ -3,6 +3,7 @@
 #![feature(abi_x86_interrupt)]
 
 pub mod arch;
+pub mod mem;
 pub mod qemu;
 
 use crate::arch::{gdt, idt};
