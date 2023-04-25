@@ -38,7 +38,7 @@ fn main() {
         cmd.arg("-fullscreen");
     }
     if args.debug {
-        cmd.arg("-gdb").arg("tcp:1234"); // long for "-s"
+        cmd.arg("-s");
         cmd.arg("-S");
     }
     if args.bios {

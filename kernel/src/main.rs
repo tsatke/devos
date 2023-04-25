@@ -4,13 +4,22 @@
 
 use core::panic::PanicInfo;
 
-use bootloader_api::{entry_point, BootInfo};
+use bootloader_api::config::Mapping;
+use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 
 use kernel::arch::panic::handle_panic;
+use kernel::mem::Size;
 use kernel::{kernel_init, serial_println};
 
+const CONFIG: BootloaderConfig = {
+    let mut config = BootloaderConfig::new_default();
+    config.mappings.page_table_recursive = Some(Mapping::Dynamic);
+    config.kernel_stack_size = Size::KiB(32).bytes() as u64;
+    config
+};
+
 #[cfg(not(test))]
-entry_point!(kernel_main);
+entry_point!(kernel_main, config = &CONFIG);
 
 #[cfg(not(test))]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
