@@ -113,6 +113,8 @@ impl AddressSpace {
         }
     }
 
+    /// # Safety
+    /// Mapping a page is inherently unsafe. See [`Mapper::map_to`] for more details.
     pub unsafe fn map_to(
         &mut self,
         page: Page,

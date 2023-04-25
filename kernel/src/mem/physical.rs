@@ -8,7 +8,7 @@ pub struct PhysicalFrameAllocator {
 }
 
 impl PhysicalFrameAllocator {
-    pub unsafe fn from(regions: &'static MemoryRegions) -> Self {
+    pub fn from(regions: &'static MemoryRegions) -> Self {
         Self { regions, next: 0 }
     }
 

@@ -7,10 +7,10 @@ use crate::mem::physical::PhysicalFrameAllocator;
 static mut MEMORY_MANAGER: Option<Mutex<MemoryManager>> = None;
 
 pub(in crate::mem) fn init(boot_info: &'static BootInfo) {
+    let mm = MemoryManager {
+        alloc: PhysicalFrameAllocator::from(&boot_info.memory_regions),
+    };
     unsafe {
-        let mm = MemoryManager {
-            alloc: PhysicalFrameAllocator::from(&boot_info.memory_regions),
-        };
         let _ = MEMORY_MANAGER.insert(Mutex::new(mm));
     }
 }
