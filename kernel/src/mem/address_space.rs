@@ -1,13 +1,15 @@
+use core::ptr;
+
 use x86_64::registers::control::{Cr3, Cr3Flags};
 use x86_64::structures::paging::mapper::{
-    InvalidPageTable, MapToError, MapperFlush, TranslateResult,
+    InvalidPageTable, MapToError, MapperFlush, TranslateResult, UnmapError,
 };
 use x86_64::structures::paging::{
     Mapper, Page, PageTable, PageTableFlags, PhysFrame, RecursivePageTable, Size4KiB, Translate,
 };
 use x86_64::VirtAddr;
 
-use crate::mem::FrameAllocatorDelegate;
+use crate::mem::{FrameAllocatorDelegate, MemoryManager};
 
 pub struct AddressSpace {
     /// The virtual address of the level 4 page table **in this address space**.
@@ -15,7 +17,7 @@ pub struct AddressSpace {
     /// space is not active. You can check whether it's active with [`AddressSpace::is_active`].
     level4_table_virtual_addr: VirtAddr,
     /// The physical address of the level 4 page table.
-    level4_table_physical_address: PhysFrame,
+    level4_table_physical_frame: PhysFrame,
     /// The flags that are set in the Cr3 register. This may not be up to date, use
     /// [`AddressSpace::cr3flags`] to have a guaranteed up to date value while this address
     /// space is active.
@@ -23,24 +25,73 @@ pub struct AddressSpace {
 }
 
 impl AddressSpace {
+    pub fn allocate_new(
+        current_addr_space_todo_remove_by_using_task_current: &mut AddressSpace,
+    ) -> Self {
+        let pt_frame = MemoryManager::lock().allocate_frame().unwrap();
+        let pt_vaddr = VirtAddr::new(0x4444_4444_0000); // FIXME: choose any free address instead of hard-wiring one (solvable once we have a heap)
+        let pt_page = Page::containing_address(pt_vaddr);
+
+        unsafe {
+            current_addr_space_todo_remove_by_using_task_current.map_to(
+                pt_page,
+                pt_frame,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+            )
+        }
+        .unwrap()
+        .flush();
+
+        // create new page table
+        let mut pt = PageTable::new();
+        let (pte_index, pte) = pt
+            .iter_mut()
+            .enumerate()
+            .filter(|(_, e)| e.is_unused())
+            .last()
+            .unwrap();
+        pte.set_frame(pt_frame, PageTableFlags::PRESENT | PageTableFlags::WRITABLE);
+
+        unsafe { ptr::write(pt_vaddr.as_mut_ptr(), pt) };
+
+        current_addr_space_todo_remove_by_using_task_current
+            .unmap(pt_page)
+            .unwrap()
+            .1
+            .flush(); // the physical frame that's "leaking" here is the frame containing the new page table
+
+        AddressSpace::new(
+            pt_frame,
+            Cr3Flags::empty(),
+            TryInto::<u16>::try_into(pte_index).expect("page table index too large"),
+        )
+    }
+
     pub fn new(
         level4_table_physical_address: PhysFrame,
         cr3flags: Cr3Flags,
         recursive_index: u16,
     ) -> Self {
-        let level4_table_virtual_addr = {
-            let i = recursive_index as u64;
-            VirtAddr::new(i << 39 | i << 30 | i << 21 | i << 12)
-        };
+        let level4_table_virtual_addr = recursive_index_to_virtual_address(recursive_index);
 
-        // make sure that the virtual address is actually valid
-        let _ = unsafe { as_recursive_page_table(level4_table_virtual_addr) }
-            .expect("expect a valid recursive page table");
+        // we can't make sure that the virtual address is actually valid because we can't dereference
+        // the value, we need to map it first
+        // TODO: validate the page table, this is an invariant of this type
 
         Self {
             level4_table_virtual_addr,
-            level4_table_physical_address,
+            level4_table_physical_frame: level4_table_physical_address,
             cr3flags,
+        }
+    }
+
+    /// # Safety
+    /// Changing the level 4 page table is unsafe, because it's possible
+    /// to violate memory safety by changing the page mapping.
+    pub unsafe fn activate(&self) {
+        unsafe {
+            // Safety: guaranteed by the caller
+            Cr3::write(self.level4_table_physical_frame, self.cr3flags);
         }
     }
 
@@ -48,7 +99,7 @@ impl AddressSpace {
     /// whether the physical address of the level 4 page table of this
     /// address space is the current value of the [`Cr3`] register.
     pub fn is_active(&self) -> bool {
-        Cr3::read().0 == self.level4_table_physical_address
+        Cr3::read().0 == self.level4_table_physical_frame
     }
 
     /// Returns the current [`Cr3Flags`] if this address space is active,
@@ -72,6 +123,13 @@ impl AddressSpace {
         unsafe { rpt.map_to(page, frame, flags, &mut FrameAllocatorDelegate) }
     }
 
+    pub fn unmap(
+        &mut self,
+        page: Page,
+    ) -> Result<(PhysFrame<Size4KiB>, MapperFlush<Size4KiB>), UnmapError> {
+        self.get_recursive_page_table().unmap(page)
+    }
+
     pub fn translate(&self, addr: VirtAddr) -> TranslateResult {
         self.get_recursive_page_table().translate(addr)
     }
@@ -93,4 +151,9 @@ unsafe fn as_recursive_page_table(
 ) -> Result<RecursivePageTable<'static>, InvalidPageTable> {
     let pt: &mut PageTable = unsafe { &mut *(vaddr.as_mut_ptr()) };
     RecursivePageTable::new(pt)
+}
+
+fn recursive_index_to_virtual_address(recursive_index: u16) -> VirtAddr {
+    let i = recursive_index as u64;
+    VirtAddr::new(i << 39 | i << 30 | i << 21 | i << 12)
 }

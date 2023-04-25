@@ -40,4 +40,6 @@ pub fn init(boot_info: &'static mut BootInfo) {
         ptr::write_volatile::<u64>(new_addr.as_mut_ptr(), 1234567890);
         serial_println!("new: {}", ptr::read_volatile::<u64>(new_addr.as_ptr()));
     }
+
+    let _new_address_space = AddressSpace::allocate_new(&mut address_space);
 }
