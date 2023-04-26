@@ -29,7 +29,7 @@ impl AddressSpace {
         current_addr_space_todo_remove_by_using_task_current: &mut AddressSpace,
     ) -> Self {
         let pt_frame = MemoryManager::lock().allocate_frame().unwrap();
-        let pt_vaddr = VirtAddr::new(0x4444_4444_0000); // FIXME: choose any free address instead of hard-wiring one (solvable once we have a heap)
+        let pt_vaddr = VirtAddr::new(0x3333_3333_0000); // FIXME: choose any free address instead of hard-wiring one (solvable once we have some kind of task management)
         let pt_page = Page::containing_address(pt_vaddr);
 
         unsafe {
