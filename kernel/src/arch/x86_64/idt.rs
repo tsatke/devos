@@ -1,8 +1,12 @@
+use crate::arch::syscall::syscall_handler_impl;
 use crate::serial_println;
+use core::arch::asm;
+use core::mem::transmute;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin::Mutex;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::PrivilegeLevel;
 
 // "Remapped" PICS chosen as 32 to 47
 pub const PIC_1_OFFSET: u8 = 32;
@@ -28,10 +32,13 @@ lazy_static! {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
+            idt[0x80]
+                .set_handler_fn(transmute(syscall_handler as *mut fn()))
+                .set_privilege_level(PrivilegeLevel::Ring3);
         }
-        idt[46].set_handler_fn(ignore_handler);
         idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
+        idt[46].set_handler_fn(ignore_handler);
         idt
     };
 }
@@ -59,6 +66,44 @@ impl InterruptIndex {
         usize::from(self.as_u8())
     }
 }
+
+macro_rules! wrap {
+    ($fn: ident => $w:ident) => {
+        #[allow(clippy::missing_safety_doc)]
+        #[naked]
+        pub unsafe extern "sysv64" fn $w() {
+            asm!(
+                "push rax",
+                "push rcx",
+                "push rdx",
+                "push rsi",
+                "push rdi",
+                "push r8",
+                "push r9",
+                "push r10",
+                "push r11",
+                "mov rsi, rsp", // Arg #2: register list
+                "mov rdi, rsp", // Arg #1: interupt frame
+                "add rdi, 9 * 8",
+                "call {}",
+                "pop r11",
+                "pop r10",
+                "pop r9",
+                "pop r8",
+                "pop rdi",
+                "pop rsi",
+                "pop rdx",
+                "pop rcx",
+                "pop rax",
+                "iretq",
+                sym $fn,
+                options(noreturn)
+            );
+        }
+    };
+}
+
+wrap!(syscall_handler_impl => syscall_handler);
 
 extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame) {
     panic!("EXCEPTION: DIVIDE ERROR\n{:#?}", stack_frame);

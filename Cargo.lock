@@ -320,6 +320,7 @@ version = "0.1.0"
 dependencies = [
  "bootloader",
  "clap",
+ "ide",
  "kernel",
  "ovmf-prebuilt",
 ]
@@ -528,6 +529,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fed44880c466736ef9a5c5b5facefb5ed0785676d0c02d612db14e54f0d84286"
 
 [[package]]
+name = "ide"
+version = "0.1.0"
+dependencies = [
+ "std",
+]
+
+[[package]]
 name = "instant"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -570,12 +578,20 @@ name = "kernel"
 version = "0.1.0"
 dependencies = [
  "bootloader_api",
+ "kernel_api",
  "lazy_static",
  "linked_list_allocator",
  "pic8259",
  "spin 0.9.8",
  "uart_16550",
  "x86_64",
+]
+
+[[package]]
+name = "kernel_api"
+version = "0.1.0"
+dependencies = [
+ "num_enum",
 ]
 
 [[package]]
@@ -651,6 +667,26 @@ name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
+
+[[package]]
+name = "num_enum"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a015b430d3c108a207fd776d2e2196aaf8b1cf8cf93253e3a097ff3085076a1"
+dependencies = [
+ "num_enum_derive",
+]
+
+[[package]]
+name = "num_enum_derive"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96667db765a921f7b295ffee8b60472b686a51d4f21c2ee4ffdb94c7013b65a6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.15",
+]
 
 [[package]]
 name = "once_cell"
@@ -892,6 +928,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b9eb1a2f4c41445a3a0ff9abc5221c5fcd28e1f13cd7c0397706f9ac938ddb0"
 dependencies = [
  "lock_api",
+]
+
+[[package]]
+name = "std"
+version = "0.1.0"
+dependencies = [
+ "kernel_api",
 ]
 
 [[package]]
