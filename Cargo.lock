@@ -320,6 +320,7 @@ version = "0.1.0"
 dependencies = [
  "bootloader",
  "clap",
+ "ide",
  "kernel",
  "ovmf-prebuilt",
 ]
@@ -526,6 +527,13 @@ name = "hermit-abi"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fed44880c466736ef9a5c5b5facefb5ed0785676d0c02d612db14e54f0d84286"
+
+[[package]]
+name = "ide"
+version = "0.1.0"
+dependencies = [
+ "std",
+]
 
 [[package]]
 name = "instant"
@@ -920,6 +928,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b9eb1a2f4c41445a3a0ff9abc5221c5fcd28e1f13cd7c0397706f9ac938ddb0"
 dependencies = [
  "lock_api",
+]
+
+[[package]]
+name = "std"
+version = "0.1.0"
+dependencies = [
+ "kernel_api",
 ]
 
 [[package]]

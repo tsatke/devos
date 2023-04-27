@@ -1,4 +1,4 @@
-use crate::process::syscall::dispatch_syscall;
+use crate::arch::syscall::syscall_handler_impl;
 use crate::serial_println;
 use core::arch::asm;
 use core::mem::transmute;
@@ -69,6 +69,7 @@ impl InterruptIndex {
 
 macro_rules! wrap {
     ($fn: ident => $w:ident) => {
+        #[allow(clippy::missing_safety_doc)]
         #[naked]
         pub unsafe extern "sysv64" fn $w() {
             asm!(
@@ -103,40 +104,6 @@ macro_rules! wrap {
 }
 
 wrap!(syscall_handler_impl => syscall_handler);
-
-#[repr(align(8), C)]
-#[derive(Debug, Clone, Copy, Default)]
-struct SyscallRegisters {
-    pub r11: usize,
-    pub r10: usize,
-    pub r9: usize,
-    pub r8: usize,
-    pub rdi: usize,
-    pub rsi: usize,
-    pub rdx: usize,
-    pub rcx: usize,
-    pub rax: usize,
-}
-
-extern "sysv64" fn syscall_handler_impl(
-    _stack_frame: &mut InterruptStackFrame,
-    regs: &mut SyscallRegisters,
-) {
-    // The registers order follow the System V ABI convention
-    let n = regs.rax;
-    let arg1 = regs.rdi;
-    let arg2 = regs.rsi;
-    let arg3 = regs.rdx;
-    let arg4 = regs.r8;
-
-    let res = dispatch_syscall(n, arg1, arg2, arg3, arg4);
-
-    regs.rax = res as usize; // save result
-
-    unsafe {
-        PICS.lock().notify_end_of_interrupt(0x80);
-    }
-}
 
 extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame) {
     panic!("EXCEPTION: DIVIDE ERROR\n{:#?}", stack_frame);

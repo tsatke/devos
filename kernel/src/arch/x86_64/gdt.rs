@@ -42,6 +42,7 @@ lazy_static! {
     };
 }
 
+#[allow(dead_code)]
 struct Selectors {
     kernel_code_selector: SegmentSelector,
     kernel_data_selector: SegmentSelector,

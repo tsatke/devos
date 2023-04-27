@@ -6,4 +6,5 @@ pub enum Syscall {
     Read = 0,
     Write = 1,
     Open = 2,
+    Close = 3,
 }

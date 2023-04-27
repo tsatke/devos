@@ -7,6 +7,7 @@ use core::panic::PanicInfo;
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use x86_64::VirtAddr;
 
 use kernel::arch::panic::handle_panic;
 use kernel::mem::Size;
@@ -26,15 +27,29 @@ entry_point!(kernel_main, config = &CONFIG);
 
 #[cfg(not(test))]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+    let ramdisk_info = boot_info
+        .ramdisk_addr
+        .into_option()
+        .map(|v| (VirtAddr::new(v), boot_info.ramdisk_len as usize));
+
     kernel_init(boot_info);
+
+    if let Some((ramdisk_addr, ramdisk_size)) = ramdisk_info {
+        serial_println!(
+            "got ramdisk with size {} at {:#p}",
+            ramdisk_size,
+            ramdisk_addr
+        );
+    }
 
     let mut a: isize;
     unsafe {
         asm! {
             "mov rax, 0", // read syscall
-            "mov rbx, 1", // fd
-            "mov rcx, 5", // buffer address
+            "mov rdi, 1", // fd
+            "mov rsi, 5", // buffer address
             "mov rdx, 9", // num bytes
+            "mov r8, 0", // unused arg4
             "int 0x80",
             "mov {}, rax",
             out(reg) a,
