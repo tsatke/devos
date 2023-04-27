@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(panic_info_message)]
 
+use core::arch::asm;
 use core::panic::PanicInfo;
 
 use bootloader_api::config::Mapping;
@@ -26,6 +27,20 @@ entry_point!(kernel_main, config = &CONFIG);
 #[cfg(not(test))]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     kernel_init(boot_info);
+
+    let mut a: isize;
+    unsafe {
+        asm! {
+            "mov rax, 0", // read syscall
+            "mov rbx, 1", // fd
+            "mov rcx, 5", // buffer address
+            "mov rdx, 9", // num bytes
+            "int 0x80",
+            "mov {}, rax",
+            out(reg) a,
+        };
+    }
+    serial_println!("a: {}", a);
 
     panic!("kernel_main returned")
 }

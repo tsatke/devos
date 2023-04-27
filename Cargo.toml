@@ -13,5 +13,6 @@ ovmf-prebuilt = "0.1.0-alpha.1"
 
 [workspace]
 members = [
-    "kernel"
+    "kernel",
+    "kernel_api",
 ]
