@@ -8,7 +8,8 @@ pub use heap::*;
 pub use manager::*;
 pub use size::*;
 
-use crate::serial_println;
+use crate::process::task::Task;
+use crate::{process, serial_println};
 
 mod address_space;
 mod heap;
@@ -19,7 +20,7 @@ mod size;
 const HEAP_START: usize = 0x4444_4444_0000;
 const HEAP_SIZE: Size = Size::MiB(2);
 
-pub fn init(boot_info: &'static mut BootInfo) {
+pub fn init(boot_info: &'static BootInfo) {
     manager::init(boot_info);
 
     let recursive_index = boot_info.recursive_index.into_option().unwrap();
@@ -49,5 +50,23 @@ pub fn init(boot_info: &'static mut BootInfo) {
     // after the full heap memory has been mapped, we can init
     heap::init(HEAP_START as *mut u8, HEAP_SIZE.bytes());
 
-    let _new_address_space = AddressSpace::allocate_new(&mut address_space);
+    let task = Task::new(address_space);
+    let _ = process::current_task_mut().insert(task);
+
+    // let _new_address_space = AddressSpace::allocate_new(&mut address_space);
+}
+
+/// Map a physical frame to a page in the current address space.
+#[macro_export]
+macro_rules! map_page {
+    ($page:expr, $size:ident, $flags:expr) => {{
+        let frame = $crate::mem::MemoryManager::lock().allocate_frame().unwrap();
+        map_page!($page, frame, $size, $flags)
+    }};
+    ($page:expr, $frame:expr, $size:ident, $flags:expr) => {{
+        let page: Page<$size> = $page;
+        let mut task = $crate::process::current_task_mut();
+        let address_space = task.as_mut().unwrap().address_space_mut();
+        unsafe { address_space.map_to(page, $frame, $flags).unwrap().flush() }
+    }};
 }
