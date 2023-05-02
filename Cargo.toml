@@ -4,7 +4,7 @@ version = "0.1.0"
 
 [build-dependencies]
 bootloader = "0.11"
-kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
+kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
 ide = { path = "driver/ide", artifact = "bin", target = "x86_64-unknown-none" }
 
 [dependencies]
@@ -19,3 +19,8 @@ members = [
     "std",
     "driver/ide",
 ]
+
+[features]
+default = ["uefi"]
+bios = ["kernel/bios"]
+uefi = ["kernel/uefi"]
