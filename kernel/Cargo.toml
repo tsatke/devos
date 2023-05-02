@@ -13,7 +13,6 @@ kernel_api = { path = "../kernel_api" }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 linked_list_allocator = "0.10.5"
 num_enum = { version = "0.6.1", default-features = false }
-pic8259 = "0.10.4"
 raw-cpuid = { version = "11.0.0", default-features = false }
 spin = "0.9.8"
 uart_16550 = "0.2.18"
