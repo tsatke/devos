@@ -33,7 +33,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         .map(|v| (v as *const u8, boot_info.ramdisk_len as usize))
         .map(|(addr, len)| unsafe { from_raw_parts(addr, len) });
 
-    if let Some(_) = ramdisk {
+    if ramdisk.is_some() {
         serial_println!("got a ramdisk");
     }
 
@@ -47,7 +47,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             "mov rsi, 5", // buffer address
             "mov rdx, 9", // num bytes
             "mov r8, 0", // unused arg4
-            "int 0x80",
+            "int 0x80", // SYSCALL_INTERRUPT_INDEX
             "mov {}, rax",
             out(reg) a,
         };

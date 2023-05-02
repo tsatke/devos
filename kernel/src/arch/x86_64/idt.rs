@@ -1,19 +1,17 @@
-use crate::arch::syscall::syscall_handler_impl;
-use crate::serial_println;
 use core::arch::asm;
 use core::mem::transmute;
+
 use lazy_static::lazy_static;
-use pic8259::ChainedPics;
-use spin::Mutex;
+use num_enum::IntoPrimitive;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::PrivilegeLevel;
 
-// "Remapped" PICS chosen as 32 to 47
-pub const PIC_1_OFFSET: u8 = 32;
-pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 
-pub static PICS: Mutex<ChainedPics> =
-    Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
+use crate::apic::LAPIC;
+use crate::arch::syscall::syscall_handler_impl;
+use crate::serial_println;
+use crate::timer::notify_timer_interrupt;
 
 lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
@@ -32,39 +30,34 @@ lazy_static! {
             idt.double_fault
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
-            idt[0x80]
+            idt[InterruptIndex::Syscall.into()]
                 .set_handler_fn(transmute(syscall_handler as *mut fn()))
                 .set_privilege_level(PrivilegeLevel::Ring3);
         }
-        idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
-        idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
-        idt[46].set_handler_fn(ignore_handler);
+        idt[InterruptIndex::Timer.into()].set_handler_fn(timer_interrupt_handler);
+        idt[InterruptIndex::Keyboard.into()].set_handler_fn(keyboard_interrupt_handler);
+        idt[InterruptIndex::LapicErr.into()].set_handler_fn(lapic_err_interrupt_handler);
+        idt[InterruptIndex::Spurious.into()].set_handler_fn(spurious_interrupt_handler);
         idt
     };
 }
 
 pub fn init() {
     IDT.load();
-    unsafe {
-        PICS.lock().initialize();
-    }
 }
 
-#[derive(Debug, Clone, Copy)]
-#[repr(u8)]
+#[derive(Debug, Clone, Copy, IntoPrimitive)]
+#[repr(usize)]
 pub enum InterruptIndex {
-    Timer = PIC_1_OFFSET,
-    Keyboard,
-}
-
-impl InterruptIndex {
-    fn as_u8(self) -> u8 {
-        self as u8
-    }
-
-    fn as_usize(self) -> usize {
-        usize::from(self.as_u8())
-    }
+    Timer = 0x20,     // 32
+    Keyboard = 0x21,  // 33
+    LapicErr = 0x31,  // 49
+    IpiWake = 0x40,   // 64
+    IpiTlb = 0x41,    // 65
+    IpiSwitch = 0x42, // 66
+    IpiPit = 0x43,    // 67
+    Syscall = SYSCALL_INTERRUPT_INDEX,
+    Spurious = 0xff, // 255
 }
 
 macro_rules! wrap {
@@ -109,10 +102,12 @@ extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame)
     panic!("EXCEPTION: DIVIDE ERROR\n{:#?}", stack_frame);
 }
 
-extern "x86-interrupt" fn ignore_handler(_stack_frame: InterruptStackFrame) {
-    unsafe {
-        PICS.lock().notify_end_of_interrupt(46);
-    }
+extern "x86-interrupt" fn lapic_err_interrupt_handler(stack_frame: InterruptStackFrame) {
+    panic!("EXCEPTION: LAPIC ERROR\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn spurious_interrupt_handler(stack_frame: InterruptStackFrame) {
+    panic!("EXCEPTION: SPURIOUS INTERRUPT\n{:#?}", stack_frame);
 }
 
 extern "x86-interrupt" fn general_protection_fault_handler(
@@ -183,11 +178,12 @@ table[index]: {}[{}]
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    // TODO: notify timer and scheduler
-
     unsafe {
-        end_of_interrupt(InterruptIndex::Timer);
+        end_of_interrupt();
     }
+
+    // after the interrupt is handled, because we'll switch to another task
+    notify_timer_interrupt();
 }
 
 extern "x86-interrupt" fn page_fault_handler(
@@ -212,13 +208,17 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     // TODO: put scancode into scancode queue
 
     unsafe {
-        end_of_interrupt(InterruptIndex::Keyboard);
+        end_of_interrupt();
     }
 }
 
+/// Notifies the LAPIC that the interrupt has been handled.
+///
+/// # Safety
+/// This is unsafe since it writes to an LAPIC register.
 #[inline]
-unsafe fn end_of_interrupt(which: InterruptIndex) {
-    PICS.lock().notify_end_of_interrupt(which.as_u8());
+pub unsafe fn end_of_interrupt() {
+    LAPIC.get().unwrap().lock().end_of_interrupt();
 }
 
 #[cfg(test)]
