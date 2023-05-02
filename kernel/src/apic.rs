@@ -2,8 +2,8 @@ use conquer_once::spin::OnceCell;
 use spin::Mutex;
 use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 use x86_64::instructions::port::Port;
+use x86_64::structures::paging::Size4KiB;
 use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame};
-use x86_64::structures::paging::{PageSize, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::arch::idt::InterruptIndex;
@@ -15,7 +15,7 @@ pub fn init() {
     disable_8259();
 
     let apic_physical_address: u64 = unsafe { xapic_base() };
-    let mut apic_virtual_address: u64 = 0x2222_2222_0000; // TODO: make dynamic
+    let apic_virtual_address: u64 = 0x2222_2222_0000; // TODO: make dynamic
 
     let apic_page = Page::containing_address(VirtAddr::new(apic_virtual_address));
     let frame = PhysFrame::containing_address(PhysAddr::new(apic_physical_address));

@@ -212,6 +212,10 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     }
 }
 
+/// Notifies the LAPIC that the interrupt has been handled.
+///
+/// # Safety
+/// This is unsafe since it writes to an LAPIC register.
 #[inline]
 pub unsafe fn end_of_interrupt() {
     LAPIC.get().unwrap().lock().end_of_interrupt();

@@ -20,8 +20,7 @@ pub fn init(boot_info: &'static BootInfo) {
 
     let result = unsafe { AcpiTables::from_rsdp(KernelAcpi::new(), rsdp as usize) };
     if let Err(e) = result {
-        serial_println!("acpi error: {:#?}", e);
-        return;
+        panic!("acpi error: {:#?}", e); // FIXME: this currently occurs while booting in BIOS mode rather than UEFI
     }
     let tables = result.unwrap();
     if let Ok(platform_info) = PlatformInfo::new(&tables) {
@@ -42,6 +41,8 @@ impl KernelAcpi {
         }
     }
 }
+
+impl !Default for KernelAcpi {}
 
 impl AcpiHandler for KernelAcpi {
     unsafe fn map_physical_region<T>(
