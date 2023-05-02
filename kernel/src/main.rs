@@ -47,7 +47,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             "mov rsi, 5", // buffer address
             "mov rdx, 9", // num bytes
             "mov r8, 0", // unused arg4
-            "int 0x80",
+            "int 0x80", // SYSCALL_INTERRUPT_INDEX
             "mov {}, rax",
             out(reg) a,
         };

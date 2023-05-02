@@ -6,13 +6,18 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+acpi = "4.1.1"
 bootloader_api = "0.11"
+conquer-once = { version = "0.4.0", default-features = false }
 kernel_api = { path = "../kernel_api" }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 linked_list_allocator = "0.10.5"
+num_enum = { version = "0.6.1", default-features = false }
 pic8259 = "0.10.4"
+raw-cpuid = { version = "11.0.0", default-features = false }
 spin = "0.9.8"
 uart_16550 = "0.2.18"
+x2apic = "0.4.2"
 x86_64 = "0.14.10"
 
 [features]

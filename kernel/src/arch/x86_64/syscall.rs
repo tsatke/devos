@@ -1,4 +1,4 @@
-use crate::arch::idt::PICS;
+use crate::arch::idt;
 use crate::process::syscall::dispatch_syscall;
 use x86_64::structures::idt::InterruptStackFrame;
 
@@ -32,6 +32,6 @@ pub(in crate::arch) extern "sysv64" fn syscall_handler_impl(
     regs.rax = res as usize; // save result
 
     unsafe {
-        PICS.lock().notify_end_of_interrupt(0x80);
+        idt::end_of_interrupt();
     }
 }
