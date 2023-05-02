@@ -14,3 +14,8 @@ pic8259 = "0.10.4"
 spin = "0.9.8"
 uart_16550 = "0.2.18"
 x86_64 = "0.14.10"
+
+[features]
+default = ["uefi"]
+bios = []
+uefi = []

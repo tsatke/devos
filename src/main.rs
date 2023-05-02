@@ -9,8 +9,6 @@ const BIOS_PATH: &str = env!("BIOS_PATH");
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = "The boot tool for DevOS.")]
 struct Args {
-    #[arg(long, help = "Boot the BIOS image rather than the UEFI one")]
-    bios: bool,
     #[arg(
         short,
         long,
@@ -24,10 +22,17 @@ struct Args {
         help = "Start a gdb server on tcp:1234 and wait until a client has connected"
     )]
     debug: bool,
+    #[arg(long, help = "Only print the paths to the UEFI and BIOS images")]
+    no_run: bool,
 }
 
 fn main() {
     let args = Args::parse();
+    if args.no_run {
+        println!("UEFI={}", UEFI_PATH);
+        println!("BIOS={}", BIOS_PATH);
+        return;
+    }
 
     let mut cmd = std::process::Command::new("qemu-system-x86_64");
     cmd.arg("--no-reboot");
@@ -41,7 +46,7 @@ fn main() {
         cmd.arg("-s");
         cmd.arg("-S");
     }
-    if args.bios {
+    if cfg!(feature = "bios") {
         cmd.arg("-drive")
             .arg(format!("format=raw,file={BIOS_PATH}"));
     } else {
