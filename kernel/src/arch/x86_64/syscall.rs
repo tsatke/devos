@@ -25,9 +25,11 @@ pub(in crate::arch) extern "sysv64" fn syscall_handler_impl(
     let arg1 = regs.rdi;
     let arg2 = regs.rsi;
     let arg3 = regs.rdx;
-    let arg4 = regs.r8;
+    let arg4 = regs.rcx;
+    let arg5 = regs.r8;
+    let arg6 = regs.r9;
 
-    let res = dispatch_syscall(n, arg1, arg2, arg3, arg4);
+    let res = dispatch_syscall(n, arg1, arg2, arg3, arg4, arg5, arg6);
 
     regs.rax = res as usize; // save result
 
