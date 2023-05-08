@@ -82,7 +82,7 @@ impl TryFrom<usize> for Errno {
     type Error = TryFromIntError;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        let signed = TryFrom::<usize>::try_from(value)?;
+        let signed = TryFrom::try_from(value)?;
         Ok(Self::Ok(PositiveOrZeroIsize::new(signed).unwrap()))
     }
 }
