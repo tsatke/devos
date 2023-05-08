@@ -1,7 +1,8 @@
 use crate::command::Command;
 use crate::drive::IdeDrive;
 use crate::Status;
-use kernel_api::driver::{BlockDevice, Device};
+use kernel_api::driver::block::BlockDevice;
+use kernel_api::driver::Device;
 use x86_64::instructions::interrupts::without_interrupts;
 
 #[derive(Debug, Clone)]
