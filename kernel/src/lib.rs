@@ -33,4 +33,6 @@ pub fn kernel_init(boot_info: &'static mut BootInfo) {
     acpi::init(boot_info);
     apic::init();
     interrupts::enable();
+
+    vga::do_stuff(boot_info.framebuffer.as_ref().unwrap().buffer().as_ptr() as usize);
 }

@@ -18,6 +18,7 @@ pci = { path = "../driver/pci" }
 raw-cpuid = { version = "11.0.0", default-features = false }
 spin = "0.9.8"
 uart_16550 = "0.2.18"
+vga = { path = "../driver/vga" }
 x2apic = "0.4.2"
 x86_64 = "0.14.10"
 
