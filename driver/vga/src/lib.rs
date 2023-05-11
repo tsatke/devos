@@ -36,9 +36,9 @@ pub fn do_stuff(framebuffer_start: usize) {
         }
     }
 
-    for r in (0_usize..255) {
-        for g in (0_usize..255) {
-            for b in (0_usize..255) {
+    for r in 0_usize..255 {
+        for g in 0_usize..255 {
+            for b in 0_usize..255 {
                 for y in (600..780).step_by(20) {
                     mode.draw_rect((80, y), (540, y + 10), (r << 16 | g << 8 | b) as u32);
                 }
