@@ -4,7 +4,6 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
-use core::ptr::read_volatile;
 
 pub use color::*;
 pub use drawing::*;
@@ -28,7 +27,7 @@ impl FrameBuffer {
     pub unsafe fn from_ptr(ptr: *mut PixelType) -> Self {
         let vec = Vec::from_raw_parts(ptr, PIXEL_COUNT, PIXEL_COUNT);
         #[cfg(debug_assertions)]
-        read_volatile(vec.last().unwrap() as *const u32); // try to dereference the last element to make sure this doesn't page fault if the buffer is not fully mapped
+        core::ptr::read_volatile(vec.last().unwrap() as *const u32); // try to dereference the last element to make sure this doesn't page fault if the buffer is not fully mapped
         Self(vec)
     }
 }
