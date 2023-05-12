@@ -40,15 +40,3 @@ To run the kernel in QEMU
 ```plain
 cargo run
 ```
-
-To run the tests
-
-```plain
-cargo test
-```
-
-#### What else can I do?
-
-```plain
-cargo run -- --help
-```
