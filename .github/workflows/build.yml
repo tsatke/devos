@@ -23,6 +23,7 @@ jobs:
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
           target/
+          !target/release/build/devos-*
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
     - name: Install latest nightly
       uses: actions-rs/toolchain@v1
@@ -34,9 +35,10 @@ jobs:
       run: |
         rustup target add x86_64-unknown-none
     - name: Clippy
-      run: |
-        cargo clippy
-        cargo clippy --release
+    - uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        args: --release
     - name: Build
       run: |
         cargo build --release
