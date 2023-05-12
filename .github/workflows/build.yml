@@ -33,6 +33,10 @@ jobs:
     - name: Add build target
       run: |
         rustup target add x86_64-unknown-none
+    - name: Clippy
+      run: |
+        cargo clippy
+        cargo clippy --release
     - name: Build
       run: |
         cargo build --release
