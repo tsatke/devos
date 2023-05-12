@@ -1,0 +1,32 @@
+name: Rust
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy, llvm-tools-preview, rust-src
+    - name: Add build target
+      run: |
+        rustup target add x86_64-unknown-none
+    - name: Build
+      run: |
+        cargo build --release
+    - uses: actions/upload-artifact@v3
+      with:
+        name: devos-boot-images
+        path: target/release/build/**/out/*.img
