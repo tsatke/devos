@@ -21,6 +21,10 @@ pub(crate) const PIXEL_COUNT: usize = WIDTH * HEIGHT;
 pub struct FrameBuffer(Vec<PixelType>);
 
 impl FrameBuffer {
+    /// # Safety
+    /// The caller must ensure that this is a pointer to a frame buffer that is
+    /// fully mapped in memory. This function will panic if that's not the case
+    /// if `debug_assertions` are enabled.
     pub unsafe fn from_ptr(ptr: *mut PixelType) -> Self {
         let vec = Vec::from_raw_parts(ptr, PIXEL_COUNT, PIXEL_COUNT);
         #[cfg(debug_assertions)]
