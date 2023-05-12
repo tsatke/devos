@@ -1,5 +1,5 @@
 [package]
-name = "vga"
+name = "graphics"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,3 @@ edition = "2021"
 
 [dependencies]
 bresenham = "0.1.1"
-conquer-once = { version = "0.4.0", default-features = false }
-graphics = { path = "../graphics" }
-spin = "0.9.8"

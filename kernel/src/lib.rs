@@ -19,6 +19,7 @@ pub mod arch;
 pub mod mem;
 pub mod process;
 pub mod qemu;
+pub mod screen;
 pub mod timer;
 
 #[cfg(not(any(feature = "bios", feature = "uefi")))]
@@ -32,7 +33,10 @@ pub fn kernel_init(boot_info: &'static mut BootInfo) {
     mem::init(boot_info);
     acpi::init(boot_info);
     apic::init();
-    interrupts::enable();
 
-    vga::do_stuff(boot_info.framebuffer.as_ref().unwrap().buffer().as_ptr() as usize);
+    let fb = boot_info.framebuffer.as_ref().unwrap();
+    let fb_info = fb.info();
+    screen::init(fb.buffer().as_ptr() as *const u8, fb_info);
+
+    interrupts::enable();
 }
