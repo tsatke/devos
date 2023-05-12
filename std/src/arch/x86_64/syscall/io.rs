@@ -1,4 +1,4 @@
-use crate::syscall::{syscall1, syscall3};
+use crate::arch::syscall::{syscall1, syscall3};
 use kernel_api::syscall::{Errno, Syscall};
 
 pub fn sys_read(fd: usize, buf: &mut [u8]) -> Errno {
