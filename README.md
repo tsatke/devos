@@ -25,7 +25,7 @@ Check out the next [milestone](https://github.com/tsatke/devos/milestone/1) for 
 - [ ] Drivers
   - [x] PCI driver
   - [x] IDE driver (no ATA)
-  - [ ] VGA
+  - [x] VGA
   - [ ] NVMe
   - [ ] Networking
 - [ ] Virtual File System with EXT2 implementation
