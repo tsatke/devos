@@ -34,6 +34,10 @@ jobs:
     - name: Add build target
       run: |
         rustup target add x86_64-unknown-none
+    - name: Clippy
+      uses: actions-rs/clippy-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
     - name: Build
       run: |
         cargo build --release
