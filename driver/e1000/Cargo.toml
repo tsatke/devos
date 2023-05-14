@@ -1,0 +1,12 @@
+[package]
+name = "e1000"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bit_field = "0.10.2"
+conquer-once = { version = "0.4.0", default-features = false }
+pci = { path = "../pci" }
+x86_64 = "0.14.10"

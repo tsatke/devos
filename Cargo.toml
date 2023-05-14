@@ -16,6 +16,7 @@ members = [
     "kernel",
     "kernel_api",
     "std",
+    "driver/e1000",
     "driver/graphics",
     "driver/ide",
     "driver/pci",

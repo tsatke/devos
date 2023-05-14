@@ -10,6 +10,7 @@ use core::slice::from_raw_parts;
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use e1000::E1000;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
@@ -17,6 +18,7 @@ use kernel::mem::Size;
 use kernel::process::syscall::io::sys_read;
 use kernel::{kernel_init, screen, serial_println};
 use kernel_api::driver::block::BlockDevice;
+use pci::PciDeviceClass;
 use vga::Color;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(32);
@@ -49,8 +51,24 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     syscall_stuff();
     ide_stuff();
     vga_stuff();
+    network_stuff();
 
     panic!("kernel_main returned")
+}
+
+fn network_stuff() {
+    let pci_nic = pci::devices()
+        .filter(|dev| matches!(dev.class(), PciDeviceClass::NetworkController(_)))
+        .filter(|dev| {
+            dev.vendor() == e1000::PCI_VENDOR_ID
+                && (dev.device() == e1000::PCI_DEVICE_ID_VM
+                    || dev.device() == e1000::PCI_DEVICE_ID_I217
+                    || dev.device() == e1000::PCI_DEVICE_ID_82577LM)
+        })
+        .map(|dev| pci::PciStandardHeaderDevice::new(dev.clone()).unwrap())
+        .next()
+        .unwrap();
+    let nic = E1000::new(pci_nic);
 }
 
 fn syscall_stuff() {

@@ -39,6 +39,10 @@ fn main() {
     cmd.arg("-serial").arg("stdio");
     cmd.arg("-monitor").arg("telnet::45454,server,nowait");
     cmd.arg("-d").arg("guest_errors");
+
+    cmd.arg("-netdev").arg("user,id=net0");
+    cmd.arg("-device").arg("e1000,netdev=net0");
+
     if args.fullscreen {
         cmd.arg("-fullscreen");
     }

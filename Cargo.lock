@@ -388,6 +388,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "e1000"
+version = "0.1.0"
+dependencies = [
+ "bit_field",
+ "conquer-once",
+ "pci",
+ "x86_64",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -654,6 +664,7 @@ dependencies = [
  "acpi",
  "bootloader_api",
  "conquer-once",
+ "e1000",
  "graphics",
  "ide",
  "kernel_api",
