@@ -8,27 +8,18 @@ use alloc::vec;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
-use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::structures::paging::{PageSize, Size4KiB};
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::mem::{MemoryManager, Size};
+use kernel::mem::MemoryManager;
 use kernel::process::syscall::io::sys_read;
-use kernel::{kernel_init, screen, serial_println};
+use kernel::{bootloader_config, kernel_init, screen, serial_println};
 use kernel_api::driver::block::BlockDevice;
 use vga::Color;
 
-const KERNEL_STACK_SIZE: Size = Size::KiB(32);
-
-const CONFIG: BootloaderConfig = {
-    let mut config = BootloaderConfig::new_default();
-    config.mappings.page_table_recursive = Some(Mapping::Dynamic);
-    config.mappings.framebuffer = Mapping::FixedAddress(0xa0000);
-    config.kernel_stack_size = KERNEL_STACK_SIZE.bytes() as u64;
-    config
-};
+const CONFIG: BootloaderConfig = bootloader_config();
 
 #[cfg(not(test))]
 entry_point!(kernel_main, config = &CONFIG);

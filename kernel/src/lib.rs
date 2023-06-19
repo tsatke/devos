@@ -6,10 +6,13 @@
 #![feature(naked_functions)]
 #![feature(negative_impls)]
 
-use bootloader_api::BootInfo;
+use bootloader_api::config::Mapping;
+use bootloader_api::{BootInfo, BootloaderConfig};
+use kernel_test_framework::kernel_test;
 use x86_64::instructions::interrupts;
 
 use crate::arch::{gdt, idt};
+use crate::mem::Size;
 
 extern crate alloc;
 
@@ -27,6 +30,16 @@ compile_error!("You must enable either the bios or uefi feature");
 #[cfg(all(feature = "bios", feature = "uefi"))]
 compile_error!("You must enable either the bios or uefi feature, not both");
 
+const KERNEL_STACK_SIZE: Size = Size::KiB(32);
+
+pub const fn bootloader_config() -> BootloaderConfig {
+    let mut config = BootloaderConfig::new_default();
+    config.mappings.page_table_recursive = Some(Mapping::Dynamic);
+    config.mappings.framebuffer = Mapping::FixedAddress(0xa0000);
+    config.kernel_stack_size = KERNEL_STACK_SIZE.bytes() as u64;
+    config
+}
+
 pub fn kernel_init(boot_info: &'static mut BootInfo) {
     gdt::init();
     idt::init();
@@ -36,7 +49,16 @@ pub fn kernel_init(boot_info: &'static mut BootInfo) {
 
     let fb = boot_info.framebuffer.as_ref().unwrap();
     let fb_info = fb.info();
-    screen::init(fb.buffer().as_ptr() as *const u8, fb_info);
+    screen::init(fb.buffer().as_ptr(), fb_info);
 
     interrupts::enable();
+}
+
+mod tests {
+    use super::*;
+
+    #[kernel_test]
+    fn test_it_works() {
+        assert_eq!(4, 2 + 2);
+    }
 }

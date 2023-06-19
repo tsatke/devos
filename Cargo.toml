@@ -5,6 +5,7 @@ version = "0.1.0"
 [build-dependencies]
 bootloader = "0.11"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
+kernel_test = { path = "kernel_test", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
 
 [dependencies]
 clap = { version = "4.2.2", features = ["derive"] }
@@ -15,6 +16,9 @@ ovmf-prebuilt = "0.1.0-alpha.1"
 members = [
     "kernel",
     "kernel_api",
+    "kernel_test",
+    "kernel_test_framework",
+    "kernel_test_framework/derive",
     "std",
     "driver/graphics",
     "driver/ide",
