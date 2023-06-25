@@ -8,7 +8,6 @@
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{BootInfo, BootloaderConfig};
-use kernel_test_framework::kernel_test;
 use x86_64::instructions::interrupts;
 
 use crate::arch::{gdt, idt};
@@ -54,11 +53,15 @@ pub fn kernel_init(boot_info: &'static mut BootInfo) {
     interrupts::enable();
 }
 
+#[cfg(feature = "kernel_test")]
 mod tests {
-    use super::*;
+    use kernel_test_framework::kernel_test;
 
     #[kernel_test]
     fn test_it_works() {
-        assert_eq!(4, 2 + 2);
+        fn compute() -> usize {
+            2 + 2
+        }
+        assert_eq!(4, compute());
     }
 }

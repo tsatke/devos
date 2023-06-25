@@ -25,7 +25,6 @@ pub fn expand(test_fn: ItemFn) -> TokenStream {
         #[linkme::distributed_slice(kernel_test_framework::KERNEL_TESTS)]
         static #description_name: kernel_test_framework::KernelTestDescription = kernel_test_framework::KernelTestDescription {
             name: #name,
-            fn_name: #fn_name,
             test_fn: #fn_name_ident,
             test_location: #test_location,
         };

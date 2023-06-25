@@ -32,7 +32,6 @@ impl core::fmt::Display for SourceLocation {
 #[derive(Debug, Clone)]
 pub struct KernelTestDescription {
     pub name: &'static str,
-    pub fn_name: &'static str,
     pub test_fn: KernelTestFn,
     pub test_location: SourceLocation,
 }

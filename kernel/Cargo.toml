@@ -28,3 +28,5 @@ x86_64 = "0.14.10"
 default = ["uefi"]
 bios = []
 uefi = []
+# used for testing
+kernel_test = []

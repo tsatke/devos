@@ -21,10 +21,8 @@ use vga::Color;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
-#[cfg(not(test))]
 entry_point!(kernel_main, config = &CONFIG);
 
-#[cfg(not(test))]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let ramdisk = boot_info
         .ramdisk_addr
@@ -135,7 +133,6 @@ fn vga_stuff() {
     }
 }
 
-#[cfg(not(test))]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!("kernel panicked: {}", info.message().unwrap());
