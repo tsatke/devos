@@ -11,6 +11,44 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  test:
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        mode: ["debug", "release"]
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            !target/release/build/devos-*
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy, llvm-tools-preview, rust-src
+      - name: Add build target
+        run: |
+          rustup target add x86_64-unknown-none
+      - name: Kernel unit tests
+        if: ${{ matrix.mode }} == 'debug'
+        run: |
+          cargo test
+      - name: Kernel unit tests (release)
+        if: ${{ matrix.mode }} == 'release'
+        run: |
+          cargo test --release
+
   build:
 
     runs-on: ubuntu-latest
