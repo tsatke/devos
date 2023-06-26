@@ -16,30 +16,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-          !target/release/build/devos-*
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - name: Install latest nightly
-      uses: actions-rs/toolchain@v1
-      with:
+      - uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            !target/release/build/devos-*
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
           toolchain: nightly
           override: true
           components: rustfmt, clippy, llvm-tools-preview, rust-src
-    - name: Add build target
-      run: |
-        rustup target add x86_64-unknown-none
-    - name: Build
-      run: |
-        cargo build --release
-    - uses: actions/upload-artifact@v3
-      with:
-        name: devos-boot-images
-        path: target/release/build/**/out/*.img
+      - name: Add build target
+        run: |
+          rustup target add x86_64-unknown-none
+      - name: Build
+        run: |
+          cargo build --release
+      - uses: actions/upload-artifact@v3
+        with:
+          name: devos-boot-images
+          path: target/release/build/**/out/*.img

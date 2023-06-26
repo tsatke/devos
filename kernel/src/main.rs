@@ -4,7 +4,6 @@
 
 extern crate alloc;
 
-use alloc::vec;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -75,7 +74,7 @@ fn syscall_stuff() {
 fn ide_stuff() {
     const CNT: usize = 1030;
     serial_println!("reading the first {} bytes from the boot drive...", CNT);
-    let mut buf = vec![0_u8; CNT];
+    let mut buf = [0_u8; CNT];
     let mut drive = ide::drives().next().unwrap().clone();
     drive.read_into(0, &mut buf).unwrap();
     serial_println!("read: {:02X?}", &buf[..512]);
