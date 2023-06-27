@@ -4,36 +4,24 @@
 
 extern crate alloc;
 
-use alloc::vec;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
-use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::structures::paging::{PageSize, Size4KiB};
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::mem::{MemoryManager, Size};
+use kernel::mem::MemoryManager;
 use kernel::process::syscall::io::sys_read;
-use kernel::{kernel_init, screen, serial_println};
+use kernel::{bootloader_config, kernel_init, screen, serial_println};
 use kernel_api::driver::block::BlockDevice;
 use vga::Color;
 
-const KERNEL_STACK_SIZE: Size = Size::KiB(32);
+const CONFIG: BootloaderConfig = bootloader_config();
 
-const CONFIG: BootloaderConfig = {
-    let mut config = BootloaderConfig::new_default();
-    config.mappings.page_table_recursive = Some(Mapping::Dynamic);
-    config.mappings.framebuffer = Mapping::FixedAddress(0xa0000);
-    config.kernel_stack_size = KERNEL_STACK_SIZE.bytes() as u64;
-    config
-};
-
-#[cfg(not(test))]
 entry_point!(kernel_main, config = &CONFIG);
 
-#[cfg(not(test))]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let ramdisk = boot_info
         .ramdisk_addr
@@ -86,7 +74,7 @@ fn syscall_stuff() {
 fn ide_stuff() {
     const CNT: usize = 1030;
     serial_println!("reading the first {} bytes from the boot drive...", CNT);
-    let mut buf = vec![0_u8; CNT];
+    let mut buf = [0_u8; CNT];
     let mut drive = ide::drives().next().unwrap().clone();
     drive.read_into(0, &mut buf).unwrap();
     serial_println!("read: {:02X?}", &buf[..512]);
@@ -144,7 +132,6 @@ fn vga_stuff() {
     }
 }
 
-#[cfg(not(test))]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!("kernel panicked: {}", info.message().unwrap());

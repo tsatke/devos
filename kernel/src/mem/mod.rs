@@ -102,3 +102,24 @@ macro_rules! map_page {
         unsafe { address_space.map_to(page, $frame, $flags).unwrap().flush() }
     }};
 }
+
+#[cfg(feature = "kernel_test")]
+mod tests {
+    use crate::mem::HEAP_SIZE;
+    use alloc::boxed::Box;
+    use core::ptr::write_volatile;
+    use kernel_test_framework::kernel_test;
+
+    #[kernel_test]
+    fn test_heap_allocation_deallocation() {
+        // just making sure that we allocate more that we have available in total, to
+        // make sure that the memory is dropped again
+        for _ in 0..HEAP_SIZE.bytes() / 512 {
+            let mut data = Box::new([0xAB_u8; 1024]);
+            data.iter().for_each(|&element| assert_eq!(0xAB, element));
+            data.iter_mut()
+                .for_each(|element| unsafe { write_volatile(element as *mut u8, 17) });
+            data.iter().for_each(|&element| assert_eq!(0x11, element));
+        }
+    }
+}
