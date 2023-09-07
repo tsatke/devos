@@ -15,7 +15,7 @@ use kernel::arch::panic::handle_panic;
 use kernel::mem::Size;
 use kernel::process::syscall::io::sys_read;
 use kernel::{kernel_init, serial_println};
-use kernel_api::driver::BlockDevice;
+use kernel_api::driver::block::BlockDevice;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(32);
 
