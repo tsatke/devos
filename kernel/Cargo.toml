@@ -9,6 +9,7 @@ edition = "2021"
 acpi = "4.1.1"
 bootloader_api = "0.11"
 conquer-once = { version = "0.4.0", default-features = false }
+derive_more = "0.99.17"
 graphics = { path = "../driver/graphics" }
 ide = { path = "../driver/ide" }
 kernel_api = { path = "../kernel_api" }

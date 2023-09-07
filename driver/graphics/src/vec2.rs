@@ -61,17 +61,17 @@ impl Add for Vec2 {
 
 impl PartialOrd for Vec2 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let res = self.y.cmp(&other.y);
-        Some(match res {
-            Ordering::Equal => self.x.cmp(&other.x),
-            _ => res,
-        })
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Vec2 {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        let res = self.y.cmp(&other.y);
+        match res {
+            Ordering::Equal => self.x.cmp(&other.x),
+            _ => res,
+        }
     }
 }
 

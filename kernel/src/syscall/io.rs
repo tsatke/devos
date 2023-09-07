@@ -3,7 +3,8 @@ use kernel_api::syscall::{Errno, ENOSYS};
 
 pub fn sys_read(fd: usize, buf: &mut [u8]) -> Errno {
     serial_println!("sys_read({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
-    0.into()
+    buf[0] = 1;
+    1.into()
 }
 
 pub fn sys_write(fd: usize, buf: &[u8]) -> Errno {

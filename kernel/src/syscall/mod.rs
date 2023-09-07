@@ -1,7 +1,7 @@
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 use kernel_api::syscall::{Errno, Syscall, ENOSYS};
 
-use crate::process::syscall::io::*;
+use crate::syscall::io::*;
 
 pub mod io;
 

@@ -1,5 +1,5 @@
 use crate::arch::idt;
-use crate::process::syscall::dispatch_syscall;
+use crate::syscall::dispatch_syscall;
 use x86_64::structures::idt::InterruptStackFrame;
 
 #[repr(align(8), C)]

@@ -30,13 +30,13 @@ impl Eq for Size {}
 
 impl PartialOrd for Size {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.bytes().cmp(&other.bytes()))
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Size {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        self.bytes().cmp(&other.bytes())
     }
 }
 

@@ -8,7 +8,7 @@ static mut INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 pub fn init(heap_start: *mut u8, heap_size: usize) {
     unsafe {
-        ALLOCATOR.lock().init(heap_start as *mut u8, heap_size);
+        ALLOCATOR.lock().init(heap_start, heap_size);
         INITIALIZED.store(true, Relaxed);
     }
 }

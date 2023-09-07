@@ -11,6 +11,7 @@ use x86_64::VirtAddr;
 
 use crate::mem::{FrameAllocatorDelegate, MemoryManager};
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct AddressSpace {
     /// The virtual address of the level 4 page table **in this address space**.
     /// You can not dereference this and have the page table while this address

@@ -655,6 +655,7 @@ dependencies = [
  "acpi",
  "bootloader_api",
  "conquer-once",
+ "derive_more",
  "graphics",
  "ide",
  "kernel_api",

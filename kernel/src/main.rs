@@ -15,7 +15,7 @@ use x86_64::structures::paging::{PageSize, Size4KiB};
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
 use kernel::mem::{MemoryManager, Size};
-use kernel::process::syscall::io::sys_read;
+use kernel::syscall::io::sys_read;
 use kernel::{kernel_init, screen, serial_println};
 use kernel_api::driver::block::BlockDevice;
 use vga::Color;

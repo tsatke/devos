@@ -9,7 +9,7 @@ pub use heap::*;
 pub use manager::*;
 pub use size::*;
 
-use crate::process::task::Task;
+use crate::process::Process;
 use crate::{process, serial_println};
 
 mod address_space;
@@ -82,8 +82,8 @@ pub fn init(boot_info: &'static BootInfo) {
         heap::size() / 1024 / 1024,
     );
 
-    let task = Task::new(address_space);
-    let _ = process::current_task_mut().insert(task);
+    let root_process = Process::new(address_space);
+    process::init(root_process);
 
     // let _new_address_space = AddressSpace::allocate_new(&mut address_space);
 }
@@ -97,8 +97,9 @@ macro_rules! map_page {
     }};
     ($page:expr, $frame:expr, $size:ident, $flags:expr) => {{
         let page: Page<$size> = $page;
-        let mut task = $crate::process::current_task_mut();
-        let address_space = task.as_mut().unwrap().address_space_mut();
+        let process = $crate::process::current();
+        let mut guard = process.write();
+        let address_space = guard.address_space_mut();
         unsafe { address_space.map_to(page, $frame, $flags).unwrap().flush() }
     }};
 }

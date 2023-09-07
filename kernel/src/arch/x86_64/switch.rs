@@ -1,0 +1,89 @@
+use core::arch::asm;
+
+macro_rules! push_context {
+    () => {
+        concat!(
+            r#"
+			pushfq
+			push rax
+			push rbx
+			push rcx
+			push rdx
+			sub  rsp, 8
+			push rbp
+			push rsi
+			push rdi
+			push r8
+			push r9
+			push r10
+			push r11
+			push r12
+			push r13
+			push r14
+			push r15
+			"#,
+        )
+    };
+}
+
+macro_rules! pop_context {
+    () => {
+        concat!(
+            r#"
+			pop r15
+			pop r14
+			pop r13
+			pop r12
+			pop r11
+			pop r10
+			pop r9
+			pop r8
+			pop rdi
+			pop rsi
+			add rsp, 8
+			pop rbp
+			pop rdx
+			pop rcx
+			pop rbx
+			pop rax
+			popfq
+			"#
+        )
+    };
+}
+
+/// Perform a context switch.
+///
+/// `_old_stack` is the pointer where the current stack pointer will be written to.
+/// ```notrust
+/// *_old_stack = $rsp;
+/// ```
+/// `_new_stack` is the stack pointer that we want to switch to.
+/// ```notrust
+/// $rsp = _new_stack;
+/// ```
+///
+/// Notice that `_old_stack` is being dereferenced, while `_new_stack` is not.
+///
+/// # Safety
+///
+/// Switching to another context is unsafe, as it executes
+/// some other code without any drop or safety guarantees
+/// about the caller of this method. The caller must ensure
+/// that _old_stack and _new_stack are valid pointers to
+/// a task stack.
+#[naked]
+pub unsafe extern "C" fn switch(_old_stack: *mut usize, _new_stack: *const u8) -> ! {
+    // _old_stack is located in $rdi, _new_stack is in $rsi
+
+    asm!(
+        "cli",
+        push_context!(),
+        "mov [rdi], rsp", // write the stack pointer rsp at *_old_stack
+        "mov rsp, rsi",   // write _new_stack into rsp
+        pop_context!(),
+        "sti", // enable interrupts
+        "ret",
+        options(noreturn)
+    )
+}
