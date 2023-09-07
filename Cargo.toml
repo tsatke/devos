@@ -7,9 +7,10 @@ bootloader = "0.11"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
 
 [dependencies]
-clap = { version = "4.2.2", features = ["derive"] }
+clap = { version = "4", features = ["derive"] }
 # used for UEFI booting in QEMU
 ovmf-prebuilt = "0.1.0-alpha.1"
+proc-macro2 = "1.0.66" # override 1.0.56 which doesn't work on nightly anymore
 
 [workspace]
 members = [

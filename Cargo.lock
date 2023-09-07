@@ -206,9 +206,9 @@ dependencies = [
 
 [[package]]
 name = "bootloader"
-version = "0.11.3"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a623ba99dacbbdd212c750acdf90e54efc49fa6b01e136d7ef6600d59d411709"
+checksum = "e092090f6e2b68cee8dc291ec60e4706f6b0c5cd90b666a5248a20f30591ccb0"
 dependencies = [
  "anyhow",
  "async-process",
@@ -225,9 +225,9 @@ dependencies = [
 
 [[package]]
 name = "bootloader-boot-config"
-version = "0.11.3"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ae5f1e50b39501e5402f68c154c01a58047af0c9fb8df7553c4594ef64955fa"
+checksum = "a36c0df7b26b44254828ece99ed72aa01695cc37f007a97afe8aee29feb26e3e"
 dependencies = [
  "serde",
 ]
@@ -385,6 +385,7 @@ dependencies = [
  "clap",
  "kernel",
  "ovmf-prebuilt",
+ "proc-macro2",
 ]
 
 [[package]]
@@ -845,9 +846,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.56"
+version = "1.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b63bdb0cd06f1f4dedf69b254734f9b45af66e4a031e42a7480257d9898b435"
+checksum = "18fb31db3f9bddb2ea821cde30a9f70117e3f119938b5ee630b7403aa6e2ead9"
 dependencies = [
  "unicode-ident",
 ]
