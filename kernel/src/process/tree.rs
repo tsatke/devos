@@ -64,8 +64,7 @@ impl ProcessTree {
         self.iter().find(|node| {
             node.children
                 .iter()
-                .find(|child| child.process_id() == child_id)
-                .is_some()
+                .any(|child| child.process_id() == child_id)
         })
     }
 

@@ -1,4 +1,3 @@
-use alloc::ffi::CString;
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 use kernel_api::syscall::{Errno, Syscall, EINVAL, ENAMETOOLONG, ENOSYS};
 
@@ -71,12 +70,5 @@ fn dispatch_sys_close(arg1: usize) -> Errno {
 }
 
 fn strlen_s(ptr: *const u8, max: usize) -> Option<usize> {
-    let mut len = 0;
-    for _ in 0..max {
-        if unsafe { *ptr } == 0 {
-            return Some(len);
-        }
-        len += 1;
-    }
-    None
+    (0..max).find(|&i| unsafe { *ptr.add(i) } == 0)
 }

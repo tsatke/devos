@@ -25,7 +25,7 @@ pub trait Fs {
     fn root_inode(&self) -> INode;
 }
 
-pub trait INodeBase {
+pub trait INodeBase: Send + Sync {
     fn num(&self) -> INodeNum;
 
     fn name(&self) -> String;

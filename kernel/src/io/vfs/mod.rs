@@ -69,7 +69,7 @@ impl Vfs {
                 let guard = link.read();
                 let target_path = guard.target_path()?;
                 let symlink_target_node =
-                    Self::find_inode_from(&target_path.as_path(), target_node)?;
+                    Self::find_inode_from(target_path.as_path(), target_node)?;
                 if !matches!(symlink_target_node, INode::Dir(_)) {
                     return Err(MountError::NotDirectory);
                 }
@@ -86,10 +86,8 @@ impl Vfs {
 
         // check that we got an absolute path
         let first = components.next();
-        if first != Some(Component::RootDir) {
-            return Err(LookupError::NoSuchEntry)?;
-        } else if first.is_none() {
-            return Err(LookupError::NoSuchEntry)?;
+        if !first.is_some_and(|e| matches!(e, Component::RootDir)) {
+            return Err(LookupError::NoSuchEntry);
         }
 
         Self::find_inode_from(p, self.root.clone())
@@ -123,7 +121,7 @@ impl Vfs {
                             let guard = link.read();
                             let target_path = guard.target_path()?;
                             let target_node =
-                                Self::find_inode_from(&target_path.as_path(), current)?;
+                                Self::find_inode_from(target_path.as_path(), current)?;
                             if !matches!(target_node, INode::Dir(_)) {
                                 return Err(LookupError::NoSuchEntry);
                             }
