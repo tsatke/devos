@@ -1,13 +1,11 @@
 use crate::process::task::Task;
-use lazy_static::lazy_static;
+use conquer_once::spin::Lazy;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 pub mod syscall;
 pub mod task;
 
-lazy_static! {
-    static ref CURRENT_TASK: RwLock<Option<Task>> = RwLock::new(None);
-}
+static CURRENT_TASK: Lazy<RwLock<Option<Task>>> = Lazy::new(|| RwLock::new(None));
 
 pub fn current_task<'a>() -> RwLockReadGuard<'a, Option<Task>> {
     CURRENT_TASK.read()

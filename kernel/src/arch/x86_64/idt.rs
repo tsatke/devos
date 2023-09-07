@@ -1,7 +1,7 @@
+use conquer_once::spin::Lazy;
 use core::arch::asm;
 use core::mem::transmute;
 
-use lazy_static::lazy_static;
 use num_enum::IntoPrimitive;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::PrivilegeLevel;
@@ -13,34 +13,32 @@ use crate::arch::syscall::syscall_handler_impl;
 use crate::serial_println;
 use crate::timer::notify_timer_interrupt;
 
-lazy_static! {
-    static ref IDT: InterruptDescriptorTable = {
-        let mut idt = InterruptDescriptorTable::new();
-        idt.divide_error.set_handler_fn(divide_error_handler);
-        idt.breakpoint.set_handler_fn(breakpoint_handler);
-        idt.page_fault.set_handler_fn(page_fault_handler);
-        idt.overflow.set_handler_fn(overflow_handler);
-        idt.general_protection_fault
-            .set_handler_fn(general_protection_fault_handler);
-        idt.stack_segment_fault
-            .set_handler_fn(stack_segment_fault_handler);
-        idt.segment_not_present
-            .set_handler_fn(segment_not_present_fault_handler);
-        unsafe {
-            idt.double_fault
-                .set_handler_fn(double_fault_handler)
-                .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
-            idt[InterruptIndex::Syscall.into()]
-                .set_handler_fn(transmute(syscall_handler as *mut fn()))
-                .set_privilege_level(PrivilegeLevel::Ring3);
-        }
-        idt[InterruptIndex::Timer.into()].set_handler_fn(timer_interrupt_handler);
-        idt[InterruptIndex::Keyboard.into()].set_handler_fn(keyboard_interrupt_handler);
-        idt[InterruptIndex::LapicErr.into()].set_handler_fn(lapic_err_interrupt_handler);
-        idt[InterruptIndex::Spurious.into()].set_handler_fn(spurious_interrupt_handler);
-        idt
-    };
-}
+static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
+    let mut idt = InterruptDescriptorTable::new();
+    idt.divide_error.set_handler_fn(divide_error_handler);
+    idt.breakpoint.set_handler_fn(breakpoint_handler);
+    idt.page_fault.set_handler_fn(page_fault_handler);
+    idt.overflow.set_handler_fn(overflow_handler);
+    idt.general_protection_fault
+        .set_handler_fn(general_protection_fault_handler);
+    idt.stack_segment_fault
+        .set_handler_fn(stack_segment_fault_handler);
+    idt.segment_not_present
+        .set_handler_fn(segment_not_present_fault_handler);
+    unsafe {
+        idt.double_fault
+            .set_handler_fn(double_fault_handler)
+            .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
+        idt[InterruptIndex::Syscall.into()]
+            .set_handler_fn(transmute(syscall_handler as *mut fn()))
+            .set_privilege_level(PrivilegeLevel::Ring3);
+    }
+    idt[InterruptIndex::Timer.into()].set_handler_fn(timer_interrupt_handler);
+    idt[InterruptIndex::Keyboard.into()].set_handler_fn(keyboard_interrupt_handler);
+    idt[InterruptIndex::LapicErr.into()].set_handler_fn(lapic_err_interrupt_handler);
+    idt[InterruptIndex::Spurious.into()].set_handler_fn(spurious_interrupt_handler);
+    idt
+});
 
 pub fn init() {
     IDT.load();

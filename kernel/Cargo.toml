@@ -12,7 +12,6 @@ conquer-once = { version = "0.4.0", default-features = false }
 graphics = { path = "../driver/graphics" }
 ide = { path = "../driver/ide" }
 kernel_api = { path = "../kernel_api" }
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 linked_list_allocator = "0.10.5"
 num_enum = { version = "0.6.1", default-features = false }
 pci = { path = "../driver/pci" }
