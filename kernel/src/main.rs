@@ -14,8 +14,9 @@ use x86_64::structures::paging::{PageSize, Size4KiB};
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
+use kernel::io::vfs::find;
 use kernel::mem::{MemoryManager, Size};
-use kernel::syscall::io::sys_read;
+use kernel::syscall::io::{sys_access, sys_read, AMode};
 use kernel::{kernel_init, screen, serial_println};
 use kernel_api::driver::block::BlockDevice;
 use vga::Color;
@@ -50,7 +51,27 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     syscall_stuff();
     ide_stuff();
     vga_stuff();
+    mm_stuff();
+    fs_stuff();
 
+    panic!("kernel_main returned")
+}
+
+fn fs_stuff() {
+    serial_println!("find /: {:?}", find("/"));
+    serial_println!("find /mem: {:?}", find("/mem"));
+    serial_println!("find /mem/hello.txt: {:?}", find("/mem/hello.txt"));
+    serial_println!(
+        "access /mem (syscall): {:?}",
+        sys_access("/mem", AMode::F_OK)
+    );
+    serial_println!(
+        "access /mem/hello.txt (syscall): {:?}",
+        sys_access("/mem/hello.txt", AMode::F_OK)
+    );
+}
+
+fn mm_stuff() {
     // try to produce an out-of-memory
     let mut mm = MemoryManager::lock();
     let count = 1_u64 << 15;
@@ -73,8 +94,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         "average cpu cycles per physical frame allocation and deallocation: {}",
         avg
     );
-
-    panic!("kernel_main returned")
 }
 
 fn syscall_stuff() {

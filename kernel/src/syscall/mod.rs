@@ -1,5 +1,6 @@
+use alloc::ffi::CString;
 use core::slice::{from_raw_parts, from_raw_parts_mut};
-use kernel_api::syscall::{Errno, Syscall, ENOSYS};
+use kernel_api::syscall::{Errno, Syscall, EINVAL, ENAMETOOLONG, ENOSYS};
 
 use crate::syscall::io::*;
 
@@ -24,6 +25,7 @@ pub fn dispatch_syscall(
 
     unsafe {
         match syscall {
+            Syscall::Access => dispatch_sys_access(arg1, arg2),
             Syscall::Read => dispatch_sys_read(arg1, arg2, arg3),
             Syscall::Write => dispatch_sys_write(arg1, arg2, arg3),
             Syscall::Open => dispatch_sys_open(arg1, arg2, arg3),
@@ -32,6 +34,23 @@ pub fn dispatch_syscall(
         }
     }
     .into()
+}
+
+unsafe fn dispatch_sys_access(arg1: usize, arg2: usize) -> Errno {
+    let ptr = arg1 as *const u8; // FIXME: check that `path` points to userspace data
+
+    // FIXME: use PATH_MAX instead of hard coded 255
+    let len = match strlen_s(ptr, 255) {
+        None => return ENAMETOOLONG,
+        Some(v) => v,
+    };
+    unsafe {
+        let path = match core::str::from_utf8(from_raw_parts(ptr, len)) {
+            Ok(v) => v,
+            Err(_) => return EINVAL,
+        };
+        sys_access(path, AMode::from_bits_truncate(arg2))
+    }
 }
 
 unsafe fn dispatch_sys_read(arg1: usize, arg2: usize, arg3: usize) -> Errno {
@@ -49,4 +68,15 @@ unsafe fn dispatch_sys_open(arg1: usize, arg2: usize, arg3: usize) -> Errno {
 
 fn dispatch_sys_close(arg1: usize) -> Errno {
     sys_close(arg1)
+}
+
+fn strlen_s(ptr: *const u8, max: usize) -> Option<usize> {
+    let mut len = 0;
+    for _ in 0..max {
+        if unsafe { *ptr } == 0 {
+            return Some(len);
+        }
+        len += 1;
+    }
+    None
 }

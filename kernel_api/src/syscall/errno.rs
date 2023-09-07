@@ -137,6 +137,8 @@ macro_rules! errno {
     };
 }
 
+pub const OK: Errno = Errno::from_isize(0);
+
 errno! {
     /// Operation not permitted
     ///

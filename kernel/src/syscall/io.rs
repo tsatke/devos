@@ -1,5 +1,30 @@
+use crate::io::vfs::find;
 use crate::serial_println;
-use kernel_api::syscall::{Errno, ENOSYS};
+use bitflags::bitflags;
+use kernel_api::syscall::{Errno, ENOENT, ENOSYS, OK};
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+    pub struct AMode: usize {
+        const F_OK = 0;
+        const X_OK = 1;
+        const W_OK = 2;
+        const R_OK = 4;
+    }
+}
+
+pub fn sys_access(path: &str, amode: AMode) -> Errno {
+    if amode != AMode::F_OK {
+        // TODO: support permissions
+        return ENOSYS;
+    }
+
+    if find(path).is_ok() {
+        OK
+    } else {
+        ENOENT
+    }
+}
 
 pub fn sys_read(fd: usize, buf: &mut [u8]) -> Errno {
     serial_println!("sys_read({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());

@@ -1,7 +1,6 @@
 use crate::arch::switch::switch;
 use crate::process::task::{Finished, Ready, Running, Task};
 use crate::process::{Process, ProcessId, ProcessTree};
-use crate::serial_println;
 use alloc::collections::VecDeque;
 use core::mem::{swap, MaybeUninit};
 use x86_64::instructions::interrupts;

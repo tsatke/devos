@@ -10,12 +10,14 @@ use bootloader_api::BootInfo;
 use x86_64::instructions::interrupts;
 
 use crate::arch::{gdt, idt};
+use crate::io::vfs;
 
 extern crate alloc;
 
 pub mod acpi;
 pub mod apic;
 pub mod arch;
+pub mod io;
 pub mod mem;
 pub mod process;
 pub mod qemu;
@@ -35,6 +37,7 @@ pub fn kernel_init(boot_info: &'static mut BootInfo) {
     mem::init(boot_info);
     acpi::init(boot_info);
     apic::init();
+    vfs::init();
 
     let fb = boot_info.framebuffer.as_ref().unwrap();
     let fb_info = fb.info();
