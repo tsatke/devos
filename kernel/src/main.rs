@@ -15,8 +15,10 @@ use x86_64::structures::paging::{PageSize, Size4KiB};
 use filesystem::BlockDevice;
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
+use kernel::io::vfs::InodeBase;
+use kernel::io::vfs::{find, Inode};
 use kernel::mem::{MemoryManager, Size};
-use kernel::syscall::io::sys_read;
+use kernel::syscall::io::{sys_access, sys_read, AMode};
 use kernel::{kernel_init, screen, serial_println};
 use vga::Color;
 
@@ -25,7 +27,7 @@ const KERNEL_STACK_SIZE: Size = Size::KiB(32);
 const CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
     config.mappings.page_table_recursive = Some(Mapping::Dynamic);
-    config.mappings.framebuffer = Mapping::FixedAddress(0xa0000);
+    config.mappings.framebuffer = Mapping::Dynamic;
     config.kernel_stack_size = KERNEL_STACK_SIZE.bytes() as u64;
     config
 };
@@ -49,10 +51,32 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     // syscall_stuff();
     // ide_stuff();
-    // vga_stuff();
+    vga_stuff();
     // mm_stuff();
 
+    serial_println!("sys_access /dev: {:?}", sys_access("/dev", AMode::F_OK));
+    ls("/");
+    ls("/dev");
+    ls("/mnt");
+
     panic!("kernel_main returned")
+}
+
+fn ls(path: &str) {
+    let root = find(path).ok().and_then(|inode| inode.as_dir()).unwrap();
+    let guard = root.read();
+    let children = guard.children().unwrap();
+    serial_println!("ls '{}'", path);
+    for child in children.iter() {
+        let indicator = match child {
+            Inode::Dir(_) => "d",
+            Inode::File(_) => "f",
+            Inode::BlockDevice(_) => "b",
+            Inode::CharacterDevice(_) => "c",
+            Inode::Symlink(_) => "l",
+        };
+        serial_println!("  {} {}", indicator, child.name());
+    }
 }
 
 fn mm_stuff() {

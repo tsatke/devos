@@ -55,6 +55,10 @@ fn collect_os_disk_artifacts(out_dir: &Path) -> PathBuf {
     }
     fs::create_dir(&os_disk_dir).unwrap();
 
+    // set up rootdir structure
+    fs::create_dir(os_disk_dir.join("dev")).unwrap();
+    fs::create_dir(os_disk_dir.join("mnt")).unwrap();
+
     for name in [
         // the names of the binaries are defined as artifact dependencies in the `Cargo.toml`
         "hello_world",

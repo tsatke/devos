@@ -1,19 +1,23 @@
-use crate::io::vfs::ext2::{ext2_inode_to_inode, InnerHandle};
+use crate::io::vfs;
+use crate::io::vfs::ext2::ext2_inode_to_inode;
 use crate::io::vfs::{
-    CreateError, CreateNodeType, Dir, Inode, InodeBase, InodeNum, LookupError, MountError,
-    Permission, Stat,
+    CreateError, CreateNodeType, Dir, Inode, InodeBase, LookupError, Permission, Stat,
 };
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 pub struct Ext2Dir<T> {
-    inner: InnerHandle<T>,
+    inner: vfs::ext2::InnerHandle<T>,
     dir: ext2::Directory,
     name: String,
 }
 
 impl<T> Ext2Dir<T> {
-    pub(crate) fn new(inner: InnerHandle<T>, dir: ext2::Directory, name: String) -> Self {
+    pub(crate) fn new(
+        inner: vfs::ext2::InnerHandle<T>,
+        dir: ext2::Directory,
+        name: String,
+    ) -> Self {
         Self { inner, dir, name }
     }
 }
@@ -22,16 +26,14 @@ impl<T> InodeBase for Ext2Dir<T>
 where
     T: filesystem::BlockDevice + Send + Sync,
 {
-    fn num(&self) -> InodeNum {
-        1_u64.into()
-    }
-
     fn name(&self) -> String {
         self.name.clone() // TODO: remove clone, but that requires some fixing in other places, where the name is behind a lock
     }
 
     fn stat(&self) -> Stat {
         Stat {
+            dev: self.inner.read().fsid,
+            inode: self.dir.inode_address().get().into(),
             ..Default::default()
         }
     }
@@ -58,10 +60,6 @@ where
 
     fn children(&self) -> Result<Vec<Inode>, LookupError> {
         Ok(self.list_entry_inodes()?.collect())
-    }
-
-    fn mount(&mut self, node: Inode) -> Result<(), MountError> {
-        todo!()
     }
 }
 

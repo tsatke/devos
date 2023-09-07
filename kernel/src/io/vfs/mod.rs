@@ -1,7 +1,12 @@
 use alloc::borrow::ToOwned;
-use alloc::string::ToString;
+use alloc::collections::BTreeMap;
 use core::mem::MaybeUninit;
+use core::sync::atomic::AtomicU64;
+use core::sync::atomic::Ordering::Relaxed;
+use root::RootDir;
+use spin::RwLock;
 
+mod devfs;
 mod error;
 mod inode;
 mod memfs;
@@ -13,13 +18,15 @@ pub mod ext2;
 pub use error::*;
 pub use inode::*;
 pub use perm::*;
-use root::RootDir;
 
 use crate::io::path::{Component, Path};
+use crate::io::vfs::devfs::DevFs;
 use crate::io::vfs::ext2::Ext2Fs;
 use crate::syscall::io::{sys_access, AMode};
 
 static mut VFS: MaybeUninit<Vfs> = MaybeUninit::uninit();
+
+static FSID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub fn init() {
     let root_drive = ide::drives()
@@ -28,20 +35,21 @@ pub fn init() {
         .clone();
 
     let rootfs_dev = ::ext2::Ext2Fs::try_new(root_drive).expect("root drive must be ext2 for now");
-    let rootfs = Ext2Fs::new(rootfs_dev, "/".to_string());
+    let rootfs = Ext2Fs::new(FSID_COUNTER.fetch_add(1, Relaxed), rootfs_dev);
 
     unsafe {
         VFS.write(Vfs::new())
             .set_root(rootfs.root_inode().expect("unable to read root inode"));
     }
 
-    if sys_access("/dev", AMode::F_OK).is_err() {
-        todo!("no /dev, creating");
+    if !sys_access("/dev", AMode::F_OK).is_ok() {
+        todo!("create /dev");
     }
+    mount("/dev", DevFs::new(FSID_COUNTER.fetch_add(1, Relaxed))).expect("unable to mount devfs");
 }
 
-pub fn mount(p: impl AsRef<Path>, node: Inode) -> Result<(), MountError> {
-    unsafe { vfs() }.mount(p, node)
+pub fn mount(p: impl AsRef<Path>, fs: impl Fs) -> Result<(), MountError> {
+    unsafe { vfs() }.mount(p, fs)
 }
 
 pub fn find(p: impl AsRef<Path>) -> Result<Inode, LookupError> {
@@ -49,7 +57,7 @@ pub fn find(p: impl AsRef<Path>) -> Result<Inode, LookupError> {
 }
 
 pub fn find_from(p: impl AsRef<Path>, starting_point: Inode) -> Result<Inode, LookupError> {
-    Vfs::find_inode_from(p, starting_point)
+    unsafe { vfs() }.find_inode_from(p, starting_point)
 }
 
 unsafe fn vfs() -> &'static Vfs {
@@ -58,6 +66,7 @@ unsafe fn vfs() -> &'static Vfs {
 
 pub struct Vfs {
     root: Inode,
+    mounts: RwLock<BTreeMap<(u64, InodeNum), Inode>>,
 }
 
 impl Vfs {
@@ -70,6 +79,7 @@ impl Vfs {
                     ..Default::default()
                 },
             )),
+            mounts: RwLock::new(BTreeMap::new()),
         }
     }
 
@@ -77,29 +87,14 @@ impl Vfs {
         self.root = root;
     }
 
-    fn mount(&self, p: impl AsRef<Path>, node: Inode) -> Result<(), MountError> {
-        let target_node = match self.find(p) {
-            Ok(n) => n,
-            Err(e) => return Err(e)?,
-        };
-        let dir = match target_node.clone() {
-            Inode::File(_) => return Err(MountError::NotDirectory),
-            Inode::Dir(d) => d,
-            Inode::BlockDevice(_) => return Err(MountError::NotDirectory),
-            Inode::CharacterDevice(_) => return Err(MountError::NotDirectory),
-            Inode::Symlink(link) => {
-                let guard = link.read();
-                let target_path = guard.target_path()?;
-                let symlink_target_node =
-                    Self::find_inode_from(target_path.as_path(), target_node)?;
-                if !matches!(symlink_target_node, Inode::Dir(_)) {
-                    return Err(MountError::NotDirectory);
-                }
-                symlink_target_node.as_dir().unwrap()
-            }
-        };
-        let mut guard = dir.write();
-        guard.mount(node)
+    fn mount(&self, p: impl AsRef<Path>, fs: impl Fs) -> Result<(), MountError> {
+        let mountee = fs.root_inode();
+        let mount_point = find(p).map_err(|e| MountError::LookupError(e))?;
+
+        self.mounts
+            .write()
+            .insert((mount_point.stat().dev, mount_point.num()), mountee);
+        Ok(())
     }
 
     fn find(&self, p: impl AsRef<Path>) -> Result<Inode, LookupError> {
@@ -112,10 +107,14 @@ impl Vfs {
             return Err(LookupError::NoSuchEntry);
         }
 
-        Self::find_inode_from(p, self.root.clone())
+        self.find_inode_from(p, self.root.clone())
     }
 
-    fn find_inode_from(p: impl AsRef<Path>, starting_point: Inode) -> Result<Inode, LookupError> {
+    fn find_inode_from(
+        &self,
+        p: impl AsRef<Path>,
+        starting_point: Inode,
+    ) -> Result<Inode, LookupError> {
         let path = p.as_ref().to_owned();
         let components = path.components();
 
@@ -143,7 +142,7 @@ impl Vfs {
                             let guard = link.read();
                             let target_path = guard.target_path()?;
                             let target_node =
-                                Self::find_inode_from(target_path.as_path(), current)?;
+                                self.find_inode_from(target_path.as_path(), current)?;
                             if !matches!(target_node, Inode::Dir(_)) {
                                 return Err(LookupError::NoSuchEntry);
                             }
@@ -157,6 +156,12 @@ impl Vfs {
                         Err(_) => return Err(LookupError::NoSuchEntry),
                     };
                     current = new_current;
+
+                    // check if current is a mount point
+                    let id = (current.stat().dev, current.num());
+                    if let Some(inode) = self.mounts.read().get(&id) {
+                        current = inode.clone();
+                    }
                 }
             };
         }

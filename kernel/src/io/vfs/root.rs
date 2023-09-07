@@ -1,9 +1,7 @@
 use crate::io::vfs::IoError::Unsupported;
 use crate::io::vfs::LookupError::NoSuchEntry;
-use crate::io::vfs::MountError::ExistsButShouldNot;
 use crate::io::vfs::{
-    CreateError, CreateNodeType, Dir, Inode, InodeBase, InodeNum, LookupError, MountError,
-    Permission, Stat,
+    CreateError, CreateNodeType, Dir, Inode, InodeBase, InodeNum, LookupError, Permission, Stat,
 };
 use alloc::collections::BTreeMap;
 use alloc::string::String;
@@ -58,13 +56,5 @@ impl Dir for RootDir {
 
     fn children(&self) -> Result<Vec<Inode>, LookupError> {
         Ok(self.children.values().cloned().collect())
-    }
-
-    fn mount(&mut self, node: Inode) -> Result<(), MountError> {
-        if self.children.get(&node.name()).is_some() {
-            return Err(ExistsButShouldNot);
-        }
-        self.children.insert(node.name(), node);
-        Ok(())
     }
 }

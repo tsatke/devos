@@ -1,5 +1,5 @@
 use crate::io::vfs::Inode;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use dir::Ext2Dir;
 use ext2::{Directory, RegularFile};
@@ -13,17 +13,15 @@ pub use file::*;
 
 pub struct Ext2Fs<T> {
     inner: InnerHandle<T>,
-    root_node_name: String,
 }
 
 impl<T> Ext2Fs<T>
 where
     T: filesystem::BlockDevice + Send + Sync + 'static,
 {
-    pub fn new(inner: ext2::Ext2Fs<T>, root_node_name: String) -> Self {
+    pub fn new(fsid: u64, inner: ext2::Ext2Fs<T>) -> Self {
         Self {
-            inner: Arc::new(RwLock::new(Inner { fs: inner })),
-            root_node_name,
+            inner: Arc::new(RwLock::new(Inner { fs: inner, fsid })),
         }
     }
 
@@ -32,7 +30,7 @@ where
         Some(Inode::new_dir(Ext2Dir::new(
             self.inner.clone(),
             dir,
-            self.root_node_name.clone(),
+            "/".to_string(),
         )))
     }
 }
@@ -41,13 +39,18 @@ pub(crate) type InnerHandle<T> = Arc<RwLock<Inner<T>>>;
 
 pub(crate) struct Inner<T> {
     fs: ext2::Ext2Fs<T>,
+    fsid: u64,
 }
 
-fn ext2_inode_to_inode<T>(inner: InnerHandle<T>, ext2_inode: ext2::Inode, name: String) -> Inode
+fn ext2_inode_to_inode<T>(
+    inner: InnerHandle<T>,
+    ext2_inode: (ext2::InodeAddress, ext2::Inode),
+    name: String,
+) -> Inode
 where
     T: filesystem::BlockDevice + 'static + Send + Sync,
 {
-    match ext2_inode.typ() {
+    match ext2_inode.1.typ() {
         ext2::Type::Directory => Inode::new_dir(Ext2Dir::new(
             inner,
             Directory::try_from(ext2_inode).unwrap(),
@@ -58,6 +61,6 @@ where
             RegularFile::try_from(ext2_inode).unwrap(),
             name,
         )),
-        _ => todo!("todo: {:?}", ext2_inode.typ()),
+        _ => todo!("todo: {:?}", ext2_inode.1.typ()),
     }
 }

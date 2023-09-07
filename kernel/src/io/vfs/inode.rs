@@ -1,5 +1,5 @@
 use crate::io::path::OwnedPath;
-use crate::io::vfs::{CreateError, LookupError, MountError, Permission, ReadError, WriteError};
+use crate::io::vfs::{CreateError, LookupError, Permission, ReadError, WriteError};
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -26,7 +26,9 @@ pub trait Fs {
 }
 
 pub trait InodeBase: Send + Sync {
-    fn num(&self) -> InodeNum;
+    fn num(&self) -> InodeNum {
+        self.stat().inode
+    }
 
     fn name(&self) -> String;
 
@@ -233,9 +235,9 @@ pub trait BlockDeviceFile: InodeBase {
 }
 
 pub trait CharacterDeviceFile: InodeBase {
-    fn read_at(&self, offset: u64, buf: &mut dyn AsMut<[u8]>) -> Result<usize, ReadError>;
+    fn read(&self, buf: &mut dyn AsMut<[u8]>) -> Result<usize, ReadError>;
 
-    fn write_at(&mut self, offset: u64, buf: &dyn AsRef<[u8]>) -> Result<usize, WriteError>;
+    fn write(&mut self, buf: &dyn AsRef<[u8]>) -> Result<usize, WriteError>;
 }
 
 pub trait File: InodeBase {
@@ -272,11 +274,6 @@ pub trait Dir: InodeBase {
 
     /// Returns a vec of [`INodes`] that are contained within this directory.
     fn children(&self) -> Result<Vec<Inode>, LookupError>;
-
-    /// Adds an (possibly external) [`Inode`] to the children of this dir. External
-    /// means, that the given [`Inode`] does not necessarily belong to the same file
-    /// system or device as this node.
-    fn mount(&mut self, node: Inode) -> Result<(), MountError>;
 }
 
 pub trait Symlink: InodeBase {

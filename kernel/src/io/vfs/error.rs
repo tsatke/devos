@@ -43,6 +43,7 @@ pub enum MountError {
     ExistsButShouldNot,
     NotDirectory,
     InvalidFileSystemType,
+    NotSupported,
 }
 
 macro_rules! from_error_impl {

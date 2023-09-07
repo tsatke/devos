@@ -1,7 +1,7 @@
 use crate::io::vfs::LookupError::NoSuchEntry;
 use crate::io::vfs::{
     CreateError, CreateNodeType, Dir, File, Fs, Inode, InodeBase, InodeNum, LookupError,
-    MountError, Permission, ReadError, Stat, WriteError,
+    Permission, ReadError, Stat, WriteError,
 };
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
@@ -23,6 +23,7 @@ type InnerHandle = Arc<RwLock<Inner>>;
 struct Inner {
     nodes: BTreeMap<InodeNum, Inode>,
     inode_counter: AtomicU64,
+    fsid: u64,
 }
 
 impl Inner {
@@ -32,14 +33,15 @@ impl Inner {
 }
 
 impl MemFs {
-    pub fn new(root_node_name: String) -> Self {
+    pub fn new(fsid: u64) -> Self {
         let inner = Arc::new(RwLock::new(Inner {
             nodes: BTreeMap::new(),
             inode_counter: AtomicU64::new(1),
+            fsid,
         }));
 
         let root_inode_num = 0_u64.into();
-        let root_dir = MemDir::new(inner.clone(), root_node_name, root_inode_num);
+        let root_dir = MemDir::new(inner.clone(), "/".to_string(), root_inode_num);
         let root = Inode::new_dir(root_dir);
         inner.write().nodes.insert(root_inode_num, root.clone());
 
@@ -164,7 +166,7 @@ impl MemDir {
                     ..Default::default()
                 },
             ),
-            children: vec![],
+            children: Vec::new(),
         }
     }
 }
@@ -216,7 +218,7 @@ impl Dir for MemDir {
                 Inode::new_dir(d)
             }
         };
-        self.mount(inode.clone())?;
+        self.children.push(inode_num);
         Ok(inode)
     }
 
@@ -228,12 +230,5 @@ impl Dir for MemDir {
             .filter_map(|n| guard.nodes.get(n))
             .cloned()
             .collect())
-    }
-
-    fn mount(&mut self, node: Inode) -> Result<(), MountError> {
-        let inode_num = node.num();
-        self.base.fs.write().nodes.insert(inode_num, node);
-        self.children.push(inode_num);
-        Ok(())
     }
 }
