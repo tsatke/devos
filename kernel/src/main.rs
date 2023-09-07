@@ -12,6 +12,7 @@ use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use kernel::arch::panic::handle_panic;
 use kernel::mem::Size;
 use kernel::{kernel_init, serial_println};
+use kernel_api::syscall::Errno;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(32);
 
@@ -42,17 +43,21 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let mut a: isize;
     unsafe {
         asm! {
-            "mov rax, 0", // read syscall
-            "mov rdi, 1", // fd
-            "mov rsi, 5", // buffer address
-            "mov rdx, 9", // num bytes
-            "mov r8, 0", // unused arg4
-            "int 0x80", // SYSCALL_INTERRUPT_INDEX
-            "mov {}, rax",
-            out(reg) a,
+        "mov rax, 0", // read syscall
+        "mov rdi, 1", // fd
+        "mov rsi, 5", // buffer address
+        "mov rdx, 9", // num bytes
+        "mov rcx, 0", // unused arg4
+        "mov r8, 0", // unused arg5
+        "mov r9, 0", // unused arg6
+        "int 0x80", // SYSCALL_INTERRUPT_INDEX
+        "mov {}, rax",
+        out(reg) a,
         };
     }
-    serial_println!("a: {}", a);
+    let errno = Errno::from(a);
+    serial_println!("result: {}", errno);
+    serial_println!("result: {:?}", errno);
 
     panic!("kernel_main returned")
 }

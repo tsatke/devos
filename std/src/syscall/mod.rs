@@ -63,7 +63,57 @@ pub unsafe fn syscall4(
         in("rdi") arg1,
         in("rsi") arg2,
         in("rdx") arg3,
-        in("r8") arg4,
+        in("rcx") arg4,
+        lateout("rax") res,
+    }
+    res
+}
+
+/// # Safety
+/// Depending on the syscall, the caller must ensure that all arguments are valid.
+pub unsafe fn syscall5(
+    syscall: Syscall,
+    arg1: usize,
+    arg2: usize,
+    arg3: usize,
+    arg4: usize,
+    arg5: usize,
+) -> isize {
+    let res: isize;
+    asm! {
+        "int 0x80",
+        in("rax") syscall as usize,
+        in("rdi") arg1,
+        in("rsi") arg2,
+        in("rdx") arg3,
+        in("rcx") arg4,
+        in("r8") arg5,
+        lateout("rax") res,
+    }
+    res
+}
+
+/// # Safety
+/// Depending on the syscall, the caller must ensure that all arguments are valid.
+pub unsafe fn syscall6(
+    syscall: Syscall,
+    arg1: usize,
+    arg2: usize,
+    arg3: usize,
+    arg4: usize,
+    arg5: usize,
+    arg6: usize,
+) -> isize {
+    let res: isize;
+    asm! {
+        "int 0x80",
+        in("rax") syscall as usize,
+        in("rdi") arg1,
+        in("rsi") arg2,
+        in("rdx") arg3,
+        in("rcx") arg4,
+        in("r8") arg5,
+        in("r9") arg6,
         lateout("rax") res,
     }
     res
