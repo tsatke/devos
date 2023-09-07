@@ -2,7 +2,9 @@
 #![no_main]
 #![feature(panic_info_message)]
 
-use core::arch::asm;
+extern crate alloc;
+
+use alloc::vec;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -11,8 +13,9 @@ use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 
 use kernel::arch::panic::handle_panic;
 use kernel::mem::Size;
+use kernel::process::syscall::io::sys_read;
 use kernel::{kernel_init, serial_println};
-use kernel_api::syscall::Errno;
+use kernel_api::driver::BlockDevice;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(32);
 
@@ -40,24 +43,15 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    let mut a: isize;
-    unsafe {
-        asm! {
-        "mov rax, 0", // read syscall
-        "mov rdi, 1", // fd
-        "mov rsi, 5", // buffer address
-        "mov rdx, 9", // num bytes
-        "mov rcx, 0", // unused arg4
-        "mov r8, 0", // unused arg5
-        "mov r9, 0", // unused arg6
-        "int 0x80", // SYSCALL_INTERRUPT_INDEX
-        "mov {}, rax",
-        out(reg) a,
-        };
-    }
-    let errno = Errno::from(a);
+    let errno = sys_read(0, &mut [0]);
     serial_println!("result: {}", errno);
-    serial_println!("result: {:?}", errno);
+
+    let mut buf = vec![0_u8; 1030];
+    let mut drive = ide::drives().next().unwrap().clone();
+    drive.read_into(0, &mut buf).unwrap();
+    serial_println!("read: {:02X?}", &buf[..512]);
+    serial_println!("read: {:02X?}", &buf[512..1024]);
+    serial_println!("read: {:02X?}", &buf[1024..]);
 
     panic!("kernel_main returned")
 }
