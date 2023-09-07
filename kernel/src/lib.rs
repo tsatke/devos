@@ -3,6 +3,7 @@
 #![feature(abi_x86_interrupt)]
 #![feature(assert_matches)]
 #![feature(const_mut_refs)]
+#![feature(exclusive_range_pattern)]
 #![feature(naked_functions)]
 #![feature(negative_impls)]
 

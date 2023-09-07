@@ -16,16 +16,28 @@ pub use perm::*;
 use root::RootDir;
 
 use crate::io::path::{Component, Path};
-use crate::io::vfs::memfs::MemFs;
+use crate::io::vfs::ext2::Ext2Fs;
+use crate::syscall::io::{sys_access, AMode};
 
 static mut VFS: MaybeUninit<Vfs> = MaybeUninit::uninit();
 
 pub fn init() {
+    let root_drive = ide::drives()
+        .nth(1) // TODO: for now, [0] is the boot drive, [1] is the os disk
+        .expect("we need at least one additional IDE drive for now")
+        .clone();
+
+    let rootfs_dev = ::ext2::Ext2Fs::try_new(root_drive).expect("root drive must be ext2 for now");
+    let rootfs = Ext2Fs::new(rootfs_dev, "/".to_string());
+
     unsafe {
-        VFS.write(Vfs::new());
+        VFS.write(Vfs::new())
+            .set_root(rootfs.root_inode().expect("unable to read root inode"));
     }
 
-    mount("/", MemFs::new("mem".to_string()).root_inode()).unwrap();
+    if sys_access("/dev", AMode::F_OK).is_err() {
+        todo!("no /dev, creating");
+    }
 }
 
 pub fn mount(p: impl AsRef<Path>, node: Inode) -> Result<(), MountError> {
@@ -34,6 +46,10 @@ pub fn mount(p: impl AsRef<Path>, node: Inode) -> Result<(), MountError> {
 
 pub fn find(p: impl AsRef<Path>) -> Result<Inode, LookupError> {
     unsafe { vfs() }.find(p)
+}
+
+pub fn find_from(p: impl AsRef<Path>, starting_point: Inode) -> Result<Inode, LookupError> {
+    Vfs::find_inode_from(p, starting_point)
 }
 
 unsafe fn vfs() -> &'static Vfs {
@@ -55,6 +71,10 @@ impl Vfs {
                 },
             )),
         }
+    }
+
+    fn set_root(&mut self, root: Inode) {
+        self.root = root;
     }
 
     fn mount(&self, p: impl AsRef<Path>, node: Inode) -> Result<(), MountError> {

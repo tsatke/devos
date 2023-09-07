@@ -5,6 +5,7 @@ extern crate clap;
 // both are set in build.rs at build time
 const UEFI_PATH: &str = env!("UEFI_PATH");
 const BIOS_PATH: &str = env!("BIOS_PATH");
+const OS_DISK: &str = env!("OS_DISK");
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = "The boot tool for DevOS.")]
@@ -54,6 +55,10 @@ fn main() {
         cmd.arg("-drive")
             .arg(format!("format=raw,file={UEFI_PATH}"));
     }
+
+    // add the os disk as hard drive
+    cmd.arg("-drive")
+        .arg(format!("file={},if=ide,format=raw", OS_DISK));
 
     if args.verbose {
         println!("qemu command: {:?}", cmd);

@@ -1,84 +1,63 @@
-use crate::io::vfs::{
-    CreateError, CreateNodeType, Dir, Inode, InodeBase, InodeNum, LookupError, MountError,
-    Permission, Stat,
-};
-use alloc::string::{String, ToString};
+use crate::io::vfs::Inode;
+use alloc::string::String;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
+use dir::Ext2Dir;
+use ext2::{Directory, RegularFile};
 use spin::RwLock;
+
+mod dir;
+mod file;
+
+pub use dir::*;
+pub use file::*;
 
 pub struct Ext2Fs<T> {
     inner: InnerHandle<T>,
+    root_node_name: String,
 }
 
 impl<T> Ext2Fs<T>
 where
     T: filesystem::BlockDevice + Send + Sync + 'static,
 {
-    pub fn new(inner: ext2::Ext2Fs<T>) -> Self {
+    pub fn new(inner: ext2::Ext2Fs<T>, root_node_name: String) -> Self {
         Self {
             inner: Arc::new(RwLock::new(Inner { fs: inner })),
+            root_node_name,
         }
     }
 
-    pub fn root_inode(&self) -> Inode {
-        Inode::new_dir(Ext2Dir {
-            fs: self.inner.clone(),
-        })
+    pub fn root_inode(&self) -> Option<Inode> {
+        let dir = self.inner.read().fs.read_root_inode().ok()?;
+        Some(Inode::new_dir(Ext2Dir::new(
+            self.inner.clone(),
+            dir,
+            self.root_node_name.clone(),
+        )))
     }
 }
 
-type InnerHandle<T> = Arc<RwLock<Inner<T>>>;
+pub(crate) type InnerHandle<T> = Arc<RwLock<Inner<T>>>;
 
-struct Inner<T> {
+pub(crate) struct Inner<T> {
     fs: ext2::Ext2Fs<T>,
 }
 
-pub struct Ext2Dir<T> {
-    fs: InnerHandle<T>,
-}
-
-impl<T> InodeBase for Ext2Dir<T>
+fn ext2_inode_to_inode<T>(inner: InnerHandle<T>, ext2_inode: ext2::Inode, name: String) -> Inode
 where
-    T: filesystem::BlockDevice + Send + Sync,
+    T: filesystem::BlockDevice + 'static + Send + Sync,
 {
-    fn num(&self) -> InodeNum {
-        1_u64.into()
-    }
-
-    fn name(&self) -> String {
-        "hello".to_string()
-    }
-
-    fn stat(&self) -> Stat {
-        Stat {
-            ..Default::default()
-        }
-    }
-}
-
-impl<T> Dir for Ext2Dir<T>
-where
-    T: filesystem::BlockDevice + Send + Sync,
-{
-    fn lookup(&self, name: &dyn AsRef<str>) -> Result<Inode, LookupError> {
-        todo!()
-    }
-
-    fn create(
-        &mut self,
-        name: &dyn AsRef<str>,
-        typ: CreateNodeType,
-        permission: Permission,
-    ) -> Result<Inode, CreateError> {
-        todo!()
-    }
-
-    fn children(&self) -> Result<Vec<Inode>, LookupError> {
-        todo!()
-    }
-
-    fn mount(&mut self, node: Inode) -> Result<(), MountError> {
-        todo!()
+    match ext2_inode.typ() {
+        ext2::Type::Directory => Inode::new_dir(Ext2Dir::new(
+            inner,
+            Directory::try_from(ext2_inode).unwrap(),
+            name,
+        )),
+        ext2::Type::RegularFile => Inode::new_file(Ext2File::new(
+            inner,
+            RegularFile::try_from(ext2_inode).unwrap(),
+            name,
+        )),
+        _ => todo!("todo: {:?}", ext2_inode.typ()),
     }
 }

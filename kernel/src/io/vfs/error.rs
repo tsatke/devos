@@ -2,6 +2,7 @@
 pub enum IoError {
     NotImplemented,
     Unsupported,
+    HardwareError,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -41,6 +42,7 @@ pub enum MountError {
     LookupError(LookupError),
     ExistsButShouldNot,
     NotDirectory,
+    InvalidFileSystemType,
 }
 
 macro_rules! from_error_impl {

@@ -5,6 +5,7 @@ version = "0.1.0"
 [build-dependencies]
 bootloader = "0.11"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
+hello_world = { path = "userspace/hello_world", artifact = "bin", target = "x86_64-unknown-none" }
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -21,6 +22,7 @@ members = [
     "driver/ide",
     "driver/pci",
     "driver/vga",
+    "userspace/hello_world",
 ]
 
 [features]

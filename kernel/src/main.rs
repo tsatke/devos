@@ -5,7 +5,6 @@
 extern crate alloc;
 
 use alloc::vec;
-use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -13,13 +12,11 @@ use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::structures::paging::{PageSize, Size4KiB};
 
-use filesystem::{BlockDevice, MemoryBlockDevice};
+use filesystem::BlockDevice;
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::io::vfs::ext2::Ext2Fs;
-use kernel::io::vfs::{find, mount};
 use kernel::mem::{MemoryManager, Size};
-use kernel::syscall::io::{sys_access, sys_read, AMode};
+use kernel::syscall::io::sys_read;
 use kernel::{kernel_init, screen, serial_println};
 use vga::Color;
 
@@ -50,40 +47,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    syscall_stuff();
-    ide_stuff();
-    vga_stuff();
-    mm_stuff();
-    fs_stuff();
-
-    if let Some(data) = ramdisk {
-        ext2_stuff(data);
-    }
+    // syscall_stuff();
+    // ide_stuff();
+    // vga_stuff();
+    // mm_stuff();
 
     panic!("kernel_main returned")
-}
-
-fn ext2_stuff(data: &[u8]) {
-    let data1 = Vec::from(data);
-    let dev = MemoryBlockDevice::try_new(512, data1).unwrap();
-    let fs = ext2::Ext2Fs::try_new(dev).unwrap();
-    let inode = Ext2Fs::new(fs).root_inode();
-    mount("/", inode).unwrap();
-    serial_println!("find /hello: {:?}", find("/hello"));
-}
-
-fn fs_stuff() {
-    serial_println!("find /: {:?}", find("/"));
-    serial_println!("find /mem: {:?}", find("/mem"));
-    serial_println!("find /mem/hello.txt: {:?}", find("/mem/hello.txt"));
-    serial_println!(
-        "access /mem (syscall): {:?}",
-        sys_access("/mem", AMode::F_OK)
-    );
-    serial_println!(
-        "access /mem/hello.txt (syscall): {:?}",
-        sys_access("/mem/hello.txt", AMode::F_OK)
-    );
 }
 
 fn mm_stuff() {

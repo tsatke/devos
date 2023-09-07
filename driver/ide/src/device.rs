@@ -1,7 +1,6 @@
 use crate::command::Command;
 use crate::drive::IdeDrive;
 use crate::Status;
-use filesystem::BlockDevice;
 use x86_64::instructions::interrupts::without_interrupts;
 
 #[derive(Debug, Clone)]
@@ -17,7 +16,7 @@ impl From<IdeDrive> for IdeBlockDevice {
     }
 }
 
-impl BlockDevice for IdeBlockDevice {
+impl filesystem::BlockDevice for IdeBlockDevice {
     type Error = ();
 
     fn sector_size(&self) -> usize {

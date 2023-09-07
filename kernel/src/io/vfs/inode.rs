@@ -170,7 +170,7 @@ impl Display for Inode {
 
 impl Debug for Inode {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("INode")
+        f.debug_struct("Inode")
             .field(
                 "type",
                 &match self {
