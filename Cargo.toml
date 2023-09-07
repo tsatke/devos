@@ -5,7 +5,6 @@ version = "0.1.0"
 [build-dependencies]
 bootloader = "0.11"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
-ide = { path = "driver/ide", artifact = "bin", target = "x86_64-unknown-none" }
 
 [dependencies]
 clap = { version = "4.2.2", features = ["derive"] }
@@ -18,6 +17,7 @@ members = [
     "kernel_api",
     "std",
     "driver/ide",
+    "driver/pci",
 ]
 
 [features]
