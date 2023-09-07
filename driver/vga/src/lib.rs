@@ -6,6 +6,7 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 pub use color::*;
+use core::ptr::read;
 pub use drawing::*;
 use graphics::{GraphicsDriver, Vec2};
 
