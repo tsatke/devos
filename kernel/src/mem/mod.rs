@@ -1,7 +1,8 @@
+use bootloader_api::info::MemoryRegionKind;
 use bootloader_api::BootInfo;
 use x86_64::registers::control::Cr3;
-use x86_64::structures::paging::{Page, PageSize, PageTableFlags, Size4KiB};
-use x86_64::VirtAddr;
+use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
+use x86_64::{PhysAddr, VirtAddr};
 
 pub use address_space::*;
 pub use heap::*;
@@ -14,26 +15,48 @@ use crate::{process, serial_println};
 mod address_space;
 mod heap;
 mod manager;
-pub mod physical;
+mod physical_stage1;
+mod physical_stage2;
 mod size;
 
 const HEAP_START: usize = 0x4444_4444_0000;
 const HEAP_SIZE: Size = Size::MiB(2);
 
 pub fn init(boot_info: &'static BootInfo) {
-    manager::init(boot_info);
+    init_stage1(boot_info);
 
     let recursive_index = boot_info.recursive_index.into_option().unwrap();
     let (pt_phys_addr, cr3flags) = Cr3::read();
 
     let mut address_space = AddressSpace::new(pt_phys_addr, cr3flags, recursive_index);
 
+    // **This is extremely dangerous, only modify if you know what you do!!!**
+    // TODO: remove the two-stage approach
+    // The address space needs an initialized stage1 memory manager, but if we manage to pass this
+    // iterator as the frame allocator, we can remove the two-stage approach. This sounds easier
+    // than it is - keep in mind, we don't have heap memory.
+    //
+    // We can do this because the stage 1 allocator skips the frames required for the heap,
+    // so we can do this directly here. This prevents us from having to create the iterator for
+    // every frame allocation (which takes multiple seconds per MiB of mapped heap).
+    let mut usable_frames = boot_info
+        .memory_regions
+        .iter()
+        // get usable regions from memory map
+        .filter(|r| r.kind == MemoryRegionKind::Usable)
+        // map each region to its address range
+        .map(|r| r.start..r.end)
+        // transform to an iterator of frame start addresses
+        .flat_map(|r| r.step_by(Page::<Size4KiB>::SIZE as usize))
+        // create `PhysFrame` types from the start addresses
+        .map(|addr| PhysFrame::containing_address(PhysAddr::new(addr)));
+
     (HEAP_START..=HEAP_START + HEAP_SIZE.bytes())
         .step_by(Size4KiB::SIZE as usize)
         .map(|v| VirtAddr::new(v as u64))
         .map(Page::<Size4KiB>::containing_address)
         .for_each(|p| unsafe {
-            let frame = MemoryManager::lock().allocate_frame().unwrap();
+            let frame = usable_frames.next().unwrap();
             address_space
                 .map_to(p, frame, PageTableFlags::PRESENT | PageTableFlags::WRITABLE)
                 .unwrap()
@@ -49,6 +72,15 @@ pub fn init(boot_info: &'static BootInfo) {
 
     // after the full heap memory has been mapped, we can init
     heap::init(HEAP_START as *mut u8, HEAP_SIZE.bytes());
+
+    // after we have heap, we can now switch to the stage 2 physical memory manager
+    init_stage2(boot_info);
+
+    serial_println!(
+        "{} MiB of initial {} MiB kernel heap available after switching to physical memory management stage 2",
+        heap::free() / 1024 / 1024,
+        heap::size() / 1024 / 1024,
+    );
 
     let task = Task::new(address_space);
     let _ = process::current_task_mut().insert(task);

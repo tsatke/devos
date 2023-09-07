@@ -1,12 +1,20 @@
+use core::sync::atomic::AtomicBool;
+use core::sync::atomic::Ordering::Relaxed;
 use linked_list_allocator::LockedHeap;
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
+static mut INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 pub fn init(heap_start: *mut u8, heap_size: usize) {
     unsafe {
         ALLOCATOR.lock().init(heap_start as *mut u8, heap_size);
+        INITIALIZED.store(true, Relaxed);
     }
+}
+
+pub fn is_heap_initialized() -> bool {
+    unsafe { INITIALIZED.load(Relaxed) }
 }
 
 /// Returns how much free memory is left in the heap in bytes.

@@ -10,10 +10,11 @@ use core::slice::from_raw_parts;
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use x86_64::structures::paging::{PageSize, Size4KiB};
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::mem::Size;
+use kernel::mem::{MemoryManager, Size};
 use kernel::process::syscall::io::sys_read;
 use kernel::{kernel_init, screen, serial_println};
 use kernel_api::driver::block::BlockDevice;
@@ -49,6 +50,29 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     syscall_stuff();
     ide_stuff();
     vga_stuff();
+
+    // try to produce an out-of-memory
+    let mut mm = MemoryManager::lock();
+    let count = 1_u64 << 15;
+    serial_println!(
+        "trying to allocate (and deallocate) {} MiB of physical memory",
+        count * Size4KiB::SIZE / 1024 / 1024
+    );
+    let tsc_start = unsafe { core::arch::x86_64::_rdtsc() };
+    for i in 0..count {
+        let res = mm.allocate_frame();
+        if res.is_none() {
+            serial_println!("out of physical memory after {} iterations", i);
+            break;
+        }
+        mm.deallocate_frame(res.unwrap());
+    }
+    let tsc_end = unsafe { core::arch::x86_64::_rdtsc() };
+    let avg = (tsc_end - tsc_start) / count;
+    serial_println!(
+        "average cpu cycles per physical frame allocation and deallocation: {}",
+        avg
+    );
 
     panic!("kernel_main returned")
 }

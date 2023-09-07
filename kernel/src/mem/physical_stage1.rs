@@ -1,15 +1,24 @@
+use crate::mem::HEAP_SIZE;
 use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
-use x86_64::structures::paging::{FrameAllocator, Page, PhysFrame, Size4KiB};
+use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::Ordering::Relaxed;
+use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
-pub struct PhysicalFrameAllocator {
+pub static mut STAGE1_ALLOCATED_FRAMES: AtomicUsize =
+    AtomicUsize::new(HEAP_SIZE.bytes() / Size4KiB::SIZE as usize);
+
+pub struct TrivialPhysicalFrameAllocator {
     regions: &'static MemoryRegions,
     next: usize,
 }
 
-impl PhysicalFrameAllocator {
+impl TrivialPhysicalFrameAllocator {
     pub fn from(regions: &'static MemoryRegions) -> Self {
-        Self { regions, next: 0 }
+        Self {
+            regions,
+            next: HEAP_SIZE.bytes() / Size4KiB::SIZE as usize,
+        }
     }
 
     fn usable_frames(&self) -> impl Iterator<Item = PhysFrame> {
@@ -26,10 +35,13 @@ impl PhysicalFrameAllocator {
     }
 }
 
-unsafe impl FrameAllocator<Size4KiB> for PhysicalFrameAllocator {
+unsafe impl FrameAllocator<Size4KiB> for TrivialPhysicalFrameAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
         let frame = self.usable_frames().nth(self.next);
         self.next += 1;
+        unsafe {
+            STAGE1_ALLOCATED_FRAMES.fetch_add(1, Relaxed);
+        }
         frame
     }
 }
