@@ -605,6 +605,7 @@ dependencies = [
  "bitflags 2.3.3",
  "conquer-once",
  "kernel_api",
+ "mkfs-filesystem",
  "pci",
  "spin",
  "x86_64",
@@ -661,6 +662,8 @@ dependencies = [
  "ide",
  "kernel_api",
  "linked_list_allocator",
+ "mkfs-ext2",
+ "mkfs-filesystem",
  "num_enum",
  "pci",
  "raw-cpuid 11.0.0",
@@ -742,6 +745,20 @@ name = "memchr"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
+
+[[package]]
+name = "mkfs-ext2"
+version = "0.1.0"
+source = "git+https://github.com/tsatke/mkfs#fe3c525522986a211ac507f93aff08b2fb0b52cb"
+dependencies = [
+ "bitflags 2.3.3",
+ "mkfs-filesystem",
+]
+
+[[package]]
+name = "mkfs-filesystem"
+version = "0.1.0"
+source = "git+https://github.com/tsatke/mkfs#fe3c525522986a211ac507f93aff08b2fb0b52cb"
 
 [[package]]
 name = "num_enum"

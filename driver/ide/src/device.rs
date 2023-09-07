@@ -1,8 +1,7 @@
 use crate::command::Command;
 use crate::drive::IdeDrive;
 use crate::Status;
-use kernel_api::driver::block::BlockDevice;
-use kernel_api::driver::Device;
+use filesystem::BlockDevice;
 use x86_64::instructions::interrupts::without_interrupts;
 
 #[derive(Debug, Clone)]
@@ -18,23 +17,25 @@ impl From<IdeDrive> for IdeBlockDevice {
     }
 }
 
-impl Device for IdeBlockDevice {}
-
 impl BlockDevice for IdeBlockDevice {
     type Error = ();
 
-    fn block_size(&self) -> usize {
+    fn sector_size(&self) -> usize {
         512
     }
 
-    fn read_block(&mut self, block: usize, buf: &mut [u8]) -> Result<(), Self::Error> {
+    fn sector_count(&self) -> usize {
+        self.ide_drive.sector_count() as usize
+    }
+
+    fn read_sector(&self, sector: usize, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let mut data = [0_u16; 256];
 
-        let lba = block;
+        let lba = sector;
         let sector_count = 1;
 
         let drive_num = self.ide_drive.drive_num();
-        let mut channel = self.ide_drive.channel_mut();
+        let mut channel = self.ide_drive.channel();
         unsafe {
             channel
                 .ports
@@ -61,10 +62,10 @@ impl BlockDevice for IdeBlockDevice {
         }
 
         buf.copy_from_slice(unsafe { data.as_slice().align_to::<u8>().1 });
-        Ok(())
+        Ok(buf.len())
     }
 
-    fn write_block(&mut self, _block: usize, _buf: &[u8]) -> Result<(), Self::Error> {
+    fn write_sector(&mut self, _block: usize, _buf: &[u8]) -> Result<usize, Self::Error> {
         todo!()
     }
 }

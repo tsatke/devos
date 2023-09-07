@@ -8,6 +8,8 @@ mod memfs;
 mod perm;
 mod root;
 
+pub mod ext2;
+
 pub use error::*;
 pub use inode::*;
 pub use perm::*;
@@ -26,11 +28,11 @@ pub fn init() {
     mount("/", MemFs::new("mem".to_string()).root_inode()).unwrap();
 }
 
-pub fn mount(p: impl AsRef<Path>, node: INode) -> Result<(), MountError> {
+pub fn mount(p: impl AsRef<Path>, node: Inode) -> Result<(), MountError> {
     unsafe { vfs() }.mount(p, node)
 }
 
-pub fn find(p: impl AsRef<Path>) -> Result<INode, LookupError> {
+pub fn find(p: impl AsRef<Path>) -> Result<Inode, LookupError> {
     unsafe { vfs() }.find(p)
 }
 
@@ -39,13 +41,13 @@ unsafe fn vfs() -> &'static Vfs {
 }
 
 pub struct Vfs {
-    root: INode,
+    root: Inode,
 }
 
 impl Vfs {
     fn new() -> Self {
         Vfs {
-            root: INode::new_dir(RootDir::new(
+            root: Inode::new_dir(RootDir::new(
                 "/".into(),
                 Stat {
                     inode: 0_u64.into(),
@@ -55,22 +57,22 @@ impl Vfs {
         }
     }
 
-    fn mount(&self, p: impl AsRef<Path>, node: INode) -> Result<(), MountError> {
+    fn mount(&self, p: impl AsRef<Path>, node: Inode) -> Result<(), MountError> {
         let target_node = match self.find(p) {
             Ok(n) => n,
             Err(e) => return Err(e)?,
         };
         let dir = match target_node.clone() {
-            INode::File(_) => return Err(MountError::NotDirectory),
-            INode::Dir(d) => d,
-            INode::BlockDevice(_) => return Err(MountError::NotDirectory),
-            INode::CharacterDevice(_) => return Err(MountError::NotDirectory),
-            INode::Symlink(link) => {
+            Inode::File(_) => return Err(MountError::NotDirectory),
+            Inode::Dir(d) => d,
+            Inode::BlockDevice(_) => return Err(MountError::NotDirectory),
+            Inode::CharacterDevice(_) => return Err(MountError::NotDirectory),
+            Inode::Symlink(link) => {
                 let guard = link.read();
                 let target_path = guard.target_path()?;
                 let symlink_target_node =
                     Self::find_inode_from(target_path.as_path(), target_node)?;
-                if !matches!(symlink_target_node, INode::Dir(_)) {
+                if !matches!(symlink_target_node, Inode::Dir(_)) {
                     return Err(MountError::NotDirectory);
                 }
                 symlink_target_node.as_dir().unwrap()
@@ -80,7 +82,7 @@ impl Vfs {
         guard.mount(node)
     }
 
-    fn find(&self, p: impl AsRef<Path>) -> Result<INode, LookupError> {
+    fn find(&self, p: impl AsRef<Path>) -> Result<Inode, LookupError> {
         let path = p.as_ref().to_owned();
         let mut components = path.components();
 
@@ -93,7 +95,7 @@ impl Vfs {
         Self::find_inode_from(p, self.root.clone())
     }
 
-    fn find_inode_from(p: impl AsRef<Path>, starting_point: INode) -> Result<INode, LookupError> {
+    fn find_inode_from(p: impl AsRef<Path>, starting_point: Inode) -> Result<Inode, LookupError> {
         let path = p.as_ref().to_owned();
         let components = path.components();
 
@@ -113,16 +115,16 @@ impl Vfs {
                 }
                 Component::Normal(v) => {
                     let current_dir = match current.clone() {
-                        INode::File(_) => return Err(LookupError::NoSuchEntry),
-                        INode::Dir(d) => d,
-                        INode::BlockDevice(_) => return Err(LookupError::NoSuchEntry),
-                        INode::CharacterDevice(_) => return Err(LookupError::NoSuchEntry),
-                        INode::Symlink(link) => {
+                        Inode::File(_) => return Err(LookupError::NoSuchEntry),
+                        Inode::Dir(d) => d,
+                        Inode::BlockDevice(_) => return Err(LookupError::NoSuchEntry),
+                        Inode::CharacterDevice(_) => return Err(LookupError::NoSuchEntry),
+                        Inode::Symlink(link) => {
                             let guard = link.read();
                             let target_path = guard.target_path()?;
                             let target_node =
                                 Self::find_inode_from(target_path.as_path(), current)?;
-                            if !matches!(target_node, INode::Dir(_)) {
+                            if !matches!(target_node, Inode::Dir(_)) {
                                 return Err(LookupError::NoSuchEntry);
                             }
                             current = target_node;

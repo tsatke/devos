@@ -15,6 +15,8 @@ graphics = { path = "../driver/graphics" }
 ide = { path = "../driver/ide" }
 kernel_api = { path = "../kernel_api" }
 linked_list_allocator = "0.10.5"
+mkfs-ext2 = { git = "https://github.com/tsatke/mkfs" }
+mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
 num_enum = { version = "0.6.1", default-features = false }
 pci = { path = "../driver/pci" }
 raw-cpuid = { version = "11.0.0", default-features = false }

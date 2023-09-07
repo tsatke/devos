@@ -84,12 +84,16 @@ impl IdeDrive {
     pub fn drive_num(&self) -> u8 {
         self.drive
     }
+
+    pub fn sector_count(&self) -> u64 {
+        self.sector_count
+    }
 }
 
 pub struct IdentifyError;
 
 impl IdeDrive {
-    pub(crate) fn channel_mut(&mut self) -> RwLockWriteGuard<IdeChannel> {
+    pub(crate) fn channel(&self) -> RwLockWriteGuard<IdeChannel> {
         self.channel.write()
     }
 

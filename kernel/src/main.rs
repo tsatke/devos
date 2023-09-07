@@ -5,6 +5,7 @@
 extern crate alloc;
 
 use alloc::vec;
+use alloc::vec::Vec;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -12,13 +13,14 @@ use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::structures::paging::{PageSize, Size4KiB};
 
+use filesystem::{BlockDevice, MemoryBlockDevice};
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::io::vfs::find;
+use kernel::io::vfs::ext2::Ext2Fs;
+use kernel::io::vfs::{find, mount};
 use kernel::mem::{MemoryManager, Size};
 use kernel::syscall::io::{sys_access, sys_read, AMode};
 use kernel::{kernel_init, screen, serial_println};
-use kernel_api::driver::block::BlockDevice;
 use vga::Color;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(32);
@@ -54,7 +56,20 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     mm_stuff();
     fs_stuff();
 
+    if let Some(data) = ramdisk {
+        ext2_stuff(data);
+    }
+
     panic!("kernel_main returned")
+}
+
+fn ext2_stuff(data: &[u8]) {
+    let data1 = Vec::from(data);
+    let dev = MemoryBlockDevice::try_new(512, data1).unwrap();
+    let fs = ext2::Ext2Fs::try_new(dev).unwrap();
+    let inode = Ext2Fs::new(fs).root_inode();
+    mount("/", inode).unwrap();
+    serial_println!("find /hello: {:?}", find("/hello"));
 }
 
 fn fs_stuff() {
@@ -106,8 +121,8 @@ fn ide_stuff() {
     const CNT: usize = 1030;
     serial_println!("reading the first {} bytes from the boot drive...", CNT);
     let mut buf = vec![0_u8; CNT];
-    let mut drive = ide::drives().next().unwrap().clone();
-    drive.read_into(0, &mut buf).unwrap();
+    let drive = ide::drives().next().unwrap().clone();
+    let _ = drive.read_at(0, &mut buf).unwrap();
     serial_println!("read: {:02X?}", &buf[..512]);
     serial_println!("read: {:02X?}", &buf[512..1024]);
     serial_println!("read: {:02X?}", &buf[1024..]);

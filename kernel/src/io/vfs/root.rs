@@ -2,7 +2,7 @@ use crate::io::vfs::IoError::Unsupported;
 use crate::io::vfs::LookupError::NoSuchEntry;
 use crate::io::vfs::MountError::ExistsButShouldNot;
 use crate::io::vfs::{
-    CreateError, CreateNodeType, IDir, INode, INodeBase, INodeNum, LookupError, MountError,
+    CreateError, CreateNodeType, Dir, Inode, InodeBase, InodeNum, LookupError, MountError,
     Permission, Stat,
 };
 use alloc::collections::BTreeMap;
@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 pub struct RootDir {
     name: String,
     stat: Stat,
-    children: BTreeMap<String, INode>,
+    children: BTreeMap<String, Inode>,
 }
 
 impl RootDir {
@@ -25,8 +25,8 @@ impl RootDir {
     }
 }
 
-impl INodeBase for RootDir {
-    fn num(&self) -> INodeNum {
+impl InodeBase for RootDir {
+    fn num(&self) -> InodeNum {
         self.stat.inode
     }
 
@@ -39,8 +39,8 @@ impl INodeBase for RootDir {
     }
 }
 
-impl IDir for RootDir {
-    fn lookup(&self, name: &dyn AsRef<str>) -> Result<INode, LookupError> {
+impl Dir for RootDir {
+    fn lookup(&self, name: &dyn AsRef<str>) -> Result<Inode, LookupError> {
         if let Some(inode) = self.children.get(name.as_ref()) {
             return Ok(inode.clone());
         }
@@ -52,15 +52,15 @@ impl IDir for RootDir {
         _name: &dyn AsRef<str>,
         _typ: CreateNodeType,
         _permission: Permission,
-    ) -> Result<INode, CreateError> {
+    ) -> Result<Inode, CreateError> {
         Err(CreateError::IoError(Unsupported))
     }
 
-    fn children(&self) -> Result<Vec<INode>, LookupError> {
+    fn children(&self) -> Result<Vec<Inode>, LookupError> {
         Ok(self.children.values().cloned().collect())
     }
 
-    fn mount(&mut self, node: INode) -> Result<(), MountError> {
+    fn mount(&mut self, node: Inode) -> Result<(), MountError> {
         if self.children.get(&node.name()).is_some() {
             return Err(ExistsButShouldNot);
         }

@@ -1,6 +1,6 @@
 use crate::io::vfs::LookupError::NoSuchEntry;
 use crate::io::vfs::{
-    CreateError, CreateNodeType, Fs, IDir, IFile, INode, INodeBase, INodeNum, LookupError,
+    CreateError, CreateNodeType, Dir, File, Fs, Inode, InodeBase, InodeNum, LookupError,
     MountError, Permission, ReadError, Stat, WriteError,
 };
 use alloc::collections::BTreeMap;
@@ -15,18 +15,18 @@ use spin::RwLock;
 pub struct MemFs {
     #[allow(dead_code)] // TODO: inner is read by tests, but remove it anyways
     inner: InnerHandle,
-    root: INode,
+    root: Inode,
 }
 
 type InnerHandle = Arc<RwLock<Inner>>;
 
 struct Inner {
-    nodes: BTreeMap<INodeNum, INode>,
+    nodes: BTreeMap<InodeNum, Inode>,
     inode_counter: AtomicU64,
 }
 
 impl Inner {
-    fn get_unused_inode_num(&self) -> INodeNum {
+    fn get_unused_inode_num(&self) -> InodeNum {
         self.inode_counter.fetch_add(1, Relaxed).into()
     }
 }
@@ -40,7 +40,7 @@ impl MemFs {
 
         let root_inode_num = 0_u64.into();
         let root_dir = MemDir::new(inner.clone(), root_node_name, root_inode_num);
-        let root = INode::new_dir(root_dir);
+        let root = Inode::new_dir(root_dir);
         inner.write().nodes.insert(root_inode_num, root.clone());
 
         Self { inner, root }
@@ -48,7 +48,7 @@ impl MemFs {
 }
 
 impl Fs for MemFs {
-    fn root_inode(&self) -> INode {
+    fn root_inode(&self) -> Inode {
         self.root.clone()
     }
 }
@@ -65,8 +65,8 @@ impl MemNodeBase {
     }
 }
 
-impl INodeBase for MemNodeBase {
-    fn num(&self) -> INodeNum {
+impl InodeBase for MemNodeBase {
+    fn num(&self) -> InodeNum {
         self.stat.inode
     }
 
@@ -85,7 +85,7 @@ pub struct MemFile {
 }
 
 impl MemFile {
-    fn new(fs: InnerHandle, name: String, inode_num: INodeNum, data: Vec<u8>) -> Self {
+    fn new(fs: InnerHandle, name: String, inode_num: InodeNum, data: Vec<u8>) -> Self {
         Self {
             base: MemNodeBase::new(
                 fs,
@@ -101,8 +101,8 @@ impl MemFile {
     }
 }
 
-impl INodeBase for MemFile {
-    fn num(&self) -> INodeNum {
+impl InodeBase for MemFile {
+    fn num(&self) -> InodeNum {
         self.base.num()
     }
 
@@ -115,7 +115,7 @@ impl INodeBase for MemFile {
     }
 }
 
-impl IFile for MemFile {
+impl File for MemFile {
     fn size(&self) -> u64 {
         self.stat().size
     }
@@ -150,11 +150,11 @@ impl IFile for MemFile {
 
 pub struct MemDir {
     base: MemNodeBase,
-    children: Vec<INodeNum>,
+    children: Vec<InodeNum>,
 }
 
 impl MemDir {
-    fn new(fs: InnerHandle, name: String, inode_num: INodeNum) -> Self {
+    fn new(fs: InnerHandle, name: String, inode_num: InodeNum) -> Self {
         Self {
             base: MemNodeBase::new(
                 fs,
@@ -169,8 +169,8 @@ impl MemDir {
     }
 }
 
-impl INodeBase for MemDir {
-    fn num(&self) -> INodeNum {
+impl InodeBase for MemDir {
+    fn num(&self) -> InodeNum {
         self.base.num()
     }
 
@@ -183,8 +183,8 @@ impl INodeBase for MemDir {
     }
 }
 
-impl IDir for MemDir {
-    fn lookup(&self, name: &dyn AsRef<str>) -> Result<INode, LookupError> {
+impl Dir for MemDir {
+    fn lookup(&self, name: &dyn AsRef<str>) -> Result<Inode, LookupError> {
         let needle = name.as_ref();
         let guard = self.base.fs.read();
         match self
@@ -203,24 +203,24 @@ impl IDir for MemDir {
         name: &dyn AsRef<str>,
         typ: CreateNodeType,
         _permission: Permission,
-    ) -> Result<INode, CreateError> {
+    ) -> Result<Inode, CreateError> {
         let name = name.as_ref().to_string();
         let inode_num = self.base.fs.read().get_unused_inode_num();
         let inode = match typ {
             CreateNodeType::File => {
                 let f = MemFile::new(self.base.fs.clone(), name, inode_num, vec![]);
-                INode::new_file(f)
+                Inode::new_file(f)
             }
             CreateNodeType::Dir => {
                 let d = MemDir::new(self.base.fs.clone(), name, inode_num);
-                INode::new_dir(d)
+                Inode::new_dir(d)
             }
         };
         self.mount(inode.clone())?;
         Ok(inode)
     }
 
-    fn children(&self) -> Result<Vec<INode>, LookupError> {
+    fn children(&self) -> Result<Vec<Inode>, LookupError> {
         let guard = self.base.fs.read();
         Ok(self
             .children
@@ -230,7 +230,7 @@ impl IDir for MemDir {
             .collect())
     }
 
-    fn mount(&mut self, node: INode) -> Result<(), MountError> {
+    fn mount(&mut self, node: Inode) -> Result<(), MountError> {
         let inode_num = node.num();
         self.base.fs.write().nodes.insert(inode_num, node);
         self.children.push(inode_num);
