@@ -1,11 +1,14 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
+#![feature(const_mut_refs)]
 
 use bootloader_api::BootInfo;
 use x86_64::instructions::interrupts;
 
 use crate::arch::{gdt, idt};
+
+extern crate alloc;
 
 pub mod arch;
 pub mod mem;
