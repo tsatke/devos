@@ -36,7 +36,7 @@ fn create_disk_image(out_dir: &Path, os_disk_dir: &Path) -> PathBuf {
     let _ = fs::remove_file(&image_file); // if this fails, doesn't matter
 
     // works on my machine. TODO: use the mkfs-ext2 crate once it's ready
-    let mut cmd = Command::new("/opt/homebrew/opt/e2fsprogs/sbin/mke2fs");
+    let mut cmd = Command::new("mke2fs");
     cmd.arg("-d").arg(os_disk_dir.to_str().unwrap());
     cmd.arg("-m").arg("5");
     cmd.arg("-t").arg("ext2");
