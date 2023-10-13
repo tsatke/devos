@@ -1,7 +1,6 @@
 use crate::arch::switch::switch;
 use crate::process::task::{Finished, Ready, Running, Task, TaskState};
 use crate::process::{Process, ProcessId, ProcessTree};
-use crate::serial_println;
 use alloc::collections::VecDeque;
 use core::mem::{swap, MaybeUninit};
 use x86_64::instructions::interrupts;
@@ -127,19 +126,19 @@ impl Scheduler {
         };
 
         let new_stack_ptr = *self.current_task.last_stack_ptr() as *const u8;
-        let t = unsafe { &*(new_stack_ptr as *const TaskState) };
-        let new_ip = unsafe { (new_stack_ptr as *const u64).add(17) };
-
-        serial_println!(
-            r#"switching to task {}
-new sp: {:0x?}
-new ip: {:0x?}
-new task state: {:#0x?}"#,
-            self.current_task.task_id(),
-            new_stack_ptr,
-            (*new_ip) as *const u8,
-            t,
-        );
+        // let t = unsafe { &*(new_stack_ptr as *const TaskState) };
+        // let new_ip = unsafe { (new_stack_ptr as *const u64).add(17) };
+        //
+        // serial_println!(
+        //     r#"switching to task {}
+        // new sp: {:0x?}
+        // new ip: {:0x?}
+        // new task state: {:#0x?}"#,
+        //     self.current_task.task_id(),
+        //     new_stack_ptr,
+        //     (*new_ip) as *const u8,
+        //     t,
+        // );
 
         unsafe { switch(old_stack_ptr, new_stack_ptr) }
     }
