@@ -89,7 +89,7 @@ impl Vfs {
 
     fn mount(&self, p: impl AsRef<Path>, fs: impl Fs) -> Result<(), MountError> {
         let mountee = fs.root_inode();
-        let mount_point = find(p).map_err(|e| MountError::LookupError(e))?;
+        let mount_point = find(p).map_err(MountError::LookupError)?;
 
         self.mounts
             .write()
