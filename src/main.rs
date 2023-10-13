@@ -1,10 +1,12 @@
 use clap::Parser;
+use std::fs;
 
 extern crate clap;
 
 // both are set in build.rs at build time
 const UEFI_PATH: &str = env!("UEFI_PATH");
 const BIOS_PATH: &str = env!("BIOS_PATH");
+const KERNEL_BINARY: &str = env!("KERNEL_BINARY");
 const OS_DISK: &str = env!("OS_DISK");
 
 #[derive(Parser, Debug)]
@@ -30,9 +32,23 @@ struct Args {
 fn main() {
     let args = Args::parse();
     if args.no_run {
+        println!("KERNEL_BINARY={}", KERNEL_BINARY);
         println!("UEFI={}", UEFI_PATH);
         println!("BIOS={}", BIOS_PATH);
         return;
+    }
+
+    if args.debug {
+        // create an lldb debug file to make debugging easy
+        let content = format!(
+            r#"target create {KERNEL_BINARY}
+target modules load --file {KERNEL_BINARY} --slide 0x8000000000
+gdb-remote localhost:1234
+b _start
+c"#
+        );
+        fs::write("debug.lldb", content).expect("unable to create debug file");
+        println!("debug file is ready, run `lldb -s debug.lldb` to start debugging");
     }
 
     let mut cmd = std::process::Command::new("qemu-system-x86_64");

@@ -86,10 +86,10 @@ bitflags! {
 }
 
 pub fn sys_mount(
-    source: impl AsRef<Path>,
-    target: impl AsRef<Path>,
-    fstype: FsType,
-    mountflags: MountFlags,
+    _source: impl AsRef<Path>,
+    _target: impl AsRef<Path>,
+    _fstype: FsType,
+    _mountflags: MountFlags,
 ) -> Errno {
     ENOSYS
 }

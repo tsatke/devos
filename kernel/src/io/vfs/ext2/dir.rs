@@ -51,9 +51,9 @@ where
 
     fn create(
         &mut self,
-        name: &dyn AsRef<str>,
-        typ: CreateNodeType,
-        permission: Permission,
+        _name: &dyn AsRef<str>,
+        _typ: CreateNodeType,
+        _permission: Permission,
     ) -> Result<Inode, CreateError> {
         todo!()
     }

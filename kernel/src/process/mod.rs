@@ -9,11 +9,21 @@ mod scheduler;
 mod task;
 mod tree;
 
+use crate::process::task::{Ready, Task, TaskId};
 pub use scheduler::*;
 pub use tree::*;
 
 pub fn current() -> Process {
     unsafe { scheduler() }.current_process().clone()
+}
+
+pub fn current_task_id() -> TaskId {
+    *unsafe { scheduler() }.current_task().task_id()
+}
+
+pub fn spawn_task(func: extern "C" fn()) {
+    let task = Task::<Ready>::new(current(), func);
+    unsafe { spawn(task) }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Display)]

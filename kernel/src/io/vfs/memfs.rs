@@ -23,7 +23,7 @@ type InnerHandle = Arc<RwLock<Inner>>;
 struct Inner {
     nodes: BTreeMap<InodeNum, Inode>,
     inode_counter: AtomicU64,
-    fsid: u64,
+    _fsid: u64,
 }
 
 impl Inner {
@@ -33,11 +33,12 @@ impl Inner {
 }
 
 impl MemFs {
+    #[allow(dead_code)]
     pub fn new(fsid: u64) -> Self {
         let inner = Arc::new(RwLock::new(Inner {
             nodes: BTreeMap::new(),
             inode_counter: AtomicU64::new(1),
-            fsid,
+            _fsid: fsid,
         }));
 
         let root_inode_num = 0_u64.into();

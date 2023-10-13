@@ -6,9 +6,9 @@ macro_rules! push_context {
             r#"
 			pushfq
 			push rax
-			push rbx
 			push rcx
 			push rdx
+			push rbx
 			sub  rsp, 8
 			push rbp
 			push rsi
@@ -40,11 +40,11 @@ macro_rules! pop_context {
 			pop r8
 			pop rdi
 			pop rsi
-			add rsp, 8
 			pop rbp
+			add rsp, 8
+			pop rbx
 			pop rdx
 			pop rcx
-			pop rbx
 			pop rax
 			popfq
 			"#
@@ -67,6 +67,8 @@ macro_rules! pop_context {
 ///
 /// # Safety
 ///
+/// Disable interrupts before you call this. This will enable interrupts again.
+///
 /// Switching to another context is unsafe, as it executes
 /// some other code without any drop or safety guarantees
 /// about the caller of this method. The caller must ensure
@@ -77,7 +79,6 @@ pub unsafe extern "C" fn switch(_old_stack: *mut usize, _new_stack: *const u8) -
     // _old_stack is located in $rdi, _new_stack is in $rsi
 
     asm!(
-        "cli",
         push_context!(),
         "mov [rdi], rsp", // write the stack pointer rsp at *_old_stack
         "mov rsp, rsi",   // write _new_stack into rsp

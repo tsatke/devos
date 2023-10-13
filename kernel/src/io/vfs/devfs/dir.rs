@@ -60,15 +60,15 @@ impl InodeBase for DevFsDir {
 }
 
 impl Dir for DevFsDir {
-    fn lookup(&self, name: &dyn AsRef<str>) -> Result<Inode, LookupError> {
+    fn lookup(&self, _name: &dyn AsRef<str>) -> Result<Inode, LookupError> {
         todo!()
     }
 
     fn create(
         &mut self,
-        name: &dyn AsRef<str>,
-        typ: CreateNodeType,
-        permission: Permission,
+        _name: &dyn AsRef<str>,
+        _typ: CreateNodeType,
+        _permission: Permission,
     ) -> Result<Inode, CreateError> {
         todo!()
     }

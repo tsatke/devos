@@ -65,13 +65,13 @@ where
 
 impl<T> File for Ext2File<T>
 where
-    T: filesystem::BlockDevice + 'static + Send + Sync,
+    T: BlockDevice + 'static + Send + Sync,
 {
     fn size(&self) -> u64 {
         self.file.len() as u64
     }
 
-    fn truncate(&mut self, size: u64) -> Result<(), WriteError> {
+    fn truncate(&mut self, _size: u64) -> Result<(), WriteError> {
         todo!()
     }
 
@@ -97,7 +97,6 @@ where
             let block_pointer = match self.determine_block_pointer_type(read_block_index) {
                 BlockPointerType::Direct => self.file.direct_ptr(read_block_index).unwrap(),
                 BlockPointerType::SingleIndirect => {
-                    let single_indirect_block_index = read_block_index - 12; // 12 direct pointers, so subtract the 12
                     let pointer_block = self.file.single_indirect_ptr().unwrap();
                     let mut pointer_data = [0_u8; 4];
                     guard
@@ -126,7 +125,7 @@ where
         Ok(buffer.len())
     }
 
-    fn write_at(&mut self, offset: u64, buf: &dyn AsRef<[u8]>) -> Result<usize, WriteError> {
+    fn write_at(&mut self, _offset: u64, _buf: &dyn AsRef<[u8]>) -> Result<usize, WriteError> {
         todo!()
     }
 }

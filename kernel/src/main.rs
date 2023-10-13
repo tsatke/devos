@@ -19,10 +19,11 @@ use kernel::io::vfs::InodeBase;
 use kernel::io::vfs::{find, Inode};
 use kernel::mem::{MemoryManager, Size};
 use kernel::syscall::io::{sys_access, sys_read, AMode};
-use kernel::{kernel_init, screen, serial_println};
+use kernel::{kernel_init, process, screen, serial_println};
 use vga::Color;
+use x86_64::instructions::hlt;
 
-const KERNEL_STACK_SIZE: Size = Size::KiB(32);
+const KERNEL_STACK_SIZE: Size = Size::KiB(128);
 
 const CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
@@ -49,17 +50,31 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    // syscall_stuff();
-    // ide_stuff();
+    syscall_stuff();
+    ide_stuff();
     vga_stuff();
-    // mm_stuff();
+    mm_stuff();
 
     serial_println!("sys_access /dev: {:?}", sys_access("/dev", AMode::F_OK));
     ls("/");
     ls("/dev");
     ls("/mnt");
 
+    process::spawn_task(count_odd);
+
+    for i in (0..10).step_by(2) {
+        serial_println!("i = {}", i);
+        hlt();
+    }
+
     panic!("kernel_main returned")
+}
+
+extern "C" fn count_odd() {
+    for i in (1..10).step_by(2) {
+        serial_println!("i = {}", i);
+        hlt();
+    }
 }
 
 fn ls(path: &str) {

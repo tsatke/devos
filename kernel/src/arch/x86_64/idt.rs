@@ -10,8 +10,8 @@ use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 
 use crate::apic::LAPIC;
 use crate::arch::syscall::syscall_handler_impl;
-use crate::serial_println;
 use crate::timer::notify_timer_interrupt;
+use crate::{process, serial_println};
 
 static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     let mut idt = InterruptDescriptorTable::new();
@@ -25,6 +25,7 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
         .set_handler_fn(stack_segment_fault_handler);
     idt.segment_not_present
         .set_handler_fn(segment_not_present_fault_handler);
+    idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
     unsafe {
         idt.double_fault
             .set_handler_fn(double_fault_handler)
@@ -172,6 +173,15 @@ table[index]: {}[{}]
         },
         ((error_code & ((1 << 14) - 1)) >> 3),
         stack_frame
+    );
+}
+
+extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {
+    let current_pid = *process::current().process_id();
+    let current_tid = process::current_task_id();
+    panic!(
+        "EXCEPTION: INVALID OPCODE\ncurrent pid={},tid={}\n{:#?}",
+        current_pid, current_tid, stack_frame
     );
 }
 
