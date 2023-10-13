@@ -40,3 +40,17 @@ To run the kernel in QEMU
 ```plain
 cargo run
 ```
+
+### Debugging
+
+To debug the kernel in QEMU, run
+
+```plain
+cargo run -- --debug
+```
+
+and then connect to the QEMU instance with `lldb`:
+
+```plain
+lldb -s debug.lldb
+```
