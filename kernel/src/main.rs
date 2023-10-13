@@ -4,21 +4,18 @@
 
 extern crate alloc;
 
-use alloc::vec;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
-use x86_64::structures::paging::{PageSize, Size4KiB};
 
-use filesystem::BlockDevice;
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
 use kernel::io::vfs::InodeBase;
 use kernel::io::vfs::{find, Inode};
-use kernel::mem::{MemoryManager, Size};
-use kernel::syscall::io::{sys_access, sys_read, AMode};
+use kernel::mem::Size;
+use kernel::syscall::io::{sys_access, AMode};
 use kernel::{kernel_init, process, screen, serial_println};
 use vga::Color;
 use x86_64::instructions::hlt;
@@ -50,10 +47,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    syscall_stuff();
-    ide_stuff();
-    vga_stuff();
-    mm_stuff();
+    process::spawn_task(vga_stuff);
 
     serial_println!("sys_access /dev: {:?}", sys_access("/dev", AMode::F_OK));
     ls("/");
@@ -94,49 +88,7 @@ fn ls(path: &str) {
     }
 }
 
-fn mm_stuff() {
-    // try to produce an out-of-memory
-    let mut mm = MemoryManager::lock();
-    let count = 1_u64 << 15;
-    serial_println!(
-        "trying to allocate (and deallocate) {} MiB of physical memory",
-        count * Size4KiB::SIZE / 1024 / 1024
-    );
-    let tsc_start = unsafe { core::arch::x86_64::_rdtsc() };
-    for i in 0..count {
-        let res = mm.allocate_frame();
-        if res.is_none() {
-            serial_println!("out of physical memory after {} iterations", i);
-            break;
-        }
-        mm.deallocate_frame(res.unwrap());
-    }
-    let tsc_end = unsafe { core::arch::x86_64::_rdtsc() };
-    let avg = (tsc_end - tsc_start) / count;
-    serial_println!(
-        "average cpu cycles per physical frame allocation and deallocation: {}",
-        avg
-    );
-}
-
-fn syscall_stuff() {
-    serial_println!("calling sys_read...");
-    let errno = sys_read(0, &mut [0]);
-    serial_println!("result: {}", errno);
-}
-
-fn ide_stuff() {
-    const CNT: usize = 1030;
-    serial_println!("reading the first {} bytes from the boot drive...", CNT);
-    let mut buf = vec![0_u8; CNT];
-    let drive = ide::drives().next().unwrap().clone();
-    let _ = drive.read_at(0, &mut buf).unwrap();
-    serial_println!("read: {:02X?}", &buf[..512]);
-    serial_println!("read: {:02X?}", &buf[512..1024]);
-    serial_println!("read: {:02X?}", &buf[1024..]);
-}
-
-fn vga_stuff() {
+extern "C" fn vga_stuff() {
     let mut vga = screen::lock();
 
     // white screen
