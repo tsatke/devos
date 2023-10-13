@@ -111,7 +111,7 @@ impl Scheduler {
         interrupts::disable(); // will be enabled again during task switch (in assembly)
 
         while let Some(task) = self.finished.pop_front() {
-            serial_println!("freeing task {}", task.task_id());
+            serial_println!("freeing task {} ({})", task.task_id(), task.name());
             self.free_task(task);
         }
 

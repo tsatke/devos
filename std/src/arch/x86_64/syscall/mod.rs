@@ -2,8 +2,10 @@ use core::arch::asm;
 use kernel_api::syscall::Syscall;
 
 mod io;
+mod unistd;
 
 pub use io::*;
+pub use unistd::*;
 
 /// # Safety
 /// Depending on the syscall, the caller must ensure that all arguments are valid.

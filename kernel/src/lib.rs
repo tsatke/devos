@@ -1,12 +1,13 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
+#![feature(array_chunks)]
 #![feature(assert_matches)]
 #![feature(const_mut_refs)]
 #![feature(exclusive_range_pattern)]
+#![feature(iter_array_chunks)]
 #![feature(naked_functions)]
 #![feature(negative_impls)]
-#![feature(array_chunks)]
 
 use bootloader_api::BootInfo;
 use x86_64::instructions::interrupts;

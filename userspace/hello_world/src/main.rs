@@ -1,13 +1,12 @@
-#![feature(start)]
 #![no_std]
+#![no_main]
 
-#[start]
-fn start(_argc: isize, _args: *const *const u8) -> isize {
-    main();
-    7
+use std::arch::syscall::sys_exit;
+
+#[no_mangle]
+pub fn _start() -> isize {
+    sys_exit(1);
 }
-
-fn main() {}
 
 #[cfg(not(test))]
 #[panic_handler]

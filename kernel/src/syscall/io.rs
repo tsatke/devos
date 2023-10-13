@@ -1,6 +1,6 @@
 use crate::io::path::Path;
 use crate::io::vfs::find;
-use crate::serial_println;
+use crate::{process, serial_println};
 use bitflags::bitflags;
 use kernel_api::syscall::{Errno, ENOENT, ENOSYS, OK};
 
@@ -120,4 +120,9 @@ pub fn sys_open(path: impl AsRef<Path>, flags: usize, mode: usize) -> Errno {
 pub fn sys_close(fd: usize) -> Errno {
     serial_println!("sys_close({})", fd);
     ENOSYS
+}
+
+pub fn sys_exit(status: usize) -> ! {
+    serial_println!("sys_exit({})", status);
+    process::exit();
 }

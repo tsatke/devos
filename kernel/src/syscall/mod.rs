@@ -29,6 +29,7 @@ pub fn dispatch_syscall(
             Syscall::Write => dispatch_sys_write(arg1, arg2, arg3),
             Syscall::Open => dispatch_sys_open(arg1, arg2, arg3),
             Syscall::Close => dispatch_sys_close(arg1),
+            Syscall::Exit => dispatch_sys_exit(arg1),
             _ => ENOSYS, // not implemented
         }
     }
@@ -67,6 +68,10 @@ unsafe fn dispatch_sys_open(arg1: usize, arg2: usize, arg3: usize) -> Errno {
 
 fn dispatch_sys_close(arg1: usize) -> Errno {
     sys_close(arg1)
+}
+
+fn dispatch_sys_exit(arg1: usize) -> Errno {
+    sys_exit(arg1)
 }
 
 fn strlen_s(ptr: *const u8, max: usize) -> Option<usize> {

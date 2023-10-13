@@ -4,21 +4,24 @@
 
 extern crate alloc;
 
+use alloc::vec;
+use core::arch::asm;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use elfloader::ElfBinary;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
 use kernel::io::vfs::InodeBase;
 use kernel::io::vfs::{find, Inode};
 use kernel::mem::Size;
+use kernel::process::elf::ElfLoader;
 use kernel::syscall::io::{sys_access, AMode};
 use kernel::{kernel_init, process, screen, serial_println};
 use vga::Color;
-use x86_64::instructions::hlt;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(128);
 
@@ -47,27 +50,42 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    process::spawn_task(vga_stuff);
+    process::spawn_task("vga_stuff", vga_stuff);
 
     serial_println!("sys_access /dev: {:?}", sys_access("/dev", AMode::F_OK));
     ls("/");
     ls("/dev");
     ls("/mnt");
 
-    process::spawn_task(count_odd);
-
-    for i in (0..10).step_by(2) {
-        serial_println!("i = {}", i);
-        hlt();
-    }
+    process::spawn_task("elf_stuff", elf_stuff);
 
     panic!("kernel_main returned")
 }
 
-extern "C" fn count_odd() {
-    for i in (1..10).step_by(2) {
-        serial_println!("i = {}", i);
-        hlt();
+#[no_mangle]
+extern "C" fn elf_stuff() {
+    serial_println!(
+        "sys_access /hello_world: {:?}",
+        sys_access("/hello_world", AMode::F_OK)
+    );
+
+    let elf_data = {
+        let file = find("/hello_world").unwrap().as_file().unwrap();
+        let guard = file.read();
+        let size = guard.size();
+        let mut buf = vec![0_u8; size as usize];
+        guard.read_at(0, &mut buf).unwrap();
+        buf
+    };
+
+    let mut loader = ElfLoader::default();
+    let elf = ElfBinary::new(&elf_data).unwrap();
+    elf.load(&mut loader).unwrap();
+    let image = loader.into_inner();
+    let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
+    serial_println!("jumping to entry: {:#p}", entry);
+    unsafe {
+        asm!("jmp {}", in(reg) entry);
     }
 }
 

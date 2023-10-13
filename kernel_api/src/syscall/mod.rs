@@ -59,4 +59,5 @@ pub enum Syscall {
     GetTimeOfDay,
     ClockGetTime,
     Nanosleep,
+    Exit,
 }

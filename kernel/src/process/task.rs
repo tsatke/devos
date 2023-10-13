@@ -2,6 +2,7 @@ use crate::mem::Size;
 use crate::process;
 use crate::process::Process;
 use alloc::boxed::Box;
+use alloc::string::{String, ToString};
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::mem::size_of;
@@ -14,6 +15,15 @@ const STACK_SIZE: usize = Size::KiB(32).bytes();
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Display)]
 pub struct TaskId(u64);
+
+impl<T> PartialEq<T> for TaskId
+where
+    T: Into<u64> + Copy,
+{
+    fn eq(&self, other: &T) -> bool {
+        self.0 == (*other).into()
+    }
+}
 
 impl !Default for TaskId {}
 
@@ -42,6 +52,7 @@ macro_rules! state_transition {
             fn from(value: Task<$from>) -> Self {
                 Task {
                     id: value.id,
+                    name: value.name,
                     process: value.process,
                     last_stack_ptr: value.last_stack_ptr,
                     should_exit: value.should_exit,
@@ -64,6 +75,7 @@ where
     S: State + 'static,
 {
     id: TaskId,
+    name: String,
     process: Process,
     last_stack_ptr: usize,
     stack: Option<Box<[u8; STACK_SIZE]>>,
@@ -88,6 +100,10 @@ where
 {
     pub fn task_id(&self) -> &TaskId {
         &self.id
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn last_stack_ptr(&self) -> &usize {
@@ -146,9 +162,14 @@ impl<'a> StackWriter<'a> {
 }
 
 impl Task<Ready> {
-    pub fn new(process: Process, entry_point: extern "C" fn()) -> Task<Ready> {
+    pub fn new(
+        process: Process,
+        name: impl Into<String>,
+        entry_point: extern "C" fn(),
+    ) -> Task<Ready> {
         let mut task = Self {
             id: TaskId::new(),
+            name: name.into(),
             process,
             last_stack_ptr: 0, // will be set correctly in [`setup_stack`]
             stack: Some(Box::new([0; STACK_SIZE])),
@@ -227,6 +248,7 @@ impl Task<Running> {
     pub unsafe fn kernel_task(kernel_process: Process) -> Self {
         Self {
             id: TaskId::new(),
+            name: "kernel".to_string(),
             process: kernel_process,
             last_stack_ptr: 0, // will be set correctly during the next `reschedule`
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)

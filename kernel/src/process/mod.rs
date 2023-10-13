@@ -1,10 +1,12 @@
 use crate::mem::AddressSpace;
+use alloc::string::String;
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 use derive_more::Display;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
+pub mod elf;
 mod scheduler;
 mod task;
 mod tree;
@@ -21,8 +23,8 @@ pub fn current_task_id() -> TaskId {
     *unsafe { scheduler() }.current_task().task_id()
 }
 
-pub fn spawn_task(func: extern "C" fn()) {
-    let task = Task::<Ready>::new(current(), func);
+pub fn spawn_task(name: impl Into<String>, func: extern "C" fn()) {
+    let task = Task::<Ready>::new(current(), name, func);
     unsafe { spawn(task) }
 }
 

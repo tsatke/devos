@@ -390,6 +390,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "elfloader"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a7b18d35bf8ec3bac59c3ec29cf1f1b46e764e00b42a9c0c754d06e38e78f3b"
+dependencies = [
+ "bitflags 1.3.2",
+ "log",
+ "xmas-elf",
+]
+
+[[package]]
 name = "errno"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -596,6 +607,9 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 [[package]]
 name = "hello_world"
 version = "0.1.0"
+dependencies = [
+ "std",
+]
 
 [[package]]
 name = "hermit-abi"
@@ -663,6 +677,7 @@ dependencies = [
  "bootloader_api",
  "conquer-once",
  "derive_more",
+ "elfloader",
  "graphics",
  "ide",
  "kernel_api",
@@ -754,7 +769,7 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 [[package]]
 name = "mkfs-ext2"
 version = "0.1.0"
-source = "git+https://github.com/tsatke/mkfs#c175db86e7104780b6f9445a617d1042294d1afb"
+source = "git+https://github.com/tsatke/mkfs#ea0d5b47ba75962d076cf75217bc2e4ba0a2e0a9"
 dependencies = [
  "bitflags 2.3.3",
  "mkfs-filesystem",
@@ -763,7 +778,7 @@ dependencies = [
 [[package]]
 name = "mkfs-filesystem"
 version = "0.1.0"
-source = "git+https://github.com/tsatke/mkfs#c175db86e7104780b6f9445a617d1042294d1afb"
+source = "git+https://github.com/tsatke/mkfs#ea0d5b47ba75962d076cf75217bc2e4ba0a2e0a9"
 
 [[package]]
 name = "num_enum"
@@ -1392,3 +1407,18 @@ dependencies = [
  "rustversion",
  "volatile",
 ]
+
+[[package]]
+name = "xmas-elf"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d29b4d8e7beaceb4e77447ba941a7600d23d0319ab52da0461abea214832d5a"
+dependencies = [
+ "zero",
+]
+
+[[package]]
+name = "zero"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fe21bcc34ca7fe6dd56cc2cb1261ea59d6b93620215aefb5ea6032265527784"
