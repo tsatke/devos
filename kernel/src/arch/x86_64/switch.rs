@@ -75,7 +75,7 @@ macro_rules! pop_context {
 /// that _old_stack and _new_stack are valid pointers to
 /// a task stack.
 #[naked]
-pub unsafe extern "C" fn switch(_old_stack: *mut usize, _new_stack: *const u8) -> ! {
+pub unsafe extern "C" fn switch(_old_stack: *mut usize, _new_stack: *const u8) {
     // _old_stack is located in $rdi, _new_stack is in $rsi
 
     asm!(
