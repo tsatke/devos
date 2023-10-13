@@ -1,9 +1,10 @@
 use crate::arch::switch::switch;
-use crate::process::task::{Finished, Ready, Running, Task, TaskState};
+use crate::process::task::{Finished, Ready, Running, Task};
 use crate::process::{Process, ProcessId, ProcessTree};
+use crate::serial_println;
 use alloc::collections::VecDeque;
 use core::mem::{swap, MaybeUninit};
-use x86_64::instructions::interrupts;
+use x86_64::instructions::{hlt, interrupts};
 
 static mut SCHEDULER: MaybeUninit<Scheduler> = MaybeUninit::uninit();
 
@@ -28,6 +29,10 @@ pub(crate) unsafe fn reschedule() {
 /// and that there does not exist a mutable reference to the scheduler.
 pub(crate) unsafe fn spawn(task: Task<Ready>) {
     unsafe { SCHEDULER.assume_init_mut().spawn(task) }
+}
+
+pub(crate) unsafe fn exit_current_task() -> ! {
+    unsafe { SCHEDULER.assume_init_mut().exit_current_task() }
 }
 
 pub(in crate::process) unsafe fn scheduler() -> &'static Scheduler {
@@ -60,6 +65,16 @@ impl Scheduler {
 
     pub fn spawn(&mut self, task: Task<Ready>) {
         self.ready.push_back(task);
+    }
+
+    pub fn exit_current_task(&mut self) -> ! {
+        self.current_task.mark_as_should_exit();
+        unsafe {
+            reschedule();
+        }
+        loop {
+            hlt();
+        }
     }
 
     pub fn current_task(&self) -> &Task<Running> {
@@ -96,6 +111,7 @@ impl Scheduler {
         interrupts::disable(); // will be enabled again during task switch (in assembly)
 
         while let Some(task) = self.finished.pop_front() {
+            serial_println!("freeing task {}", task.task_id());
             self.free_task(task);
         }
 
@@ -110,8 +126,16 @@ impl Scheduler {
         // swap out the task from the queue and the current task
         let mut task = task.into_running();
         swap(&mut self.current_task, &mut task);
-        let task = task.into_ready();
-        self.ready.push_back(task);
+
+        let old_stack_ptr_ref = if task.should_exit() {
+            let task = task.into_finished();
+            self.finished.push_back(task);
+            self.finished.back_mut().unwrap().last_stack_ptr_mut()
+        } else {
+            let task = task.into_ready();
+            self.ready.push_back(task);
+            self.ready.back_mut().unwrap().last_stack_ptr_mut()
+        };
 
         // hope that this works
         let old_stack_ptr = {
@@ -122,23 +146,10 @@ impl Scheduler {
             // We get the pointer to the `last_stack_ptr` field of the last element in the ready
             // queue - which we just pushed - and pass that into the switch, so that the assembly
             // in there can write the most recent stack pointer to that location.
-            self.ready.back_mut().unwrap().last_stack_ptr_mut() as *mut usize
+            old_stack_ptr_ref as *mut usize
         };
 
         let new_stack_ptr = *self.current_task.last_stack_ptr() as *const u8;
-        // let t = unsafe { &*(new_stack_ptr as *const TaskState) };
-        // let new_ip = unsafe { (new_stack_ptr as *const u64).add(17) };
-        //
-        // serial_println!(
-        //     r#"switching to task {}
-        // new sp: {:0x?}
-        // new ip: {:0x?}
-        // new task state: {:#0x?}"#,
-        //     self.current_task.task_id(),
-        //     new_stack_ptr,
-        //     (*new_ip) as *const u8,
-        //     t,
-        // );
 
         unsafe { switch(old_stack_ptr, new_stack_ptr) }
     }

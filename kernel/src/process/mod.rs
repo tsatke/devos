@@ -26,6 +26,10 @@ pub fn spawn_task(func: extern "C" fn()) {
     unsafe { spawn(task) }
 }
 
+pub fn exit() -> ! {
+    unsafe { exit_current_task() }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Display)]
 pub struct ProcessId(u64);
 
