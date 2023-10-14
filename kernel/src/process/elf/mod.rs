@@ -1,5 +1,7 @@
 use alloc::vec::Vec;
-use elfloader::{ElfLoaderErr, Flags, LoadableHeaders, RelocationEntry, VAddr};
+use core::mem::size_of;
+use elfloader::arch::x86_64::RelocationTypes;
+use elfloader::{ElfLoaderErr, Flags, LoadableHeaders, RelocationEntry, RelocationType, VAddr};
 
 #[derive(Debug, Default)]
 pub struct ElfLoader {
@@ -30,7 +32,25 @@ impl elfloader::ElfLoader for ElfLoader {
         Ok(())
     }
 
-    fn relocate(&mut self, _entry: RelocationEntry) -> Result<(), ElfLoaderErr> {
-        todo!("implement relocation")
+    fn relocate(&mut self, entry: RelocationEntry) -> Result<(), ElfLoaderErr> {
+        let typ = match entry.rtype {
+            RelocationType::x86_64(v) => v,
+            RelocationType::x86(_) | RelocationType::AArch64(_) => {
+                return Err(ElfLoaderErr::UnsupportedArchitecture);
+            }
+        };
+        match typ {
+            RelocationTypes::R_AMD64_RELATIVE => {
+                // *target_addr = (base_address + addend)
+                let base_address = self.data.as_ptr() as usize;
+                let value = base_address + entry.addend.unwrap() as usize;
+                let value_bytes = value.to_ne_bytes();
+                let dest = &mut self.data
+                    [entry.offset as usize..entry.offset as usize + size_of::<usize>()];
+                dest.copy_from_slice(&value_bytes);
+            }
+            _ => return Err(ElfLoaderErr::UnsupportedRelocationEntry),
+        };
+        Ok(())
     }
 }
