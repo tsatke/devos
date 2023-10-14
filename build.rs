@@ -67,7 +67,15 @@ fn collect_os_disk_artifacts(out_dir: &Path) -> PathBuf {
             bindep_name.to_uppercase(),
             bindep_name
         );
-        let path = PathBuf::from(std::env::var_os(env_name).unwrap());
+        let path = PathBuf::from(
+            std::env::var_os(&env_name).expect(
+                format!(
+                    "env var {} is not set, did you add '{}' as a bindep?",
+                    env_name, bindep_name
+                )
+                .as_str(),
+            ),
+        );
         let dest = &dest[1..]; // remove the leading '/'
         if dest.is_empty() {
             copy_artifact_into_dir(&os_disk_dir, &path).unwrap();
