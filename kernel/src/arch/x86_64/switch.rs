@@ -52,6 +52,18 @@ macro_rules! pop_context {
     };
 }
 
+macro_rules! set_task_switched {
+    () => {
+        concat!(
+            r#"
+            mov rax, cr0
+            or rax, 8
+            mov cr0, rax
+			"#
+        )
+    };
+}
+
 /// Perform a context switch.
 ///
 /// `_old_stack` is the pointer where the current stack pointer will be written to.
@@ -82,6 +94,7 @@ pub unsafe extern "C" fn switch(_old_stack: *mut usize, _new_stack: *const u8) {
         push_context!(),
         "mov [rdi], rsp", // write the stack pointer rsp at *_old_stack
         "mov rsp, rsi",   // write _new_stack into rsp
+        set_task_switched!(),
         pop_context!(),
         "sti", // enable interrupts
         "ret",
