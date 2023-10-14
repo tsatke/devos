@@ -55,7 +55,7 @@ c"#
     cmd.arg("-monitor").arg("telnet::45454,server,nowait");
     cmd.arg("-d").arg("guest_errors");
     if args.fullscreen {
-        cmd.arg("-fullscreen");
+        cmd.arg("-full-screen");
     }
     if args.debug {
         cmd.arg("-s");
