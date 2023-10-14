@@ -62,7 +62,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     panic!("kernel_main returned")
 }
 
-#[no_mangle]
 extern "C" fn elf_stuff() {
     serial_println!(
         "sys_access /hello_world: {:?}",
