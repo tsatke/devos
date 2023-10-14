@@ -19,7 +19,7 @@ use kernel::io::vfs::InodeBase;
 use kernel::io::vfs::{find, Inode};
 use kernel::mem::Size;
 use kernel::process::elf::ElfLoader;
-use kernel::syscall::io::{sys_access, AMode};
+use kernel::syscall::unistd::{sys_access, AMode};
 use kernel::{kernel_init, process, screen, serial_println};
 use vga::Color;
 
@@ -81,7 +81,7 @@ extern "C" fn elf_stuff() {
     let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
     serial_println!("jumping to entry: {:#p}", entry);
     unsafe {
-        asm!("jmp {}", in(reg) entry);
+        asm!("jmp {}", in(reg) entry, options(noreturn));
     }
 }
 

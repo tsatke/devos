@@ -26,6 +26,4 @@ members = [
 ]
 
 [features]
-default = ["uefi"]
-bios = ["kernel/bios"]
-uefi = ["kernel/uefi"]
+default = []

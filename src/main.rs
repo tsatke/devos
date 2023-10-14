@@ -5,7 +5,6 @@ extern crate clap;
 
 // both are set in build.rs at build time
 const UEFI_PATH: &str = env!("UEFI_PATH");
-const BIOS_PATH: &str = env!("BIOS_PATH");
 const KERNEL_BINARY: &str = env!("KERNEL_BINARY");
 const OS_DISK: &str = env!("OS_DISK");
 
@@ -25,7 +24,7 @@ struct Args {
         help = "Start a gdb server on tcp:1234 and wait until a client has connected"
     )]
     debug: bool,
-    #[arg(long, help = "Only print the paths to the UEFI and BIOS images")]
+    #[arg(long, help = "Only print the paths to the UEFI image")]
     no_run: bool,
 }
 
@@ -34,7 +33,6 @@ fn main() {
     if args.no_run {
         println!("KERNEL_BINARY={}", KERNEL_BINARY);
         println!("UEFI={}", UEFI_PATH);
-        println!("BIOS={}", BIOS_PATH);
         return;
     }
 
@@ -63,14 +61,9 @@ c"#
         cmd.arg("-s");
         cmd.arg("-S");
     }
-    if cfg!(feature = "bios") {
-        cmd.arg("-drive")
-            .arg(format!("format=raw,file={BIOS_PATH}"));
-    } else {
-        cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
-        cmd.arg("-drive")
-            .arg(format!("format=raw,file={UEFI_PATH}"));
-    }
+    cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
+    cmd.arg("-drive")
+        .arg(format!("format=raw,file={UEFI_PATH}"));
 
     // add the os disk as hard drive
     cmd.arg("-drive")

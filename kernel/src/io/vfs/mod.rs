@@ -22,7 +22,7 @@ pub use perm::*;
 use crate::io::path::{Component, Path};
 use crate::io::vfs::devfs::DevFs;
 use crate::io::vfs::ext2::Ext2Fs;
-use crate::syscall::io::{sys_access, AMode};
+use crate::syscall::unistd::{sys_access, AMode};
 
 static mut VFS: MaybeUninit<Vfs> = MaybeUninit::uninit();
 

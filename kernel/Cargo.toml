@@ -28,6 +28,4 @@ x2apic = "0.4.2"
 x86_64 = "0.14.10"
 
 [features]
-default = ["uefi"]
-bios = []
-uefi = []
+default = []

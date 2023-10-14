@@ -17,15 +17,8 @@ fn main() {
         .create_disk_image(&uefi_path)
         .unwrap();
 
-    // create a BIOS disk image
-    let bios_path = out_dir.join("bios.img");
-    bootloader::BiosBoot::new(&kernel)
-        .create_disk_image(&bios_path)
-        .unwrap();
-
     // pass the disk image paths as env variables to the `main.rs`
     println!("cargo:rustc-env=UEFI_PATH={}", uefi_path.display());
-    println!("cargo:rustc-env=BIOS_PATH={}", bios_path.display());
 
     let os_disk_dir = collect_os_disk_artifacts(&out_dir);
     let os_disk_image = create_disk_image(&out_dir, &os_disk_dir);
@@ -67,15 +60,12 @@ fn collect_os_disk_artifacts(out_dir: &Path) -> PathBuf {
             bindep_name.to_uppercase(),
             bindep_name
         );
-        let path = PathBuf::from(
-            std::env::var_os(&env_name).expect(
-                format!(
-                    "env var {} is not set, did you add '{}' as a bindep?",
-                    env_name, bindep_name
-                )
-                .as_str(),
-            ),
-        );
+        let path = PathBuf::from(std::env::var_os(&env_name).unwrap_or_else(|| {
+            panic!(
+                "env var {} is not set, did you add '{}' as a bindep?",
+                env_name, bindep_name
+            )
+        }));
         let dest = &dest[1..]; // remove the leading '/'
         if dest.is_empty() {
             copy_artifact_into_dir(&os_disk_dir, &path).unwrap();

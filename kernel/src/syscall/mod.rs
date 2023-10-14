@@ -1,9 +1,13 @@
 use core::slice::{from_raw_parts, from_raw_parts_mut};
+use fcntl::sys_open;
 use kernel_api::syscall::{Errno, Syscall, EINVAL, ENAMETOOLONG, ENOSYS};
+use unistd::{sys_access, sys_close, sys_exit, sys_read, sys_write};
 
-use crate::syscall::io::*;
+use crate::syscall::unistd::AMode;
 
-pub mod io;
+pub mod fcntl;
+pub mod mount;
+pub mod unistd;
 
 /// Dispatches syscalls. Inputs are the raw register values, the return value
 /// is the result of the syscall that is identified by the [`syscall`] argument.

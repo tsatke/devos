@@ -28,11 +28,6 @@ pub mod screen;
 pub mod syscall;
 pub mod timer;
 
-#[cfg(not(any(feature = "bios", feature = "uefi")))]
-compile_error!("You must enable either the bios or uefi feature");
-#[cfg(all(feature = "bios", feature = "uefi"))]
-compile_error!("You must enable either the bios or uefi feature, not both");
-
 #[allow(clippy::needless_pass_by_ref_mut)]
 pub fn kernel_init(boot_info: &'static mut BootInfo) {
     gdt::init();
