@@ -1,5 +1,5 @@
 use crate::mem::AddressSpace;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
@@ -21,6 +21,10 @@ pub fn current() -> Process {
 
 pub fn current_task_id() -> TaskId {
     *unsafe { scheduler() }.current_task().task_id()
+}
+
+pub fn current_task_name() -> String {
+    unsafe { scheduler() }.current_task().name().to_string()
 }
 
 pub fn spawn_task(name: impl Into<String>, func: extern "C" fn()) {

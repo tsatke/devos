@@ -42,7 +42,7 @@ fn create_disk_image(out_dir: &Path, os_disk_dir: &Path) -> PathBuf {
     cmd.arg("-m").arg("5");
     cmd.arg("-t").arg("ext2");
     cmd.arg(image_file.to_str().unwrap());
-    cmd.arg("1M");
+    cmd.arg("2M");
 
     let rc = cmd.status().unwrap();
     assert_eq!(0, rc.code().unwrap());
@@ -57,17 +57,26 @@ fn collect_os_disk_artifacts(out_dir: &Path) -> PathBuf {
     fs::create_dir(&os_disk_dir).unwrap();
 
     // set up rootdir structure
+    fs::create_dir(os_disk_dir.join("bin")).unwrap();
     fs::create_dir(os_disk_dir.join("dev")).unwrap();
     fs::create_dir(os_disk_dir.join("mnt")).unwrap();
 
-    for name in [
-        // the names of the binaries are defined as artifact dependencies in the `Cargo.toml`
-        "hello_world",
-    ] {
-        let env_name = format!("CARGO_BIN_FILE_{}_{}", name.to_uppercase(), name);
+    let load_bindep = |bindep_name: &str, dest: &str| {
+        let env_name = format!(
+            "CARGO_BIN_FILE_{}_{}",
+            bindep_name.to_uppercase(),
+            bindep_name
+        );
         let path = PathBuf::from(std::env::var_os(env_name).unwrap());
-        copy_artifact_into_dir(&os_disk_dir, &path).unwrap();
-    }
+        let dest = &dest[1..]; // remove the leading '/'
+        if dest.is_empty() {
+            copy_artifact_into_dir(&os_disk_dir, &path).unwrap();
+        } else {
+            copy_artifact_into_dir(os_disk_dir.join(dest), path).unwrap();
+        }
+    };
+
+    load_bindep("hello_world", "/bin");
 
     os_disk_dir
 }

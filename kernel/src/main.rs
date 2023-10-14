@@ -50,13 +50,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
+    serial_println!("sys_access /bin: {:?}", sys_access("/bin", AMode::F_OK));
+    ls("/bin");
+
     process::spawn_task("vga_stuff", vga_stuff);
-
-    serial_println!("sys_access /dev: {:?}", sys_access("/dev", AMode::F_OK));
-    ls("/");
-    ls("/dev");
-    ls("/mnt");
-
     process::spawn_task("elf_stuff", elf_stuff);
 
     panic!("kernel_main returned")
@@ -64,12 +61,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 extern "C" fn elf_stuff() {
     serial_println!(
-        "sys_access /hello_world: {:?}",
-        sys_access("/hello_world", AMode::F_OK)
+        "sys_access /bin/hello_world: {:?}",
+        sys_access("/bin/hello_world", AMode::F_OK)
     );
 
     let elf_data = {
-        let file = find("/hello_world").unwrap().as_file().unwrap();
+        let file = find("/bin/hello_world").unwrap().as_file().unwrap();
         let guard = file.read();
         let size = guard.size();
         let mut buf = vec![0_u8; size as usize];
@@ -158,7 +155,12 @@ extern "C" fn vga_stuff() {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
-    serial_println!("kernel panicked: {}", info.message().unwrap());
+    serial_println!(
+        "kernel panicked in task {} ({}): {}",
+        process::current_task_id(),
+        process::current_task_name(),
+        info.message().unwrap()
+    );
     if let Some(location) = info.location() {
         serial_println!(
             "\tat {}:{}:{}",
