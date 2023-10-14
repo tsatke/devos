@@ -166,7 +166,7 @@ where
         } as usize;
 
         // read blocks
-        let mut data: Vec<u8> = vec![0_u8; block_count * block_size];
+        let mut data: Vec<u8> = vec![0_u8; block_count * block_size]; // TODO: avoid allocation - maybe try to only allocate the first and last block if the read is not aligned, but read the rest directly into the buffer
         self.read_blocks(start_block as usize, end_block as usize, &mut data)?;
         buffer.copy_from_slice(&data[relative_offset..relative_offset + buffer.len()]);
 
