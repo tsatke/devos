@@ -1,10 +1,9 @@
 use crate::io::vfs::ext2::InnerHandle;
 use crate::io::vfs::{File, InodeBase, InodeNum, IoError, ReadError, Stat, WriteError};
-use crate::serial_println;
+use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
-use conquer_once::spin::Lazy;
 use core::mem::size_of;
 use ext2::BlockAddress;
 use filesystem::BlockDevice;
@@ -23,35 +22,107 @@ where
         Self { inner, file, name }
     }
 
-    /// Takes the index of a block within a file node and determines, in which pointer list to look
-    /// for the block address. For example, a block index of 0 (the very first block in a file) is
-    /// stored in the direct pointers list. A block index of 12 is the first entry in the single
-    /// indirect pointers list.
-    fn determine_block_pointer_type(&self, block_index: usize) -> BlockPointerType {
-        let block_size = self.inner.read().fs.superblock().block_size();
-        let pointers_per_block = (block_size / 4) as usize;
-        let hi_single_indirect = pointers_per_block;
-        let hi_double_indirect = hi_single_indirect * pointers_per_block;
-        let hi_triple_indirect = hi_double_indirect * pointers_per_block;
+    fn read_blocks(
+        &self,
+        start_block: usize,
+        end_block: usize,
+        buf: &mut [u8],
+    ) -> Result<(), ReadError> {
+        let block_size = self.inner.read().fs.superblock().block_size() as usize;
+        let pointers_per_block = block_size / 4;
 
-        let direct_range = 0_usize..12;
-        let single_indirect_range = 12..hi_single_indirect;
-        let double_indirect_range = hi_single_indirect..hi_double_indirect;
-        let triple_indirect_range = hi_double_indirect..hi_triple_indirect;
+        let direct_end = 11; // 12 direct pointers
+        let single_start = direct_end + 1;
+        let single_end = single_start + pointers_per_block;
+        let single_count = single_end - single_start;
+        let double_start = single_end;
+        let double_end = double_start + pointers_per_block.pow(2);
+        let double_count = double_end - double_start;
+        let triple_start = double_end;
 
-        match block_index {
-            x if direct_range.contains(&x) => BlockPointerType::Direct,
-            x if single_indirect_range.contains(&x) => BlockPointerType::SingleIndirect,
-            x if double_indirect_range.contains(&x) => BlockPointerType::DoubleIndirect,
-            x if triple_indirect_range.contains(&x) => BlockPointerType::TripleIndirect,
-            _ => unreachable!("too many blocks"),
+        let mut pointer_block_cache = BTreeMap::<BlockAddress, Vec<u8>>::new(); // FIXME: this can grow quite large e.g. a lot of triple indirect pointers are used
+
+        for (i, block) in (start_block..=end_block).enumerate() {
+            let block_data = &mut buf[i * block_size..(i + 1) * block_size];
+            let block_pointer = if block < 12 {
+                self.file.direct_ptr(block)
+            } else {
+                // The block index will be converted to a "path" like 3/2/5, which would
+                // mean the third triple indirect entry, the second double indirect entry,
+                // and the fifth single indirect entry.
+                // Or 2/1, which would mean the second double indirect entry, and the first
+                // single indirect entry.
+                let mut indirect_path = Vec::<usize>::with_capacity(3);
+                if block >= triple_start {
+                    let triple_offset = block - triple_start;
+                    let triple_index = triple_offset / double_count;
+                    let double_index = (triple_offset % double_count) / single_count;
+                    let single_index = (triple_offset % double_count) % single_count;
+                    indirect_path.push(triple_index);
+                    indirect_path.push(double_index);
+                    indirect_path.push(single_index);
+                } else if block >= double_start {
+                    let double_offset = block - double_start;
+                    let double_index = double_offset / single_count;
+                    let single_index = double_offset % single_count;
+                    indirect_path.push(double_index);
+                    indirect_path.push(single_index);
+                } else if block >= single_start {
+                    let single_offset = block - single_start;
+                    indirect_path.push(single_offset);
+                }
+
+                // this is the starting point for walking the path
+                let mut block_pointer = match indirect_path.len() {
+                    1 => self.file.single_indirect_ptr(),
+                    2 => self.file.double_indirect_ptr(),
+                    3 => self.file.triple_indirect_ptr(),
+                    _ => panic!("invalid indirect path"),
+                }
+                .expect("indirect pointer block not allocated"); // FIXME: this can probably happen for sparse file systems
+                for indirect_path_segment in indirect_path {
+                    let pointer_data =
+                        pointer_block_cache.entry(block_pointer).or_insert_with(|| {
+                            let mut data = vec![0_u8; block_size];
+                            self.inner
+                                .read()
+                                .fs
+                                .read_block(block_pointer, &mut data)
+                                .expect("failed to read single indirect pointer block");
+                            data
+                        });
+                    const SZ: usize = size_of::<BlockAddress>();
+                    block_pointer = pointer_data
+                        .iter()
+                        .copied()
+                        .array_chunks::<SZ>()
+                        .map(u32::from_le_bytes)
+                        .map(BlockAddress::new)
+                        .nth(indirect_path_segment)
+                        .unwrap()
+                        .expect("failed to get indirect pointer") // FIXME: this can probably happen for sparse file systems
+                }
+                Some(block_pointer)
+            };
+
+            if let Some(block_pointer) = block_pointer {
+                self.inner
+                    .read()
+                    .fs
+                    .read_block(block_pointer, block_data)
+                    .map_err(|_| ReadError::IoError(IoError::HardwareError))?;
+            } else {
+                block_data.fill(0);
+            }
         }
+
+        Ok(())
     }
 }
 
 impl<T> InodeBase for Ext2File<T>
 where
-    T: filesystem::BlockDevice + Send + Sync,
+    T: BlockDevice + Send + Sync,
 {
     fn num(&self) -> InodeNum {
         1_u64.into()
@@ -96,68 +167,7 @@ where
 
         // read blocks
         let mut data: Vec<u8> = vec![0_u8; block_count * block_size];
-        let single_indirect_cache = Lazy::new(|| {
-            let pointer_block = self.file.single_indirect_ptr().unwrap();
-            let mut pointer_data = vec![0_u8; block_size];
-            self.inner
-                .read()
-                .fs
-                .read_block(pointer_block, &mut pointer_data)
-                .expect("failed to read single indirect pointer block");
-            pointer_data
-        });
-        let double_indirect_cache = Lazy::new(|| {
-            let pointer_block = self.file.double_indirect_ptr().unwrap();
-            let mut pointer_data = vec![0_u8; block_size];
-            self.inner
-                .read()
-                .fs
-                .read_block(pointer_block, &mut pointer_data)
-                .expect("failed to read double indirect pointer block");
-            pointer_data
-        });
-
-        const SZ: usize = size_of::<u32>();
-        for i in 0..block_count {
-            let read_block_index = (start_block + i as u32) as usize;
-            let block_pointer = match self.determine_block_pointer_type(read_block_index) {
-                BlockPointerType::Direct => self.file.direct_ptr(read_block_index),
-                BlockPointerType::SingleIndirect => single_indirect_cache
-                    .iter()
-                    .copied()
-                    .array_chunks::<SZ>()
-                    .map(u32::from_le_bytes)
-                    .map(BlockAddress::new)
-                    .nth(read_block_index - 12) // 12 direct pointers, so subtract the 12
-                    .unwrap(),
-                BlockPointerType::DoubleIndirect => double_indirect_cache
-                    .iter()
-                    .copied()
-                    .array_chunks::<SZ>()
-                    .map(u32::from_le_bytes)
-                    .map(BlockAddress::new)
-                    .nth(0) // FIXME: this is obviously incorrect - if the file is large enough, this always only reads the first double indirect block
-                    .unwrap(),
-                BlockPointerType::TripleIndirect => {
-                    todo!("triple indirect pointers")
-                }
-            };
-
-            // FIXME: if block_pointer is zero, we can only read a block of zeros ONLY IF THE FILE SYSTEM IS SPARSE
-
-            let start_index = i * block_size;
-            let end_index = start_index + block_size;
-            let slice = &mut data[start_index..end_index];
-            if let Some(block_pointer) = block_pointer {
-                self.inner
-                    .read()
-                    .fs
-                    .read_block(block_pointer, slice)
-                    .map_err(|_| ReadError::IoError(IoError::HardwareError))?;
-            } else {
-                slice.fill(0);
-            }
-        }
+        self.read_blocks(start_block as usize, end_block as usize, &mut data)?;
         buffer.copy_from_slice(&data[relative_offset..relative_offset + buffer.len()]);
 
         Ok(buffer.len())
@@ -166,11 +176,4 @@ where
     fn write_at(&mut self, _offset: u64, _buf: &dyn AsRef<[u8]>) -> Result<usize, WriteError> {
         todo!()
     }
-}
-
-enum BlockPointerType {
-    Direct,
-    SingleIndirect,
-    DoubleIndirect,
-    TripleIndirect,
 }

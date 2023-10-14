@@ -769,7 +769,7 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 [[package]]
 name = "mkfs-ext2"
 version = "0.1.0"
-source = "git+https://github.com/tsatke/mkfs#ea0d5b47ba75962d076cf75217bc2e4ba0a2e0a9"
+source = "git+https://github.com/tsatke/mkfs#2fc94a1af4d2fb8813cbe184c31d0b537b38b5cd"
 dependencies = [
  "bitflags 2.3.3",
  "mkfs-filesystem",
@@ -778,7 +778,7 @@ dependencies = [
 [[package]]
 name = "mkfs-filesystem"
 version = "0.1.0"
-source = "git+https://github.com/tsatke/mkfs#ea0d5b47ba75962d076cf75217bc2e4ba0a2e0a9"
+source = "git+https://github.com/tsatke/mkfs#2fc94a1af4d2fb8813cbe184c31d0b537b38b5cd"
 
 [[package]]
 name = "num_enum"

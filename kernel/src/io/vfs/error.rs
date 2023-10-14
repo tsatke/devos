@@ -9,6 +9,7 @@ pub enum IoError {
 pub enum ReadError {
     IoError(IoError),
     InvalidOffset(usize),
+    OutOfRange,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
