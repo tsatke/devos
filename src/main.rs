@@ -3,7 +3,7 @@ use std::fs;
 
 extern crate clap;
 
-// both are set in build.rs at build time
+// these are set in build.rs at build time
 const UEFI_PATH: &str = env!("UEFI_PATH");
 const KERNEL_BINARY: &str = env!("KERNEL_BINARY");
 const OS_DISK: &str = env!("OS_DISK");
@@ -24,7 +24,7 @@ struct Args {
         help = "Start a gdb server on tcp:1234 and wait until a client has connected"
     )]
     debug: bool,
-    #[arg(long, help = "Only print the paths to the UEFI image")]
+    #[arg(long, help = "Only print the path to the UEFI image")]
     no_run: bool,
 }
 
