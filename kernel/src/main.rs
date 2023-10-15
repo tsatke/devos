@@ -58,7 +58,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     process::spawn_task_in_current_process("count_even", count_even);
     process::spawn_task_in_current_process("count_odd", cound_odd);
 
-    let other_process = process::create(process::current(), "other_process");
+    let _other_process = process::create(process::current(), "other_process");
 
     panic!("kernel_main returned")
 }

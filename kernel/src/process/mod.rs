@@ -73,6 +73,7 @@ pub struct Process {
 }
 
 impl Process {
+    #[allow(clippy::arc_with_non_send_sync)] // FIXME: I don't currently see a way around this
     pub fn new(name: impl Into<String>, address_space: AddressSpace) -> Self {
         let data = ProcessData::new();
         Self {

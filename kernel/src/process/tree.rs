@@ -37,7 +37,7 @@ impl ProcessTree {
             .insert(child_process_id, process.clone());
         self.children
             .entry(parent_process_id)
-            .or_insert_with(BTreeSet::new)
+            .or_default()
             .insert(child_process_id);
         self.parents.insert(child_process_id, parent_process_id);
     }
@@ -53,17 +53,11 @@ impl ProcessTree {
     }
 
     pub fn add_task(&mut self, process_id: &ProcessId, task_id: &TaskId) {
-        self.tasks
-            .entry(*process_id)
-            .or_insert_with(BTreeSet::new)
-            .insert(*task_id);
+        self.tasks.entry(*process_id).or_default().insert(*task_id);
     }
 
     pub fn remove_task(&mut self, process_id: &ProcessId, task_id: &TaskId) {
-        self.tasks
-            .entry(*process_id)
-            .or_insert_with(BTreeSet::new)
-            .remove(task_id);
+        self.tasks.entry(*process_id).or_default().remove(task_id);
     }
 
     pub fn tasks(&self, process_id: &ProcessId) -> Option<impl Iterator<Item = &TaskId>> {
