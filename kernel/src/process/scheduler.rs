@@ -39,6 +39,10 @@ pub(in crate::process) unsafe fn scheduler() -> &'static Scheduler {
     SCHEDULER.assume_init_ref()
 }
 
+pub(in crate::process) unsafe fn process_tree_mut() -> &'static mut ProcessTree {
+    unsafe { SCHEDULER.assume_init_mut().process_tree_mut() }
+}
+
 pub struct Scheduler {
     process_tree: ProcessTree,
     current_task: Task<Running>,
@@ -56,14 +60,28 @@ impl Scheduler {
         let current_task = Task::kernel_task(root_process.clone());
 
         Self {
-            process_tree: ProcessTree::new(root_process),
+            process_tree: ProcessTree::new(root_process, current_task.task_id()),
             current_task,
             ready: VecDeque::new(),
             finished: VecDeque::new(),
         }
     }
 
+    pub(in crate::process) fn process_tree_mut(&mut self) -> &mut ProcessTree {
+        &mut self.process_tree
+    }
+
     pub fn spawn(&mut self, task: Task<Ready>) {
+        #[cfg(debug_assertions)]
+        {
+            self.process_tree
+                .process_by_id(task.process().process_id())
+                .expect(
+                    "the process of the task must be in the process tree before spawning the task",
+                );
+        }
+        self.process_tree
+            .add_task(task.process().process_id(), task.task_id());
         self.ready.push_back(task);
     }
 
@@ -87,7 +105,7 @@ impl Scheduler {
 
     pub fn current_process(&self) -> &Process {
         self.process_tree
-            .process(&self.current_pid())
+            .process_by_id(&self.current_pid())
             .expect("there must be a current process")
     }
 
@@ -111,7 +129,6 @@ impl Scheduler {
         interrupts::disable(); // will be enabled again during task switch (in assembly)
 
         while let Some(task) = self.finished.pop_front() {
-            serial_println!("freeing task {} ({})", task.task_id(), task.name());
             self.free_task(task);
         }
 
@@ -155,12 +172,49 @@ impl Scheduler {
     }
 
     fn free_task(&mut self, task: Task<Finished>) {
+        serial_println!(
+            "freeing task {} ({}) in process {} ({})",
+            task.task_id(),
+            task.name(),
+            task.process().process_id(),
+            task.process().name()
+        );
+
         // TODO: unwind
 
         // TODO: deallocate stack
 
-        // TODO: update the process tree
+        let pid = task.process().process_id();
+        self.process_tree.remove_task(pid, task.task_id());
+        if !self.process_tree.has_tasks(pid) {
+            self.free_process(pid);
+        }
 
         drop(task);
+    }
+
+    fn free_process(&mut self, process_id: &ProcessId) {
+        if self.process_tree.has_tasks(process_id) {
+            panic!(
+                "attempted to free process {}, but it still has tasks",
+                process_id
+            );
+        }
+
+        let process = match self.process_tree.remove_process(process_id) {
+            None => {
+                panic!(
+                    "tried to free process {}, but process doesn't exist in the process tree",
+                    process_id
+                );
+            }
+            Some(v) => v,
+        };
+
+        // TODO: deallocate address space
+
+        // TODO: close file descriptors
+
+        drop(process);
     }
 }

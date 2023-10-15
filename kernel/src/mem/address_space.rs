@@ -10,8 +10,9 @@ use x86_64::structures::paging::{
 use x86_64::VirtAddr;
 
 use crate::mem::{FrameAllocatorDelegate, MemoryManager};
+use crate::process;
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct AddressSpace {
     /// The virtual address of the level 4 page table **in this address space**.
     /// You can not dereference this and have the page table while this address
@@ -25,16 +26,21 @@ pub struct AddressSpace {
     cr3flags: Cr3Flags,
 }
 
+// @dev AddressSpace must not be copy or clone, because it is essentially a pointer into
+// memory, so copying or cloning an address space is aliasing.
+impl !Clone for AddressSpace {}
+
 impl AddressSpace {
-    pub fn allocate_new(
-        current_addr_space_todo_remove_by_using_task_current: &mut AddressSpace,
-    ) -> Self {
+    pub fn allocate_new() -> Self {
         let pt_frame = MemoryManager::lock().allocate_frame().unwrap();
         let pt_vaddr = VirtAddr::new(0x3333_3333_0000); // FIXME: choose any free address instead of hard-wiring one (solvable once we have some kind of task management)
         let pt_page = Page::containing_address(pt_vaddr);
 
+        let current_process = process::current();
+        let mut current_process_data = current_process.write();
+        let current_addr_space = current_process_data.address_space_mut();
         unsafe {
-            current_addr_space_todo_remove_by_using_task_current.map_to(
+            current_addr_space.map_to(
                 pt_page,
                 pt_frame,
                 PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
@@ -55,11 +61,9 @@ impl AddressSpace {
 
         unsafe { ptr::write(pt_vaddr.as_mut_ptr(), pt) };
 
-        current_addr_space_todo_remove_by_using_task_current
-            .unmap(pt_page)
-            .unwrap()
-            .1
-            .flush(); // the physical frame that's "leaking" here is the frame containing the new page table
+        current_addr_space.unmap(pt_page).unwrap().1.flush(); // the physical frame that's "leaking" here is the frame containing the new page table
+
+        // FIXME / TODO: map the kernel stuff into the new address space as well
 
         AddressSpace::new(
             pt_frame,

@@ -53,10 +53,14 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     ls("/bin").unwrap();
 
-    // process::spawn_task("vga_stuff", vga_stuff);
-    // process::spawn_task("elf_stuff", elf_stuff);
+    process::spawn_task_in_current_process("vga_stuff", vga_stuff);
+    process::spawn_task_in_current_process("elf_stuff", elf_stuff);
     process::spawn_task_in_current_process("count_even", count_even);
     process::spawn_task_in_current_process("count_odd", cound_odd);
+
+    let other_process = process::create(process::current(), "other_process");
+
+    process::dump_tree();
 
     panic!("kernel_main returned")
 }
@@ -175,7 +179,9 @@ extern "C" fn vga_stuff() {
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!(
-        "kernel panicked in task {} ({}): {}",
+        "kernel panicked in pid={} ({}) tid={} ({}): {}",
+        process::current().process_id(),
+        process::current().name(),
         process::current_task().task_id(),
         process::current_task().name(),
         info.message().unwrap()

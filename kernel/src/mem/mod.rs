@@ -82,7 +82,7 @@ pub fn init(boot_info: &'static BootInfo) {
         heap::size() / 1024 / 1024,
     );
 
-    let root_process = Process::new(address_space);
+    let root_process = Process::new("root", address_space);
     process::init(root_process);
 
     // let _new_address_space = AddressSpace::allocate_new(&mut address_space);
