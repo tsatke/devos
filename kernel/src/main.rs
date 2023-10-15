@@ -12,11 +12,12 @@ use core::slice::from_raw_parts;
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use elfloader::ElfBinary;
+use x86_64::instructions::hlt;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::io::vfs::InodeBase;
 use kernel::io::vfs::{find, Inode};
+use kernel::io::vfs::{InodeBase, LookupError};
 use kernel::mem::Size;
 use kernel::process::elf::ElfLoader;
 use kernel::syscall::unistd::{sys_access, AMode};
@@ -50,15 +51,31 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    serial_println!("sys_access /bin: {:?}", sys_access("/bin", AMode::F_OK));
-    ls("/bin");
+    ls("/bin").unwrap();
 
-    process::spawn_task("vga_stuff", vga_stuff);
-    process::spawn_task("elf_stuff", elf_stuff);
+    // process::spawn_task("vga_stuff", vga_stuff);
+    // process::spawn_task("elf_stuff", elf_stuff);
+    process::spawn_task_in_current_process("count_even", count_even);
+    process::spawn_task_in_current_process("count_odd", cound_odd);
 
     panic!("kernel_main returned")
 }
 
+extern "C" fn count_even() {
+    for i in (0..10).step_by(2) {
+        serial_println!("{}", i);
+        hlt();
+    }
+}
+
+extern "C" fn cound_odd() {
+    for i in (1..10).step_by(2) {
+        serial_println!("{}", i);
+        hlt();
+    }
+}
+
+#[allow(dead_code)]
 extern "C" fn elf_stuff() {
     serial_println!(
         "sys_access /bin/hello_world: {:?}",
@@ -85,10 +102,10 @@ extern "C" fn elf_stuff() {
     }
 }
 
-fn ls(path: &str) {
-    let root = find(path).ok().and_then(|inode| inode.as_dir()).unwrap();
+fn ls(path: &str) -> Result<(), LookupError> {
+    let root = find(path)?.as_dir().expect("not a directory");
     let guard = root.read();
-    let children = guard.children().unwrap();
+    let children = guard.children()?;
     serial_println!("ls '{}'", path);
     for child in children.iter() {
         let indicator = match child {
@@ -100,8 +117,10 @@ fn ls(path: &str) {
         };
         serial_println!("  {} {}", indicator, child.name());
     }
+    Ok(())
 }
 
+#[allow(dead_code)]
 extern "C" fn vga_stuff() {
     let mut vga = screen::lock();
 
@@ -157,8 +176,8 @@ extern "C" fn vga_stuff() {
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!(
         "kernel panicked in task {} ({}): {}",
-        process::current_task_id(),
-        process::current_task_name(),
+        process::current_task().task_id(),
+        process::current_task().name(),
         info.message().unwrap()
     );
     if let Some(location) = info.location() {

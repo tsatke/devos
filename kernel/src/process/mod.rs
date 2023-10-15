@@ -1,5 +1,6 @@
 use crate::mem::AddressSpace;
-use alloc::string::{String, ToString};
+use crate::process::task::{Ready, Running, Task};
+use alloc::string::String;
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
@@ -11,7 +12,6 @@ mod scheduler;
 mod task;
 mod tree;
 
-use crate::process::task::{Ready, Task, TaskId};
 pub use scheduler::*;
 pub use tree::*;
 
@@ -19,16 +19,16 @@ pub fn current() -> Process {
     unsafe { scheduler() }.current_process().clone()
 }
 
-pub fn current_task_id() -> TaskId {
-    *unsafe { scheduler() }.current_task().task_id()
+pub fn current_task() -> &'static Task<Running> {
+    unsafe { scheduler() }.current_task()
 }
 
-pub fn current_task_name() -> String {
-    unsafe { scheduler() }.current_task().name().to_string()
+pub fn spawn_task_in_current_process(name: impl Into<String>, func: extern "C" fn()) {
+    spawn_task(name, current(), func)
 }
 
-pub fn spawn_task(name: impl Into<String>, func: extern "C" fn()) {
-    let task = Task::<Ready>::new(current(), name, func);
+pub fn spawn_task(name: impl Into<String>, process: Process, func: extern "C" fn()) {
+    let task = Task::<Ready>::new(process, name, func);
     unsafe { spawn(task) }
 }
 
@@ -86,6 +86,10 @@ pub struct ProcessData {
 impl ProcessData {
     fn new(address_space: AddressSpace) -> Self {
         Self { address_space }
+    }
+
+    pub fn address_space(&self) -> &AddressSpace {
+        &self.address_space
     }
 
     pub fn address_space_mut(&mut self) -> &mut AddressSpace {

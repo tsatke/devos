@@ -1,4 +1,4 @@
-use crate::mem::Size;
+use crate::mem::{AddressSpace, Size};
 use crate::process;
 use crate::process::Process;
 use alloc::boxed::Box;
@@ -54,6 +54,7 @@ macro_rules! state_transition {
                     id: value.id,
                     name: value.name,
                     process: value.process,
+                    address_space: value.address_space,
                     last_stack_ptr: value.last_stack_ptr,
                     should_exit: value.should_exit,
                     stack: value.stack,
@@ -77,6 +78,7 @@ where
     id: TaskId,
     name: String,
     process: Process,
+    address_space: AddressSpace,
     last_stack_ptr: usize,
     stack: Option<Box<[u8; STACK_SIZE]>>,
     should_exit: bool,
@@ -112,6 +114,10 @@ where
 
     pub fn process(&self) -> &Process {
         &self.process
+    }
+
+    pub fn address_space(&self) -> &AddressSpace {
+        &self.address_space
     }
 
     pub fn last_stack_ptr_mut(&mut self) -> &mut usize {
@@ -167,10 +173,12 @@ impl Task<Ready> {
         name: impl Into<String>,
         entry_point: extern "C" fn(),
     ) -> Task<Ready> {
+        let address_space = process.read().address_space;
         let mut task = Self {
             id: TaskId::new(),
             name: name.into(),
             process,
+            address_space,
             last_stack_ptr: 0, // will be set correctly in [`setup_stack`]
             stack: Some(Box::new([0; STACK_SIZE])),
             should_exit: false,
@@ -246,10 +254,12 @@ extern "C" fn leave_task() -> ! {
 
 impl Task<Running> {
     pub unsafe fn kernel_task(kernel_process: Process) -> Self {
+        let address_space = kernel_process.read().address_space;
         Self {
             id: TaskId::new(),
             name: "kernel".to_string(),
             process: kernel_process,
+            address_space,
             last_stack_ptr: 0, // will be set correctly during the next `reschedule`
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)
             should_exit: false,

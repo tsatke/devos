@@ -1,3 +1,4 @@
+use crate::process;
 use core::arch::asm;
 
 macro_rules! push_context {
@@ -95,9 +96,22 @@ pub unsafe extern "C" fn switch(_old_stack: *mut usize, _new_stack: *const u8) {
         "mov [rdi], rsp", // write the stack pointer rsp at *_old_stack
         "mov rsp, rsi",   // write _new_stack into rsp
         set_task_switched!(),
+        "call {switch_address_space}",
         pop_context!(),
         "sti", // enable interrupts
         "ret",
+        switch_address_space = sym activate_current_tasks_address_space,
         options(noreturn)
     )
+}
+
+unsafe extern "C" fn activate_current_tasks_address_space() {
+    let current_task = process::current_task();
+    let address_space = current_task.address_space();
+    if address_space.is_active() {
+        return;
+    }
+    unsafe {
+        address_space.activate();
+    }
 }

@@ -11,7 +11,7 @@ use x86_64::VirtAddr;
 
 use crate::mem::{FrameAllocatorDelegate, MemoryManager};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct AddressSpace {
     /// The virtual address of the level 4 page table **in this address space**.
     /// You can not dereference this and have the page table while this address
@@ -77,7 +77,7 @@ impl AddressSpace {
 
         // we can't make sure that the virtual address is actually valid because we can't dereference
         // the value, we need to map it first
-        // TODO: validate the page table, this is an invariant of this type
+        // FIXME: validate the page table, this is an invariant of this type
 
         Self {
             level4_table_virtual_addr,
@@ -89,6 +89,7 @@ impl AddressSpace {
     /// # Safety
     /// Changing the level 4 page table is unsafe, because it's possible
     /// to violate memory safety by changing the page mapping.
+    #[inline]
     pub unsafe fn activate(&self) {
         unsafe {
             // Safety: guaranteed by the caller
