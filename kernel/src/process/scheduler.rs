@@ -126,17 +126,16 @@ impl Scheduler {
             self.free_task(task);
         }
 
-        // we need to hold some locks in free_task, so we disable interrupts after
-
-        interrupts::disable(); // will be enabled again during task switch (in assembly)
-
         let task = match self.ready.pop_front() {
             None => {
-                interrupts::enable();
                 return;
             }
             Some(t) => t,
         };
+
+        // we need to hold some locks in free_task, so we disable interrupts after
+
+        interrupts::disable(); // will be enabled again during task switch (in assembly)
 
         // swap out the task from the queue and the current task
         let mut task = task.into_running();
