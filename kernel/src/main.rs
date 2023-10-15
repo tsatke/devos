@@ -60,8 +60,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     let other_process = process::create(process::current(), "other_process");
 
-    process::dump_tree();
-
     panic!("kernel_main returned")
 }
 

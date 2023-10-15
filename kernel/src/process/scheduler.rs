@@ -3,24 +3,28 @@ use crate::process::task::{Finished, Ready, Running, Task};
 use crate::process::{Process, ProcessId, ProcessTree};
 use crate::serial_println;
 use alloc::collections::VecDeque;
-use core::mem::{swap, MaybeUninit};
+use core::mem::swap;
 use x86_64::instructions::{hlt, interrupts};
 
-static mut SCHEDULER: MaybeUninit<Scheduler> = MaybeUninit::uninit();
+static mut SCHEDULER: Option<Scheduler> = None;
 
 pub fn init(root_process: Process) {
-    unsafe { SCHEDULER.write(Scheduler::new(root_process)) };
+    unsafe { SCHEDULER = Some(Scheduler::new(root_process)) };
+}
+
+pub(in crate::process) unsafe fn scheduler() -> &'static Scheduler {
+    SCHEDULER.as_ref().unwrap()
+}
+
+pub(in crate::process) unsafe fn scheduler_mut() -> &'static mut Scheduler {
+    SCHEDULER.as_mut().unwrap()
 }
 
 /// # Safety
 /// This can only be called after [`init`] has been called.
 /// This may or may not return, make sure to use it in a way that can handle both cases.
 pub(crate) unsafe fn reschedule() {
-    unsafe {
-        SCHEDULER
-            .assume_init_mut() // safe because this function must only be called after init
-            .reschedule()
-    }
+    unsafe { scheduler_mut().reschedule() }
 }
 
 /// # Safety
@@ -28,19 +32,11 @@ pub(crate) unsafe fn reschedule() {
 /// Make sure that you are outside of a ['reschedule'] call
 /// and that there does not exist a mutable reference to the scheduler.
 pub(crate) unsafe fn spawn(task: Task<Ready>) {
-    unsafe { SCHEDULER.assume_init_mut().spawn(task) }
+    unsafe { scheduler_mut().spawn(task) }
 }
 
 pub(crate) unsafe fn exit_current_task() -> ! {
-    unsafe { SCHEDULER.assume_init_mut().exit_current_task() }
-}
-
-pub(in crate::process) unsafe fn scheduler() -> &'static Scheduler {
-    SCHEDULER.assume_init_ref()
-}
-
-pub(in crate::process) unsafe fn process_tree_mut() -> &'static mut ProcessTree {
-    unsafe { SCHEDULER.assume_init_mut().process_tree_mut() }
+    unsafe { scheduler_mut().exit_current_task() }
 }
 
 pub struct Scheduler {
@@ -126,11 +122,13 @@ impl Scheduler {
         // @dev please note that you have to enable interrupts manually if you wish to exit early
         // and that this will not be done for you except if the method ends in the actual task switch
 
-        interrupts::disable(); // will be enabled again during task switch (in assembly)
-
         while let Some(task) = self.finished.pop_front() {
             self.free_task(task);
         }
+
+        // we need to hold some locks in free_task, so we disable interrupts after
+
+        interrupts::disable(); // will be enabled again during task switch (in assembly)
 
         let task = match self.ready.pop_front() {
             None => {

@@ -37,8 +37,7 @@ impl AddressSpace {
         let pt_page = Page::containing_address(pt_vaddr);
 
         let current_process = process::current();
-        let mut current_process_data = current_process.write();
-        let current_addr_space = current_process_data.address_space_mut();
+        let mut current_addr_space = current_process.address_space().borrow_mut();
         unsafe {
             current_addr_space.map_to(
                 pt_page,

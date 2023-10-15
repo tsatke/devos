@@ -2,10 +2,12 @@ use crate::mem::AddressSpace;
 use crate::process::task::{Ready, Running, Task};
 use alloc::string::String;
 use alloc::sync::Arc;
+use core::cell::RefCell;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 use derive_more::Display;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use x86_64::instructions::interrupts::without_interrupts;
 
 pub mod elf;
 mod scheduler;
@@ -19,16 +21,12 @@ pub fn create(parent: Process, name: impl Into<String>) -> Process {
     let address_space = AddressSpace::allocate_new();
     let process = Process::new(name, address_space);
 
-    let process_tree = unsafe { process_tree_mut() };
-    process_tree.insert_process(parent, process.clone());
+    without_interrupts(|| {
+        let process_tree = unsafe { scheduler_mut().process_tree_mut() };
+        process_tree.insert_process(parent, process.clone());
+    });
 
     process
-}
-
-pub fn dump_tree() {
-    // TODO: remove
-    let process_tree = unsafe { process_tree_mut() };
-    process_tree.dump();
 }
 
 pub fn current() -> Process {
@@ -70,15 +68,17 @@ impl ProcessId {
 pub struct Process {
     id: ProcessId,
     name: String,
+    address_space: Arc<RefCell<AddressSpace>>, // we need to access this during a context switch, so it can't be behind a lock
     inner: Arc<RwLock<ProcessData>>,
 }
 
 impl Process {
     pub fn new(name: impl Into<String>, address_space: AddressSpace) -> Self {
-        let data = ProcessData::new(address_space);
+        let data = ProcessData::new();
         Self {
             id: ProcessId::new(),
             name: name.into(),
+            address_space: Arc::new(RefCell::new(address_space)),
             inner: Arc::new(RwLock::new(data)),
         }
     }
@@ -91,6 +91,10 @@ impl Process {
         &self.name
     }
 
+    pub fn address_space(&self) -> &RefCell<AddressSpace> {
+        &self.address_space
+    }
+
     pub fn read(&self) -> RwLockReadGuard<ProcessData> {
         self.inner.read()
     }
@@ -101,20 +105,10 @@ impl Process {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct ProcessData {
-    address_space: AddressSpace,
-}
+pub struct ProcessData {}
 
 impl ProcessData {
-    fn new(address_space: AddressSpace) -> Self {
-        Self { address_space }
-    }
-
-    pub fn address_space(&self) -> &AddressSpace {
-        &self.address_space
-    }
-
-    pub fn address_space_mut(&mut self) -> &mut AddressSpace {
-        &mut self.address_space
+    fn new() -> Self {
+        Self {}
     }
 }

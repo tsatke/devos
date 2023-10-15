@@ -106,9 +106,8 @@ pub unsafe extern "C" fn switch(_old_stack: *mut usize, _new_stack: *const u8) {
 }
 
 unsafe extern "C" fn activate_current_tasks_address_space() {
-    let current_task = process::current();
-    let data = current_task.read();
-    let address_space = data.address_space();
+    let current_process = process::current();
+    let address_space = unsafe { &*current_process.address_space().as_ptr() };
     if address_space.is_active() {
         return;
     }
