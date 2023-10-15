@@ -8,6 +8,7 @@
 #![feature(iter_array_chunks)]
 #![feature(naked_functions)]
 #![feature(negative_impls)]
+#![feature(never_type)]
 
 use bootloader_api::BootInfo;
 use x86_64::instructions::interrupts;

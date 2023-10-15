@@ -40,6 +40,15 @@ pub enum Errno {
     Err(NegativeIsize),
 }
 
+impl<T> From<Result<T, Errno>> for Errno {
+    fn from(result: Result<T, Errno>) -> Self {
+        match result {
+            Ok(_) => OK,
+            Err(e) => e,
+        }
+    }
+}
+
 impl Errno {
     const fn from_isize(value: isize) -> Self {
         if value >= 0 {

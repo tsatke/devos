@@ -1,8 +1,13 @@
 use crate::io::path::Path;
 use crate::io::vfs::find;
+use crate::process::elf::ElfLoader;
 use crate::{process, serial_println};
+use alloc::string::ToString;
+use alloc::vec;
 use bitflags::bitflags;
-use kernel_api::syscall::{Errno, ENOENT, ENOSYS, OK};
+use core::mem::transmute;
+use elfloader::ElfBinary;
+use kernel_api::syscall::{Errno, EACCES, EIO, ENOENT, ENOSYS, OK};
 
 bitflags! {
     #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -24,6 +29,34 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Errno {
     } else {
         ENOENT
     }
+}
+
+pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Result<!, Errno> {
+    serial_println!("sys_execve({:?}, {:?}, {:?})", path.as_ref(), argv, envp);
+
+    let elf_data = {
+        let file = find("/bin/hello_world")
+            .map_err(|_| ENOENT)?
+            .as_file()
+            .ok_or(EACCES)?;
+        let guard = file.read();
+        let size = guard.size();
+        let mut buf = vec![0_u8; size as usize];
+        guard.read_at(0, &mut buf).map_err(|_| EIO)?;
+        buf
+    };
+
+    let mut loader = ElfLoader::default();
+    let elf = ElfBinary::new(&elf_data).unwrap();
+    elf.load(&mut loader).unwrap();
+    let image = loader.into_inner();
+    let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
+    let entry_fn = unsafe { transmute(entry) };
+
+    // execute the executable in the new task...
+    process::spawn_task_in_current_process(path.as_ref().to_string(), entry_fn);
+    // ...and stop the current task
+    unsafe { process::exit_current_task() }
 }
 
 pub fn sys_read(fd: usize, buf: &mut [u8]) -> Errno {
