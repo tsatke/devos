@@ -37,7 +37,8 @@ impl AddressSpace {
         let pt_page = Page::containing_address(pt_vaddr);
 
         let current_process = process::current();
-        let current_addr_space = current_process.address_space();
+        let data = current_process.read();
+        let current_addr_space = data.address_space();
         unsafe {
             current_addr_space.map_to(
                 pt_page,
@@ -89,22 +90,16 @@ impl AddressSpace {
         }
     }
 
-    /// # Safety
-    /// Changing the level 4 page table is unsafe, because it's possible
-    /// to violate memory safety by changing the page mapping.
-    #[inline]
-    pub unsafe fn activate(&self) {
-        unsafe {
-            // Safety: guaranteed by the caller
-            Cr3::write(self.level4_table_physical_frame, self.cr3flags);
-        }
-    }
-
     /// Determines whether this address space is currently active, i.e.
     /// whether the physical address of the level 4 page table of this
     /// address space is the current value of the [`Cr3`] register.
     pub fn is_active(&self) -> bool {
         Cr3::read().0 == self.level4_table_physical_frame
+    }
+
+    pub fn cr3_value(&self) -> usize {
+        self.level4_table_physical_frame.start_address().as_u64() as usize
+            | self.cr3flags().bits() as usize
     }
 
     /// Returns the current [`Cr3Flags`] if this address space is active,

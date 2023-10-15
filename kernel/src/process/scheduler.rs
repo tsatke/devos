@@ -133,8 +133,15 @@ impl Scheduler {
             Some(t) => t,
         };
 
-        // we need to hold some locks in free_task, so we disable interrupts after
+        // we know that `task` is going to be the next task, and for reading the address space, we need
+        // to acquire a lock, so do that before we disable interrupts
+        let cr3_value = task.process().read().address_space().cr3_value();
 
+        /*
+        IMPORTANT!!!
+        From here until the end of the function, WE CAN NOT ACQUIRE ANY LOCKS!!!
+        This will cause deadlocks!
+        */
         interrupts::disable(); // will be enabled again during task switch (in assembly)
 
         // swap out the task from the queue and the current task
@@ -165,7 +172,7 @@ impl Scheduler {
 
         let new_stack_ptr = *self.current_task.last_stack_ptr() as *const u8;
 
-        unsafe { switch(old_stack_ptr, new_stack_ptr) }
+        unsafe { switch(old_stack_ptr, new_stack_ptr, cr3_value) }
     }
 
     fn free_task(&mut self, task: Task<Finished>) {

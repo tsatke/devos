@@ -1,4 +1,3 @@
-use crate::process;
 use core::arch::asm;
 
 macro_rules! push_context {
@@ -88,30 +87,25 @@ macro_rules! set_task_switched {
 /// that _old_stack and _new_stack are valid pointers to
 /// a task stack.
 #[naked]
-pub unsafe extern "C" fn switch(_old_stack: *mut usize, _new_stack: *const u8) {
+pub unsafe extern "C" fn switch(
+    _old_stack: *mut usize,
+    _new_stack: *const u8,
+    _new_cr3_value: usize,
+) {
     // _old_stack is located in $rdi, _new_stack is in $rsi
+    // $rdi -> old_stack
+    // $rsi -> new_stack
+    // $rdx -> new_cr3_value
 
     asm!(
         push_context!(),
         "mov [rdi], rsp", // write the stack pointer rsp at *_old_stack
         "mov rsp, rsi",   // write _new_stack into rsp
         set_task_switched!(),
-        "call {switch_address_space}",
+        "mov cr3, rdx", // write _new_cr3_value into cr3
         pop_context!(),
         "sti", // enable interrupts
         "ret",
-        switch_address_space = sym activate_current_tasks_address_space,
         options(noreturn)
     )
-}
-
-unsafe extern "C" fn activate_current_tasks_address_space() {
-    let current_process = process::current();
-    let address_space = current_process.address_space();
-    if address_space.is_active() {
-        return;
-    }
-    unsafe {
-        address_space.activate();
-    }
 }

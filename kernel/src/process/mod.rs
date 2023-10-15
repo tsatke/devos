@@ -2,7 +2,6 @@ use crate::mem::AddressSpace;
 use crate::process::task::{Ready, Running, Task};
 use alloc::string::String;
 use alloc::sync::Arc;
-use core::cell::{Ref, RefCell};
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 use derive_more::Display;
@@ -68,18 +67,16 @@ impl ProcessId {
 pub struct Process {
     id: ProcessId,
     name: String,
-    address_space: Arc<RefCell<AddressSpace>>, // we need to access this during a context switch, so it can't be behind a lock
     inner: Arc<RwLock<ProcessData>>,
 }
 
 impl Process {
     #[allow(clippy::arc_with_non_send_sync)] // FIXME: I don't currently see a way around this
     pub fn new(name: impl Into<String>, address_space: AddressSpace) -> Self {
-        let data = ProcessData::new();
+        let data = ProcessData::new(address_space);
         Self {
             id: ProcessId::new(),
             name: name.into(),
-            address_space: Arc::new(RefCell::new(address_space)),
             inner: Arc::new(RwLock::new(data)),
         }
     }
@@ -92,10 +89,6 @@ impl Process {
         &self.name
     }
 
-    pub fn address_space(&self) -> Ref<'_, AddressSpace> {
-        self.address_space.borrow()
-    }
-
     pub fn read(&self) -> RwLockReadGuard<ProcessData> {
         self.inner.read()
     }
@@ -106,10 +99,16 @@ impl Process {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct ProcessData {}
+pub struct ProcessData {
+    address_space: AddressSpace,
+}
 
 impl ProcessData {
-    fn new() -> Self {
-        Self {}
+    fn new(address_space: AddressSpace) -> Self {
+        Self { address_space }
+    }
+
+    pub fn address_space(&self) -> &AddressSpace {
+        &self.address_space
     }
 }
