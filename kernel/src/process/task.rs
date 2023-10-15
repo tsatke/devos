@@ -241,7 +241,7 @@ pub struct TaskState {
 }
 
 extern "C" fn leave_task() -> ! {
-    process::exit()
+    unsafe { process::exit_current_task() }
 }
 
 impl Task<Running> {
