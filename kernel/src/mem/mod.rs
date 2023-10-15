@@ -98,7 +98,7 @@ macro_rules! map_page {
     ($page:expr, $frame:expr, $size:ident, $flags:expr) => {{
         let page: Page<$size> = $page;
         let process = $crate::process::current();
-        let address_space = process.address_space().borrow();
+        let address_space = process.address_space();
         unsafe { address_space.map_to(page, $frame, $flags).unwrap().flush() }
     }};
 }

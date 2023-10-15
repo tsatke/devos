@@ -2,7 +2,7 @@ use crate::mem::AddressSpace;
 use crate::process::task::{Ready, Running, Task};
 use alloc::string::String;
 use alloc::sync::Arc;
-use core::cell::RefCell;
+use core::cell::{Ref, RefCell};
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 use derive_more::Display;
@@ -92,8 +92,8 @@ impl Process {
         &self.name
     }
 
-    pub fn address_space(&self) -> &RefCell<AddressSpace> {
-        &self.address_space
+    pub fn address_space(&self) -> Ref<'_, AddressSpace> {
+        self.address_space.borrow()
     }
 
     pub fn read(&self) -> RwLockReadGuard<ProcessData> {
