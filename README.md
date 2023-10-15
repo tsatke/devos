@@ -28,8 +28,8 @@ Check out the next [milestone](https://github.com/tsatke/devos/milestone/1) for 
   - [x] VGA
   - [ ] NVMe
   - [ ] Networking
-- [x] Virtual File System with EXT2 implementation (works for reading for now)
-- [x] Preemptive multitasking (currently very primitive)
+- [x] Virtual File System with EXT2 implementation (read-only for now)
+- [x] Preemptive multitasking (processes & threads)
 - [ ] Interactive shell
 - [ ] Test framework
 
