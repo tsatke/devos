@@ -13,6 +13,7 @@ use x86_64::instructions::hlt;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
+use kernel::io::other_vfs::vfs;
 use kernel::io::vfs::{find, Inode};
 use kernel::io::vfs::{InodeBase, LookupError};
 use kernel::mem::Size;
@@ -47,15 +48,23 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    ls("/bin").unwrap();
+    kernel::io::other_vfs::init(); // TODO: move this to kernel_init
 
-    process::spawn_task_in_current_process("vga_stuff", vga_stuff);
-    process::spawn_task_in_current_process("count_even", count_even);
-    process::spawn_task_in_current_process("count_odd", cound_odd);
+    let dev_zero = vfs().open("/dev/zero").unwrap();
+    let mut buf = [1u8; 10];
+    serial_println!("before: {:02x?}", buf);
+    vfs().read(&dev_zero, &mut buf, 0).unwrap();
+    serial_println!("after: {:02x?}", buf);
 
-    let _other_process = process::create(process::current(), "other_process");
-
-    sys_execve("/bin/hello_world", &[], &[]).unwrap();
+    // ls("/bin").unwrap();
+    //
+    // process::spawn_task_in_current_process("vga_stuff", vga_stuff);
+    // process::spawn_task_in_current_process("count_even", count_even);
+    // process::spawn_task_in_current_process("count_odd", cound_odd);
+    //
+    // let _other_process = process::create(process::current(), "other_process");
+    //
+    // sys_execve("/bin/hello_world", &[], &[]).unwrap();
 
     panic!("kernel_main returned")
 }

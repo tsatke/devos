@@ -36,6 +36,10 @@ impl Path {
         unsafe { &*(s.as_ref() as *const str as *const Path) }
     }
 
+    pub fn as_str(&self) -> &str {
+        &self.inner
+    }
+
     pub fn components(&self) -> Components<'_> {
         Components::new(self)
     }

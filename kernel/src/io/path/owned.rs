@@ -66,7 +66,7 @@ impl OwnedPath {
 
     // TODO: we could probably make this more efficient by just splitting at SEPARATOR starting from the right and handling edge cases
     pub fn parent(&self) -> Option<Self> {
-        if self.inner.chars().nth(0)? == SEPARATOR {
+        if self.len() == 1 && self.inner.chars().nth(0)? == SEPARATOR {
             return None;
         }
 
