@@ -64,8 +64,27 @@ impl OwnedPath {
         });
     }
 
-    pub fn into_components(self) -> Vec<OwnedPath> {
-        let mut data: Vec<OwnedPath> = Vec::new();
+    // TODO: we could probably make this more efficient by just splitting at SEPARATOR starting from the right and handling edge cases
+    pub fn parent(&self) -> Option<Self> {
+        if self.inner.chars().nth(0)? == SEPARATOR {
+            return None;
+        }
+
+        let components = skip_last(self.components());
+        let mut result = OwnedPath::new();
+        for component in components {
+            match component {
+                Component::RootDir => result.push("/"),
+                Component::CurrentDir => result.push("."),
+                Component::ParentDir => result.push(".."),
+                Component::Normal(v) => result.push(v),
+            };
+        }
+        Some(result)
+    }
+
+    pub fn into_components(self) -> Vec<Self> {
+        let mut data: Vec<Self> = Vec::new();
 
         self.components().for_each(|c| {
             match c {
@@ -105,4 +124,9 @@ impl Display for OwnedPath {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.inner)
     }
+}
+
+fn skip_last<T>(mut iter: impl Iterator<Item = T>) -> impl Iterator<Item = T> {
+    let last = iter.next();
+    iter.scan(last, |state, item| core::mem::replace(state, Some(item)))
 }

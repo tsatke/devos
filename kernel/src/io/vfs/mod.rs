@@ -1,6 +1,5 @@
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
-use core::mem::MaybeUninit;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 use root::RootDir;
@@ -24,11 +23,15 @@ use crate::io::vfs::devfs::DevFs;
 use crate::io::vfs::ext2::Ext2Fs;
 use crate::syscall::unistd::{sys_access, AMode};
 
-static mut VFS: MaybeUninit<Vfs> = MaybeUninit::uninit();
+static mut VFS: Option<RwLock<Vfs>> = None;
 
 static FSID_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 pub fn init() {
+    if unsafe { VFS.is_some() } {
+        panic!("vfs already initialized");
+    }
+
     let root_drive = ide::drives()
         .nth(1) // TODO: for now, [0] is the boot drive, [1] is the os disk
         .expect("we need at least one additional IDE drive for now")
@@ -38,35 +41,40 @@ pub fn init() {
     let rootfs = Ext2Fs::new(FSID_COUNTER.fetch_add(1, Relaxed), rootfs_dev);
 
     unsafe {
-        VFS.write(Vfs::new())
-            .set_root(rootfs.root_inode().expect("unable to read root inode"));
+        let mut vfs = Vfs::new();
+        vfs.set_root(rootfs.root_inode().expect("unable to read root inode"));
+        VFS = Some(RwLock::new(vfs));
     }
 
     if !sys_access("/dev", AMode::F_OK).is_ok() {
         todo!("create /dev");
     }
+
     mount("/dev", DevFs::new(FSID_COUNTER.fetch_add(1, Relaxed))).expect("unable to mount devfs");
 }
 
 pub fn mount(p: impl AsRef<Path>, fs: impl Fs) -> Result<(), MountError> {
-    unsafe { vfs() }.mount(p, fs)
+    vfs().write().mount(p, fs)
 }
 
 pub fn find(p: impl AsRef<Path>) -> Result<Inode, LookupError> {
-    unsafe { vfs() }.find(p)
+    vfs().read().find(p)
 }
 
 pub fn find_from(p: impl AsRef<Path>, starting_point: Inode) -> Result<Inode, LookupError> {
-    unsafe { vfs() }.find_inode_from(p, starting_point)
+    vfs().read().find_inode_from(p, starting_point)
 }
 
-unsafe fn vfs() -> &'static Vfs {
-    unsafe { VFS.assume_init_ref() }
+fn vfs() -> &'static RwLock<Vfs> {
+    unsafe {
+        // SAFETY: this only creates an immutable reference
+        VFS.as_ref().expect("vfs not initialized")
+    }
 }
 
 pub struct Vfs {
     root: Inode,
-    mounts: RwLock<BTreeMap<(u64, InodeNum), Inode>>,
+    mounts: BTreeMap<(u64, InodeNum), Inode>,
 }
 
 impl Vfs {
@@ -79,7 +87,7 @@ impl Vfs {
                     ..Default::default()
                 },
             )),
-            mounts: RwLock::new(BTreeMap::new()),
+            mounts: BTreeMap::new(),
         }
     }
 
@@ -87,12 +95,11 @@ impl Vfs {
         self.root = root;
     }
 
-    fn mount(&self, p: impl AsRef<Path>, fs: impl Fs) -> Result<(), MountError> {
+    fn mount(&mut self, p: impl AsRef<Path>, fs: impl Fs) -> Result<(), MountError> {
         let mountee = fs.root_inode();
-        let mount_point = find(p).map_err(MountError::LookupError)?;
+        let mount_point = self.find(p).map_err(MountError::LookupError)?;
 
         self.mounts
-            .write()
             .insert((mount_point.stat().dev, mount_point.num()), mountee);
         Ok(())
     }
@@ -134,10 +141,10 @@ impl Vfs {
                 }
                 Component::Normal(v) => {
                     let current_dir = match current.clone() {
-                        Inode::File(_) => return Err(LookupError::NoSuchEntry),
+                        Inode::File(_) | Inode::BlockDevice(_) | Inode::CharacterDevice(_) => {
+                            return Err(LookupError::NoSuchEntry)
+                        }
                         Inode::Dir(d) => d,
-                        Inode::BlockDevice(_) => return Err(LookupError::NoSuchEntry),
-                        Inode::CharacterDevice(_) => return Err(LookupError::NoSuchEntry),
                         Inode::Symlink(link) => {
                             let guard = link.read();
                             let target_path = guard.target_path()?;
@@ -159,7 +166,7 @@ impl Vfs {
 
                     // check if current is a mount point
                     let id = (current.stat().dev, current.num());
-                    if let Some(inode) = self.mounts.read().get(&id) {
+                    if let Some(inode) = self.mounts.get(&id) {
                         current = inode.clone();
                     }
                 }
