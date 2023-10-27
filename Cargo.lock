@@ -668,7 +668,7 @@ dependencies = [
  "linked_list_allocator",
  "mkfs-ext2",
  "mkfs-filesystem",
- "num_enum 0.7.0",
+ "num_enum",
  "pci",
  "raw-cpuid 11.0.0",
  "spin",
@@ -682,7 +682,7 @@ dependencies = [
 name = "kernel_api"
 version = "0.1.0"
 dependencies = [
- "num_enum 0.6.1",
+ "num_enum",
 ]
 
 [[package]]
@@ -763,31 +763,11 @@ source = "git+https://github.com/tsatke/mkfs#68ac2419068514d3d9611eb53430982bfb3
 
 [[package]]
 name = "num_enum"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a015b430d3c108a207fd776d2e2196aaf8b1cf8cf93253e3a097ff3085076a1"
-dependencies = [
- "num_enum_derive 0.6.1",
-]
-
-[[package]]
-name = "num_enum"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70bf6736f74634d299d00086f02986875b3c2d924781a6a2cb6c201e73da0ceb"
 dependencies = [
- "num_enum_derive 0.7.0",
-]
-
-[[package]]
-name = "num_enum_derive"
-version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96667db765a921f7b295ffee8b60472b686a51d4f21c2ee4ffdb94c7013b65a6"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.15",
+ "num_enum_derive",
 ]
 
 [[package]]
