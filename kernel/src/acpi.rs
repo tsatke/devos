@@ -1,5 +1,6 @@
 use crate::{map_page, serial_println};
 use acpi::{AcpiHandler, AcpiTables, InterruptModel, PhysicalMapping, PlatformInfo};
+use alloc::alloc::Global;
 use alloc::rc::Rc;
 use bootloader_api::BootInfo;
 use conquer_once::spin::OnceCell;
@@ -9,7 +10,7 @@ use spin::Mutex;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
-pub static INTERRUPT_MODEL: OnceCell<InterruptModel> = OnceCell::uninit();
+pub static INTERRUPT_MODEL: OnceCell<InterruptModel<Global>> = OnceCell::uninit();
 
 pub fn init(boot_info: &'static BootInfo) {
     if boot_info.rsdp_addr.into_option().is_none() {

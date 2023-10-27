@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
+#![feature(allocator_api)]
 #![feature(array_chunks)]
 #![feature(assert_matches)]
 #![feature(const_mut_refs)]

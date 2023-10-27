@@ -4,13 +4,12 @@ version = 3
 
 [[package]]
 name = "acpi"
-version = "4.1.1"
+version = "5.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "654f48ab3178632ea535be1765073b990895cb62f70a7e5671975d7150c26d15"
+checksum = "e248409195304021f61b39ba2628f62a45a3abf6119669d44b3399d60eabe4c3"
 dependencies = [
  "bit_field",
  "log",
- "rsdp",
 ]
 
 [[package]]
@@ -928,15 +927,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "567664f262709473930a4bf9e51bf2ebf3348f2e748ccc50dea20646858f8f29"
 dependencies = [
  "bitflags 1.3.2",
-]
-
-[[package]]
-name = "rsdp"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ed5f33bb98eace335c13cdd159fbfc73ce203b597981a76832dfbb9cbd8101b"
-dependencies = [
- "log",
 ]
 
 [[package]]
