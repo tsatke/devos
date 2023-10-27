@@ -13,6 +13,7 @@ use x86_64::instructions::hlt;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
+use kernel::io::path::Path;
 use kernel::io::vfs::vfs;
 use kernel::mem::Size;
 use kernel::syscall::unistd::sys_execve;
@@ -46,6 +47,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
+    ls("/bin");
+
     let node = vfs().open("/bin/hello_world").unwrap();
     let mut buf = [1u8; 10];
     serial_println!("before: {:02x?}", buf);
@@ -59,6 +62,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let _other_process = process::create(process::current(), "other_process");
 
     sys_execve("/bin/hello_world", &[], &[]).unwrap();
+}
+
+fn ls(p: impl AsRef<Path>) {
+    vfs().read_dir(p).unwrap().for_each(|e| {
+        serial_println!("{:?}", e);
+    })
 }
 
 extern "C" fn count_even() {

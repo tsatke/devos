@@ -1,6 +1,9 @@
-use crate::io::path::{OwnedPath, Path};
-use crate::io::vfs::{FsId, VfsError};
+use crate::io::path::Path;
+use crate::io::vfs::error::VfsError;
+use crate::io::vfs::FsId;
+use alloc::string::String;
 use alloc::vec::Vec;
+use derive_more::Constructor;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct VfsHandle(u64);
@@ -9,6 +12,12 @@ impl VfsHandle {
     pub fn new(v: u64) -> Self {
         Self(v)
     }
+}
+
+#[derive(Constructor, Debug, Clone, Eq, PartialEq)]
+pub struct DirEntry {
+    pub name: String,
+    pub typ: FileType,
 }
 
 pub trait FileSystem: Send + Sync {
@@ -33,17 +42,7 @@ pub trait FileSystem: Send + Sync {
     /// Closes the file associated with the given handle.
     fn close(&mut self, handle: VfsHandle) -> Result<(), VfsError>;
 
-    /// Returns all entries in the directory associated with the given path.
-    ///
-    /// This returns an error if the path is not a directory.
-    ///
-    /// All returned paths are absolute, but are to be interpreted relative to
-    /// the mount point at which this file system is mounted.
-    /// As an example, if the file system is mounted at `/foo`, and one of the
-    /// returned paths is `/bar`, then the actual path is `/foo/bar`.
-    /// Calls to [`FileSystem::open`] will succeed with `/bar`, [`crate::io::vfs::Vfs::open`]
-    /// will succeed with `/foo/bar`.
-    fn read_dir(&mut self, path: &Path) -> Result<Vec<OwnedPath>, VfsError>;
+    fn read_dir(&mut self, path: &Path) -> Result<Vec<DirEntry>, VfsError>;
 
     /// Reads from the given offset from the file associated with the given handle
     /// into the given buffer.
@@ -60,7 +59,12 @@ pub trait FileSystem: Send + Sync {
 
     fn truncate(&mut self, handle: VfsHandle, size: usize) -> Result<(), VfsError>;
 
-    fn stat(&self, handle: VfsHandle) -> Result<Stat, VfsError>;
+    fn stat(&mut self, handle: VfsHandle) -> Result<Stat, VfsError>;
+
+    fn stat_path(&mut self, p: &Path) -> Result<Stat, VfsError> {
+        let handle = self.open(p)?;
+        self.stat(handle)
+    }
 
     /// Creates a node at the given path.
     /// The type of the node is specified by the [`ftype`] parameter.
@@ -75,9 +79,15 @@ pub trait FileSystem: Send + Sync {
     fn remove(&mut self, path: &Path) -> Result<(), VfsError>;
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FileType {
-    File,
+    RegularFile,
     Directory,
+    CharacterDevice,
+    BlockDevice,
+    FIFO,
+    Socket,
+    SymbolicLink,
 }
 
 #[derive(Clone, Default)]

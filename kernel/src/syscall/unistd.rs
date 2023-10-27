@@ -24,15 +24,7 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Errno {
         return ENOSYS;
     }
 
-    if let Ok(exists) = vfs().exists(path) {
-        if exists {
-            OK
-        } else {
-            ENOENT
-        }
-    } else {
-        ENOENT
-    }
+    vfs().stat_path(path).map(|_| OK).unwrap_or(ENOENT)
 }
 
 pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Result<!, Errno> {

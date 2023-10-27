@@ -1,4 +1,5 @@
-use crate::io::vfs::{Stat, VfsError};
+use crate::io::vfs::error::{Result, VfsError};
+use crate::io::vfs::Stat;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec;
@@ -20,7 +21,7 @@ impl<T> Ext2Inode<T>
 where
     T: BlockDevice,
 {
-    pub fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize, VfsError> {
+    pub fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize> {
         let block_size = self.fs.read().superblock().block_size() as usize;
 
         let start_block = offset as u32 / block_size as u32;
@@ -40,11 +41,11 @@ where
         Ok(buf.len())
     }
 
-    pub fn write(&mut self, _buf: &[u8], _offset: usize) -> Result<usize, VfsError> {
+    pub fn write(&mut self, _buf: &[u8], _offset: usize) -> Result<usize> {
         todo!()
     }
 
-    pub fn stat(&self) -> Result<Stat, VfsError> {
+    pub fn stat(&self) -> Result<Stat> {
         Ok(Stat {
             inode: self.inode_num.get() as u64, // TODO: is this correct?
             size: self.inner.len() as u64,
@@ -57,12 +58,7 @@ impl<T> Ext2Inode<T>
 where
     T: BlockDevice,
 {
-    fn read_blocks(
-        &self,
-        start_block: usize,
-        end_block: usize,
-        buf: &mut [u8],
-    ) -> Result<(), VfsError> {
+    fn read_blocks(&self, start_block: usize, end_block: usize, buf: &mut [u8]) -> Result<()> {
         let block_size = self.fs.read().superblock().block_size() as usize;
         let pointers_per_block = block_size / 4;
 

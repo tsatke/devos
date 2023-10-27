@@ -1,7 +1,9 @@
-use crate::io::path::{Component, OwnedPath, Path};
-use crate::io::vfs::{FileSystem, FileType, FsId, Stat, VfsError, VfsHandle};
+use crate::io::path::{Component, Path};
+use crate::io::vfs::error::{Result, VfsError};
+use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, Stat, VfsHandle};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
+use alloc::string::ToString;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
@@ -37,15 +39,15 @@ where
         }
     }
 
-    fn resolve_handle(&self, handle: VfsHandle) -> Result<&Ext2Inode<T>, VfsError> {
+    fn resolve_handle(&self, handle: VfsHandle) -> Result<&Ext2Inode<T>> {
         self.handles.get(&handle).ok_or(VfsError::HandleClosed)
     }
 
-    fn resolve_handle_mut(&mut self, handle: VfsHandle) -> Result<&mut Ext2Inode<T>, VfsError> {
+    fn resolve_handle_mut(&mut self, handle: VfsHandle) -> Result<&mut Ext2Inode<T>> {
         self.handles.get_mut(&handle).ok_or(VfsError::HandleClosed)
     }
 
-    fn find_inode(&self, path: &Path) -> Result<(ext2::InodeAddress, ext2::Inode), VfsError> {
+    fn find_inode(&self, path: &Path) -> Result<(ext2::InodeAddress, ext2::Inode)> {
         let root_inode = self
             .inner
             .read()
@@ -58,7 +60,7 @@ where
         &self,
         path: &Path,
         starting_point: (ext2::InodeAddress, ext2::Inode),
-    ) -> Result<(ext2::InodeAddress, ext2::Inode), VfsError> {
+    ) -> Result<(ext2::InodeAddress, ext2::Inode)> {
         let path = path.to_owned();
         let components = path.components();
         let fs = self.inner.read();
@@ -103,7 +105,7 @@ where
         self.fsid
     }
 
-    fn open(&mut self, path: &Path) -> Result<VfsHandle, VfsError> {
+    fn open(&mut self, path: &Path) -> Result<VfsHandle> {
         let (found_num, found) = self.find_inode(path)?;
         let handle = next_handle();
         let inode = Ext2Inode::new(self.inner.clone(), found_num, found);
@@ -111,41 +113,65 @@ where
         Ok(handle)
     }
 
-    fn close(&mut self, handle: VfsHandle) -> Result<(), VfsError> {
+    fn close(&mut self, handle: VfsHandle) -> Result<()> {
         self.handles.remove(&handle).ok_or(VfsError::HandleClosed)?;
         Ok(())
     }
 
-    fn read_dir(&mut self, _path: &Path) -> Result<Vec<OwnedPath>, VfsError> {
-        todo!()
+    fn read_dir(&mut self, path: &Path) -> Result<Vec<DirEntry>> {
+        let node = self.find_inode(path)?.1;
+        Ok(self
+            .inner
+            .read()
+            .list_dir(&node)
+            .map_err(|_| VfsError::NoSuchFile)?
+            .into_iter()
+            .filter(|entry| entry.name().is_some()) // TODO: could be none if the name is not valid utf8, we should maybe handle that differently
+            .filter(|entry| entry.typ().is_some()) // TODO: dir entries not necessarily have a type, do we want to support that?
+            .map(|entry| {
+                let name = entry.name().unwrap().to_string();
+                let ext2_type = entry.typ().unwrap();
+                return DirEntry::new(name, ext2_type.into());
+            })
+            .collect())
     }
 
-    fn read(
-        &mut self,
-        handle: VfsHandle,
-        buf: &mut [u8],
-        offset: usize,
-    ) -> Result<usize, VfsError> {
+    fn read(&mut self, handle: VfsHandle, buf: &mut [u8], offset: usize) -> Result<usize> {
         self.resolve_handle(handle)?.read(buf, offset)
     }
 
-    fn write(&mut self, handle: VfsHandle, buf: &[u8], offset: usize) -> Result<usize, VfsError> {
+    fn write(&mut self, handle: VfsHandle, buf: &[u8], offset: usize) -> Result<usize> {
         self.resolve_handle_mut(handle)?.write(buf, offset)
     }
 
-    fn truncate(&mut self, _handle: VfsHandle, _size: usize) -> Result<(), VfsError> {
+    fn truncate(&mut self, _handle: VfsHandle, _size: usize) -> Result<()> {
         todo!()
     }
 
-    fn stat(&self, handle: VfsHandle) -> Result<Stat, VfsError> {
+    fn stat(&mut self, handle: VfsHandle) -> Result<Stat> {
         self.resolve_handle(handle)?.stat()
     }
 
-    fn create(&mut self, _path: &Path, _ftype: FileType) -> Result<(), VfsError> {
+    fn create(&mut self, _path: &Path, _ftype: FileType) -> Result<()> {
         todo!()
     }
 
-    fn remove(&mut self, _path: &Path) -> Result<(), VfsError> {
+    fn remove(&mut self, _path: &Path) -> Result<()> {
         todo!()
+    }
+}
+
+impl From<ext2::DirType> for FileType {
+    fn from(value: ext2::DirType) -> Self {
+        match value {
+            x if x == ext2::DirType::Directory => FileType::Directory,
+            x if x == ext2::DirType::RegularFile => FileType::RegularFile,
+            x if x == ext2::DirType::CharacterDevice => FileType::CharacterDevice,
+            x if x == ext2::DirType::BlockDevice => FileType::BlockDevice,
+            x if x == ext2::DirType::FIFO => FileType::FIFO,
+            x if x == ext2::DirType::UnixSocket => FileType::Socket,
+            x if x == ext2::DirType::SymLink => FileType::SymbolicLink,
+            _ => unreachable!(),
+        }
     }
 }
