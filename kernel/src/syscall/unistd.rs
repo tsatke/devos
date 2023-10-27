@@ -1,5 +1,5 @@
 use crate::io::path::Path;
-use crate::io::vfs::find;
+use crate::io::vfs::vfs;
 use crate::process::elf::ElfLoader;
 use crate::{process, serial_println};
 use alloc::string::ToString;
@@ -7,7 +7,7 @@ use alloc::vec;
 use bitflags::bitflags;
 use core::mem::transmute;
 use elfloader::ElfBinary;
-use kernel_api::syscall::{Errno, EACCES, EIO, ENOENT, ENOSYS, OK};
+use kernel_api::syscall::{Errno, EIO, ENOENT, ENOSYS, OK};
 
 bitflags! {
     #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -24,8 +24,12 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Errno {
         return ENOSYS;
     }
 
-    if find(path).is_ok() {
-        OK
+    if let Ok(exists) = vfs().exists(path) {
+        if exists {
+            OK
+        } else {
+            ENOENT
+        }
     } else {
         ENOENT
     }
@@ -34,15 +38,14 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Errno {
 pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Result<!, Errno> {
     serial_println!("sys_execve({:?}, {:?}, {:?})", path.as_ref(), argv, envp);
 
+    let path = path.as_ref();
+
     let elf_data = {
-        let file = find("/bin/hello_world")
-            .map_err(|_| ENOENT)?
-            .as_file()
-            .ok_or(EACCES)?;
-        let guard = file.read();
-        let size = guard.size();
+        let file = vfs().open(path).map_err(|_| ENOENT)?;
+        let stat = vfs().stat(&file).map_err(|_| EIO)?;
+        let size = stat.size;
         let mut buf = vec![0_u8; size as usize];
-        guard.read_at(0, &mut buf).map_err(|_| EIO)?;
+        vfs().read(&file, &mut buf, 0).map_err(|_| EIO)?;
         buf
     };
 
@@ -54,7 +57,7 @@ pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Resul
     let entry_fn = unsafe { transmute(entry) };
 
     // execute the executable in the new task...
-    process::spawn_task_in_current_process(path.as_ref().to_string(), entry_fn);
+    process::spawn_task_in_current_process(path.to_string(), entry_fn);
     // ...and stop the current task
     unsafe { process::exit_current_task() }
 }
