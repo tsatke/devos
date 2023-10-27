@@ -25,5 +25,27 @@ members = [
     "userspace/hello_world",
 ]
 
+[workspace.dependencies]
+acpi = "5.0.0"
+bitflags = "2.4.1"
+bootloader_api = "0.11"
+conquer-once = { version = "0.4.0", default-features = false }
+derive_more = "0.99.17"
+elfloader = "0.16.0"
+graphics = { path = "driver/graphics" }
+ide = { path = "driver/ide" }
+kernel_api = { path = "kernel_api" }
+linked_list_allocator = "0.10.5"
+mkfs-ext2 = { git = "https://github.com/tsatke/mkfs" }
+mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
+num_enum = { version = "0.7.0", default-features = false }
+pci = { path = "driver/pci" }
+raw-cpuid = { version = "11.0", default-features = false }
+spin = "0.9.8"
+uart_16550 = "0.3"
+vga = { path = "driver/vga" }
+x2apic = "0.4"
+x86_64 = "0.14"
+
 [features]
 default = []
