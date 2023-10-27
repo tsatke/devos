@@ -1,34 +1,69 @@
-use crate::io::vfs::ext2::InnerHandle;
-use crate::io::vfs::{File, InodeBase, InodeNum, IoError, ReadError, Stat, WriteError};
+use crate::io::vfs::{Stat, VfsError};
 use alloc::collections::BTreeMap;
-use alloc::string::String;
+use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::mem::size_of;
-use ext2::BlockAddress;
+use derive_more::Constructor;
+use ext2::{BlockAddress, InodeAddress};
 use filesystem::BlockDevice;
+use spin::RwLock;
 
-pub struct Ext2File<T> {
-    inner: InnerHandle<T>,
-    file: ext2::RegularFile,
-    name: String,
+#[derive(Constructor)]
+pub struct Ext2Inode<T> {
+    fs: Arc<RwLock<ext2::Ext2Fs<T>>>,
+    inode_num: InodeAddress,
+    inner: ext2::Inode,
 }
 
-impl<T> Ext2File<T>
+impl<T> Ext2Inode<T>
 where
-    T: BlockDevice + 'static + Send + Sync,
+    T: BlockDevice,
 {
-    pub(crate) fn new(inner: InnerHandle<T>, file: ext2::RegularFile, name: String) -> Self {
-        Self { inner, file, name }
+    pub fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize, VfsError> {
+        let block_size = self.fs.read().superblock().block_size() as usize;
+
+        let start_block = offset as u32 / block_size as u32;
+        let end_block = (offset as u32 + buf.len() as u32) / block_size as u32;
+        let relative_offset = offset % block_size;
+        let block_count = if buf.len() % block_size == 0 {
+            end_block - start_block
+        } else {
+            end_block - start_block + 1
+        } as usize;
+
+        // read blocks
+        let mut data: Vec<u8> = vec![0_u8; block_count * block_size]; // TODO: avoid allocation - maybe try to only allocate the first and last block if the read is not aligned, but read the rest directly into the buffer
+        self.read_blocks(start_block as usize, end_block as usize, &mut data)?;
+        buf.copy_from_slice(&data[relative_offset..relative_offset + buf.len()]);
+
+        Ok(buf.len())
     }
 
+    pub fn write(&mut self, _buf: &[u8], _offset: usize) -> Result<usize, VfsError> {
+        todo!()
+    }
+
+    pub fn stat(&self) -> Result<Stat, VfsError> {
+        Ok(Stat {
+            inode: self.inode_num.get() as u64, // TODO: is this correct?
+            size: self.inner.len() as u64,
+            ..Default::default() // TODO: fill in the rest
+        })
+    }
+}
+
+impl<T> Ext2Inode<T>
+where
+    T: BlockDevice,
+{
     fn read_blocks(
         &self,
         start_block: usize,
         end_block: usize,
         buf: &mut [u8],
-    ) -> Result<(), ReadError> {
-        let block_size = self.inner.read().fs.superblock().block_size() as usize;
+    ) -> Result<(), VfsError> {
+        let block_size = self.fs.read().superblock().block_size() as usize;
         let pointers_per_block = block_size / 4;
 
         let direct_end = 11; // 12 direct pointers
@@ -45,7 +80,7 @@ where
         for (i, block) in (start_block..=end_block).enumerate() {
             let block_data = &mut buf[i * block_size..(i + 1) * block_size];
             let block_pointer = if block < 12 {
-                self.file.direct_ptr(block)
+                self.inner.direct_ptr(block)
             } else {
                 // The block index will be converted to a "path" like 3/2/5, which would
                 // mean the third triple indirect entry, the second double indirect entry,
@@ -74,9 +109,9 @@ where
 
                 // this is the starting point for walking the path
                 let mut block_pointer = match indirect_path.len() {
-                    1 => self.file.single_indirect_ptr(),
-                    2 => self.file.double_indirect_ptr(),
-                    3 => self.file.triple_indirect_ptr(),
+                    1 => self.inner.single_indirect_ptr(),
+                    2 => self.inner.double_indirect_ptr(),
+                    3 => self.inner.triple_indirect_ptr(),
                     _ => panic!("invalid indirect path"),
                 }
                 .expect("indirect pointer block not allocated"); // FIXME: this can probably happen for sparse file systems
@@ -84,9 +119,8 @@ where
                     let pointer_data =
                         pointer_block_cache.entry(block_pointer).or_insert_with(|| {
                             let mut data = vec![0_u8; block_size];
-                            self.inner
+                            self.fs
                                 .read()
-                                .fs
                                 .read_block(block_pointer, &mut data)
                                 .expect("failed to read single indirect pointer block");
                             data
@@ -106,74 +140,15 @@ where
             };
 
             if let Some(block_pointer) = block_pointer {
-                self.inner
+                self.fs
                     .read()
-                    .fs
                     .read_block(block_pointer, block_data)
-                    .map_err(|_| ReadError::IoError(IoError::HardwareError))?;
+                    .map_err(|_| VfsError::ReadError)?;
             } else {
                 block_data.fill(0);
             }
         }
 
         Ok(())
-    }
-}
-
-impl<T> InodeBase for Ext2File<T>
-where
-    T: BlockDevice + Send + Sync,
-{
-    fn num(&self) -> InodeNum {
-        1_u64.into()
-    }
-
-    fn name(&self) -> String {
-        self.name.clone() // TODO: remove clone
-    }
-
-    fn stat(&self) -> Stat {
-        Stat {
-            ..Default::default()
-        }
-    }
-}
-
-impl<T> File for Ext2File<T>
-where
-    T: BlockDevice + 'static + Send + Sync,
-{
-    fn size(&self) -> u64 {
-        self.file.len() as u64
-    }
-
-    fn truncate(&mut self, _size: u64) -> Result<(), WriteError> {
-        todo!()
-    }
-
-    fn read_at(&self, offset: u64, buf: &mut dyn AsMut<[u8]>) -> Result<usize, ReadError> {
-        let buffer = buf.as_mut();
-
-        let block_size = self.inner.read().fs.superblock().block_size() as usize;
-
-        let start_block = offset as u32 / block_size as u32;
-        let end_block = (offset as u32 + buffer.len() as u32) / block_size as u32;
-        let relative_offset = offset as usize % block_size;
-        let block_count = if buffer.len() % block_size == 0 {
-            end_block - start_block
-        } else {
-            end_block - start_block + 1
-        } as usize;
-
-        // read blocks
-        let mut data: Vec<u8> = vec![0_u8; block_count * block_size]; // TODO: avoid allocation - maybe try to only allocate the first and last block if the read is not aligned, but read the rest directly into the buffer
-        self.read_blocks(start_block as usize, end_block as usize, &mut data)?;
-        buffer.copy_from_slice(&data[relative_offset..relative_offset + buffer.len()]);
-
-        Ok(buffer.len())
-    }
-
-    fn write_at(&mut self, _offset: u64, _buf: &dyn AsRef<[u8]>) -> Result<usize, WriteError> {
-        todo!()
     }
 }

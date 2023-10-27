@@ -13,9 +13,7 @@ use x86_64::instructions::hlt;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::io::other_vfs::vfs;
-use kernel::io::vfs::{find, Inode};
-use kernel::io::vfs::{InodeBase, LookupError};
+use kernel::io::vfs::vfs;
 use kernel::mem::Size;
 use kernel::syscall::unistd::sys_execve;
 use kernel::{kernel_init, process, screen, serial_println};
@@ -48,25 +46,19 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    kernel::io::other_vfs::init(); // TODO: move this to kernel_init
-
-    let dev_zero = vfs().open("/dev/zero").unwrap();
+    let node = vfs().open("/bin/hello_world").unwrap();
     let mut buf = [1u8; 10];
     serial_println!("before: {:02x?}", buf);
-    vfs().read(&dev_zero, &mut buf, 0).unwrap();
+    vfs().read(&node, &mut buf, 0).unwrap();
     serial_println!("after: {:02x?}", buf);
 
-    // ls("/bin").unwrap();
-    //
-    // process::spawn_task_in_current_process("vga_stuff", vga_stuff);
-    // process::spawn_task_in_current_process("count_even", count_even);
-    // process::spawn_task_in_current_process("count_odd", cound_odd);
-    //
-    // let _other_process = process::create(process::current(), "other_process");
-    //
-    // sys_execve("/bin/hello_world", &[], &[]).unwrap();
+    process::spawn_task_in_current_process("vga_stuff", vga_stuff);
+    process::spawn_task_in_current_process("count_even", count_even);
+    process::spawn_task_in_current_process("count_odd", count_odd);
 
-    panic!("kernel_main returned")
+    let _other_process = process::create(process::current(), "other_process");
+
+    sys_execve("/bin/hello_world", &[], &[]).unwrap();
 }
 
 extern "C" fn count_even() {
@@ -76,29 +68,11 @@ extern "C" fn count_even() {
     }
 }
 
-extern "C" fn cound_odd() {
+extern "C" fn count_odd() {
     for i in (1..10).step_by(2) {
         serial_println!("{}", i);
         hlt();
     }
-}
-
-fn ls(path: &str) -> Result<(), LookupError> {
-    let root = find(path)?.as_dir().expect("not a directory");
-    let guard = root.read();
-    let children = guard.children()?;
-    serial_println!("ls '{}'", path);
-    for child in children.iter() {
-        let indicator = match child {
-            Inode::Dir(_) => "d",
-            Inode::File(_) => "f",
-            Inode::BlockDevice(_) => "b",
-            Inode::CharacterDevice(_) => "c",
-            Inode::Symlink(_) => "l",
-        };
-        serial_println!("  {} {}", indicator, child.name());
-    }
-    Ok(())
 }
 
 #[allow(dead_code)]

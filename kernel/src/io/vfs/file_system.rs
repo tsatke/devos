@@ -1,6 +1,5 @@
-use crate::io::other_vfs::{FsId, VfsError};
 use crate::io::path::{OwnedPath, Path};
-use alloc::string::String;
+use crate::io::vfs::{FsId, VfsError};
 use alloc::vec::Vec;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -15,6 +14,11 @@ impl VfsHandle {
 pub trait FileSystem: Send + Sync {
     /// Returns the file system id of this file system.
     fn fsid(&self) -> FsId;
+
+    fn exists(&mut self, path: &Path) -> Result<bool, VfsError> {
+        let _ = self.open(path)?;
+        Ok(true)
+    }
 
     /// Opens the file at the given path and returns a handle to it.
     /// the handle is file system specific, and the file system must coordinate
@@ -37,7 +41,7 @@ pub trait FileSystem: Send + Sync {
     /// the mount point at which this file system is mounted.
     /// As an example, if the file system is mounted at `/foo`, and one of the
     /// returned paths is `/bar`, then the actual path is `/foo/bar`.
-    /// Calls to [`FileSystem::open`] will succeed with `/bar`, [`crate::io::other_vfs::Vfs::open`]
+    /// Calls to [`FileSystem::open`] will succeed with `/bar`, [`crate::io::vfs::Vfs::open`]
     /// will succeed with `/foo/bar`.
     fn read_dir(&mut self, path: &Path) -> Result<Vec<OwnedPath>, VfsError>;
 
@@ -53,6 +57,10 @@ pub trait FileSystem: Send + Sync {
     /// This returns how many bytes were written.
     /// If an error occurs, the file may be partially written.
     fn write(&mut self, handle: VfsHandle, buf: &[u8], offset: usize) -> Result<usize, VfsError>;
+
+    fn truncate(&mut self, handle: VfsHandle, size: usize) -> Result<(), VfsError>;
+
+    fn stat(&self, handle: VfsHandle) -> Result<Stat, VfsError>;
 
     /// Creates a node at the given path.
     /// The type of the node is specified by the [`ftype`] parameter.
@@ -70,4 +78,20 @@ pub trait FileSystem: Send + Sync {
 pub enum FileType {
     File,
     Directory,
+}
+
+#[derive(Clone, Default)]
+pub struct Stat {
+    pub dev: u64,
+    pub inode: u64,
+    pub rdev: u32,
+    pub nlink: u32,
+    pub uid: u32,
+    pub gid: u32,
+    pub size: u64,
+    pub atime: u32,
+    pub mtime: u32,
+    pub ctime: u32,
+    pub blksize: u32,
+    pub blocks: u32,
 }

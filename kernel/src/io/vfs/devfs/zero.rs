@@ -1,5 +1,5 @@
-use crate::io::other_vfs::devfs::DevFile;
-use crate::io::other_vfs::VfsError;
+use crate::io::vfs::devfs::DevFile;
+use crate::io::vfs::VfsError;
 
 pub struct Zero;
 

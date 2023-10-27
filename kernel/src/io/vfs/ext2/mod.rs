@@ -1,66 +1,151 @@
-use crate::io::vfs::Inode;
-use alloc::string::{String, ToString};
+use crate::io::path::{Component, OwnedPath, Path};
+use crate::io::vfs::{FileSystem, FileType, FsId, Stat, VfsError, VfsHandle};
+use alloc::borrow::ToOwned;
+use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
-use dir::Ext2Dir;
-use ext2::{Directory, RegularFile};
+use alloc::vec::Vec;
+use core::sync::atomic::AtomicU64;
+use core::sync::atomic::Ordering::Relaxed;
+use ext2::Type;
+use file::Ext2Inode;
+use filesystem::BlockDevice;
 use spin::RwLock;
 
-mod dir;
 mod file;
 
-pub use dir::*;
-pub use file::*;
+static HANDLE_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-pub struct Ext2Fs<T> {
-    inner: InnerHandle<T>,
+fn next_handle() -> VfsHandle {
+    VfsHandle::new(HANDLE_COUNTER.fetch_add(1, Relaxed))
 }
 
-impl<T> Ext2Fs<T>
+pub struct VirtualExt2Fs<T> {
+    fsid: FsId,
+    handles: BTreeMap<VfsHandle, Ext2Inode<T>>,
+    inner: Arc<RwLock<ext2::Ext2Fs<T>>>,
+}
+
+impl<T> VirtualExt2Fs<T>
 where
-    T: filesystem::BlockDevice + Send + Sync + 'static,
+    T: BlockDevice,
 {
-    pub fn new(fsid: u64, inner: ext2::Ext2Fs<T>) -> Self {
+    pub fn new(fsid: FsId, inner: ext2::Ext2Fs<T>) -> Self {
         Self {
-            inner: Arc::new(RwLock::new(Inner { fs: inner, fsid })),
+            fsid,
+            handles: BTreeMap::new(),
+            inner: Arc::new(RwLock::new(inner)),
         }
     }
 
-    pub fn root_inode(&self) -> Option<Inode> {
-        let dir = self.inner.read().fs.read_root_inode().ok()?;
-        Some(Inode::new_dir(Ext2Dir::new(
-            self.inner.clone(),
-            dir,
-            "/".to_string(),
-        )))
+    fn resolve_handle(&self, handle: VfsHandle) -> Result<&Ext2Inode<T>, VfsError> {
+        self.handles.get(&handle).ok_or(VfsError::HandleClosed)
+    }
+
+    fn resolve_handle_mut(&mut self, handle: VfsHandle) -> Result<&mut Ext2Inode<T>, VfsError> {
+        self.handles.get_mut(&handle).ok_or(VfsError::HandleClosed)
+    }
+
+    fn find_inode(&self, path: &Path) -> Result<(ext2::InodeAddress, ext2::Inode), VfsError> {
+        let root_inode = self
+            .inner
+            .read()
+            .read_root_inode()
+            .map_err(|_| VfsError::NoSuchFile)?;
+        self.find_inode_from(path, root_inode.into_inner())
+    }
+
+    fn find_inode_from(
+        &self,
+        path: &Path,
+        starting_point: (ext2::InodeAddress, ext2::Inode),
+    ) -> Result<(ext2::InodeAddress, ext2::Inode), VfsError> {
+        let path = path.to_owned();
+        let components = path.components();
+        let fs = self.inner.read();
+
+        let (mut current_num, mut current) = starting_point;
+        for component in components {
+            match component {
+                Component::RootDir => {}
+                Component::CurrentDir => {} // do nothing,
+                Component::ParentDir => {
+                    todo!("parent dir");
+                }
+                Component::Normal(v) => {
+                    let x = current.typ();
+                    if x != Type::Directory {
+                        // TODO: symlink support
+                        return Err(VfsError::NoSuchFile);
+                    }
+                    // x is a directory
+                    let found_entry = fs
+                        .list_dir(&current) // list entries in the directory
+                        .map_err(|_| VfsError::NoSuchFile)?
+                        .into_iter()
+                        .find(|entry| entry.name() == Some(v))
+                        .ok_or(VfsError::NoSuchFile)?;
+                    (current_num, current) = fs
+                        .resolve_dir_entry(found_entry)
+                        .map_err(|_| VfsError::NoSuchFile)?;
+                }
+            }
+        }
+
+        Ok((current_num, current))
     }
 }
 
-pub(crate) type InnerHandle<T> = Arc<RwLock<Inner<T>>>;
-
-pub(crate) struct Inner<T> {
-    fs: ext2::Ext2Fs<T>,
-    fsid: u64,
-}
-
-fn ext2_inode_to_inode<T>(
-    inner: InnerHandle<T>,
-    ext2_inode: (ext2::InodeAddress, ext2::Inode),
-    name: String,
-) -> Inode
+impl<T> FileSystem for VirtualExt2Fs<T>
 where
-    T: filesystem::BlockDevice + 'static + Send + Sync,
+    T: BlockDevice + Send + Sync,
 {
-    match ext2_inode.1.typ() {
-        ext2::Type::Directory => Inode::new_dir(Ext2Dir::new(
-            inner,
-            Directory::try_from(ext2_inode).unwrap(),
-            name,
-        )),
-        ext2::Type::RegularFile => Inode::new_file(Ext2File::new(
-            inner,
-            RegularFile::try_from(ext2_inode).unwrap(),
-            name,
-        )),
-        _ => todo!("todo: {:?}", ext2_inode.1.typ()),
+    fn fsid(&self) -> FsId {
+        self.fsid
+    }
+
+    fn open(&mut self, path: &Path) -> Result<VfsHandle, VfsError> {
+        let (found_num, found) = self.find_inode(path)?;
+        let handle = next_handle();
+        let inode = Ext2Inode::new(self.inner.clone(), found_num, found);
+        self.handles.insert(handle, inode);
+        Ok(handle)
+    }
+
+    fn close(&mut self, handle: VfsHandle) -> Result<(), VfsError> {
+        self.handles.remove(&handle).ok_or(VfsError::HandleClosed)?;
+        Ok(())
+    }
+
+    fn read_dir(&mut self, _path: &Path) -> Result<Vec<OwnedPath>, VfsError> {
+        todo!()
+    }
+
+    fn read(
+        &mut self,
+        handle: VfsHandle,
+        buf: &mut [u8],
+        offset: usize,
+    ) -> Result<usize, VfsError> {
+        self.resolve_handle(handle)?.read(buf, offset)
+    }
+
+    fn write(&mut self, handle: VfsHandle, buf: &[u8], offset: usize) -> Result<usize, VfsError> {
+        self.resolve_handle_mut(handle)?.write(buf, offset)
+    }
+
+    fn truncate(&mut self, _handle: VfsHandle, _size: usize) -> Result<(), VfsError> {
+        todo!()
+    }
+
+    fn stat(&self, handle: VfsHandle) -> Result<Stat, VfsError> {
+        self.resolve_handle(handle)?.stat()
+    }
+
+    fn create(&mut self, _path: &Path, _ftype: FileType) -> Result<(), VfsError> {
+        todo!()
+    }
+
+    fn remove(&mut self, _path: &Path) -> Result<(), VfsError> {
+        todo!()
     }
 }
