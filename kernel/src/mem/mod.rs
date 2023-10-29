@@ -6,7 +6,7 @@ use x86_64::{PhysAddr, VirtAddr};
 
 pub use address_space::*;
 pub use heap::*;
-pub use manager::*;
+pub use phys_manager::*;
 pub use size::*;
 
 use crate::process::Process;
@@ -14,7 +14,7 @@ use crate::{process, serial_println};
 
 mod address_space;
 mod heap;
-mod manager;
+mod phys_manager;
 mod physical_stage1;
 mod physical_stage2;
 mod size;
@@ -92,7 +92,9 @@ pub fn init(boot_info: &'static BootInfo) {
 #[macro_export]
 macro_rules! map_page {
     ($page:expr, $size:ident, $flags:expr) => {{
-        let frame = $crate::mem::MemoryManager::lock().allocate_frame().unwrap();
+        let frame = $crate::mem::PhysicalMemoryManager::lock()
+            .allocate_frame()
+            .unwrap();
         map_page!($page, frame, $size, $flags)
     }};
     ($page:expr, $frame:expr, $size:ident, $flags:expr) => {{

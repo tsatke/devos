@@ -5,7 +5,7 @@ use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PhysFrame, Si
 use crate::mem::physical_stage1::TrivialPhysicalFrameAllocator;
 use crate::mem::physical_stage2::MemoryMapPhysicalFrameAllocator;
 
-static mut MEMORY_MANAGER: Option<Mutex<MemoryManager>> = None;
+static mut MEMORY_MANAGER: Option<Mutex<PhysicalMemoryManager>> = None;
 
 // TODO: remove the two-stage approach
 // Currently, we need this, because the address space requires an initialized stage1 allocator
@@ -23,7 +23,7 @@ pub(in crate::mem) fn init_stage2(boot_info: &'static BootInfo) {
 }
 
 fn init(stage: Allocator) {
-    let mm = MemoryManager { alloc: stage };
+    let mm = PhysicalMemoryManager { alloc: stage };
     unsafe {
         let _ = MEMORY_MANAGER.insert(Mutex::new(mm));
     }
@@ -52,11 +52,11 @@ impl Allocator {
     }
 }
 
-pub struct MemoryManager {
+pub struct PhysicalMemoryManager {
     alloc: Allocator,
 }
 
-impl MemoryManager {
+impl PhysicalMemoryManager {
     pub fn lock() -> MutexGuard<'static, Self> {
         Self::ref_lock().lock()
     }
@@ -78,11 +78,11 @@ impl MemoryManager {
     }
 }
 
-/// A frame allocator that delegates frame allocations to the [`MemoryManager`].
+/// A frame allocator that delegates frame allocations to the [`PhysicalMemoryManager`].
 pub(in crate::mem) struct FrameAllocatorDelegate;
 
 unsafe impl FrameAllocator<Size4KiB> for FrameAllocatorDelegate {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-        MemoryManager::lock().allocate_frame()
+        PhysicalMemoryManager::lock().allocate_frame()
     }
 }

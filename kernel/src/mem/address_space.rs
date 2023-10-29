@@ -9,7 +9,7 @@ use x86_64::structures::paging::{
 };
 use x86_64::VirtAddr;
 
-use crate::mem::{FrameAllocatorDelegate, MemoryManager};
+use crate::mem::{FrameAllocatorDelegate, PhysicalMemoryManager};
 use crate::process;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -32,7 +32,7 @@ impl !Clone for AddressSpace {}
 
 impl AddressSpace {
     pub fn allocate_new() -> Self {
-        let pt_frame = MemoryManager::lock().allocate_frame().unwrap();
+        let pt_frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
         let pt_vaddr = VirtAddr::new(0x3333_3333_0000); // FIXME: choose any free address instead of hard-wiring one (solvable once we have some kind of task management)
         let pt_page = Page::containing_address(pt_vaddr);
 
