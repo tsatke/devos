@@ -2,8 +2,8 @@ use bootloader_api::BootInfo;
 use spin::{Mutex, MutexGuard};
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PhysFrame, Size4KiB};
 
-use crate::mem::physical_stage1::TrivialPhysicalFrameAllocator;
-use crate::mem::physical_stage2::MemoryMapPhysicalFrameAllocator;
+use crate::mem::physical::MemoryMapPhysicalFrameAllocator;
+use crate::mem::physical::TrivialPhysicalFrameAllocator;
 
 static mut MEMORY_MANAGER: Option<Mutex<PhysicalMemoryManager>> = None;
 
@@ -61,10 +61,6 @@ impl PhysicalMemoryManager {
         Self::ref_lock().lock()
     }
 
-    pub fn is_locked() -> bool {
-        Self::ref_lock().is_locked()
-    }
-
     fn ref_lock() -> &'static Mutex<Self> {
         unsafe { MEMORY_MANAGER.as_ref() }.expect("memory manager not initialized yet")
     }
@@ -73,6 +69,7 @@ impl PhysicalMemoryManager {
         self.alloc.allocate_frame()
     }
 
+    #[allow(unused)] // TODO: remove this, we will use this eventually
     pub fn deallocate_frame(&mut self, frame: PhysFrame) {
         unsafe { self.alloc.deallocate_frame(frame) }
     }

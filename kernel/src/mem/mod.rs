@@ -6,7 +6,6 @@ use x86_64::{PhysAddr, VirtAddr};
 
 pub use address_space::*;
 pub use heap::*;
-pub use phys_manager::*;
 pub use size::*;
 
 use crate::process::Process;
@@ -14,16 +13,14 @@ use crate::{process, serial_println};
 
 mod address_space;
 mod heap;
-mod phys_manager;
-mod physical_stage1;
-mod physical_stage2;
+mod physical;
 mod size;
 
 const HEAP_START: usize = 0x4444_4444_0000;
 const HEAP_SIZE: Size = Size::MiB(2);
 
 pub fn init(boot_info: &'static BootInfo) {
-    init_stage1(boot_info);
+    physical::init_stage1(boot_info);
 
     let recursive_index = boot_info.recursive_index.into_option().unwrap();
     let (pt_phys_addr, cr3flags) = Cr3::read();
@@ -74,7 +71,7 @@ pub fn init(boot_info: &'static BootInfo) {
     heap::init(HEAP_START as *mut u8, HEAP_SIZE.bytes());
 
     // after we have heap, we can now switch to the stage 2 physical memory manager
-    init_stage2(boot_info);
+    physical::init_stage2(boot_info);
 
     serial_println!(
         "{} MiB of initial {} MiB kernel heap available after switching to physical memory management stage 2",

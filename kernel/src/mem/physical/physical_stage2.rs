@@ -1,4 +1,4 @@
-use crate::mem::physical_stage1::STAGE1_ALLOCATED_FRAMES;
+use crate::mem::physical::STAGE1_ALLOCATED_FRAMES;
 use crate::mem::{is_heap_initialized, HEAP_SIZE};
 use crate::serial_println;
 use alloc::vec;

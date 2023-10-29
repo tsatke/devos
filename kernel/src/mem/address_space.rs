@@ -9,7 +9,7 @@ use x86_64::structures::paging::{
 };
 use x86_64::VirtAddr;
 
-use crate::mem::{FrameAllocatorDelegate, PhysicalMemoryManager};
+use crate::mem::physical::{FrameAllocatorDelegate, PhysicalMemoryManager};
 use crate::process;
 
 #[derive(Debug, Eq, PartialEq)]
