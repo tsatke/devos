@@ -3,6 +3,7 @@ use crate::io::vfs;
 use crate::io::vfs::{FileSystem, VfsHandle};
 use alloc::sync::Arc;
 use spin::RwLock;
+use x86_64::instructions::interrupts;
 
 pub struct VfsNode {
     /// The path of this node.
@@ -36,7 +37,11 @@ impl VfsNode {
 
 impl Drop for VfsNode {
     fn drop(&mut self) {
-        vfs::close_vfs_node(self); // just pray that this doesn't deadlock
+        assert!(
+            interrupts::are_enabled(),
+            "interrupts must be enabled when dropping a vfsnode"
+        ); // best effort, there is no way to guarantee that we don't get preempted right after this, so...
+        vfs::close_vfs_node(self); // ...just pray that this doesn't deadlock
 
         /*
         In all seriousness, the close function acquires locks.
