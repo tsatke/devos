@@ -51,7 +51,7 @@ fn test_memory_backed(allocation_strategy: AllocationStrategy) {
     }
 
     // remove the vmobject from the process so that it gets dropped
-    let _vmo = process::current().write().remove_vm_object(addr); // at the time of coding this, if the name of this variable is just `_`, this line deadlocks
+    let _vmo = process::current().write().remove_vm_object(addr); // don't call the variable just `_`, see https://users.rust-lang.org/t/unused-variables-that-need-to-not-be-prematurely-dropped/17192/2 , which in our code leads to a deadlock
 }
 
 #[panic_handler]
