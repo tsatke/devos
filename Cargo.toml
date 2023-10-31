@@ -8,6 +8,7 @@ kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", de
 hello_world = { path = "userspace/hello_world", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_multitasking = { path = "test_kernels/test_kernel_multitasking", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_vfs = { path = "test_kernels/test_kernel_vfs", artifact = "bin", target = "x86_64-unknown-none" }
+test_kernel_vmobject = { path = "test_kernels/test_kernel_vmobject", artifact = "bin", target = "x86_64-unknown-none" }
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

@@ -20,8 +20,17 @@ fn main() {
     // pass the disk image paths as env variables to the `main.rs`
     println!("cargo:rustc-env=UEFI_PATH={}", uefi_path.display());
 
-    for test_kernel in ["test_kernel_multitasking", "test_kernel_vfs"] {
-        let test_kernel_vfs = PathBuf::from(
+    // create a disk image for each test kernel
+    for test_kernel in fs::read_dir("test_kernels")
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .map(|e| {
+            e.file_name()
+                .map(|f| f.to_str().unwrap().to_string())
+                .unwrap()
+        })
+    {
+        let test_kernel_binary_path = PathBuf::from(
             std::env::var_os(format!(
                 "CARGO_BIN_FILE_{}_{}",
                 test_kernel.to_uppercase(),
@@ -29,14 +38,14 @@ fn main() {
             ))
             .unwrap(),
         );
-        let test_kernel_vfs_path = out_dir.join("test_kernel_vfs.img");
-        bootloader::UefiBoot::new(&test_kernel_vfs)
-            .create_disk_image(&test_kernel_vfs_path)
+        let test_kernel_path = out_dir.join(format!("{test_kernel}.img"));
+        bootloader::UefiBoot::new(&test_kernel_binary_path)
+            .create_disk_image(&test_kernel_path)
             .unwrap();
         println!(
             "cargo:rustc-env={}_PATH={}",
             test_kernel.to_uppercase(),
-            test_kernel_vfs_path.display()
+            test_kernel_path.display()
         );
     }
 

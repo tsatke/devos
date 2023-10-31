@@ -1,5 +1,3 @@
-use std::process::Stdio;
-
 use OS_DISK;
 
 fn run_test_kernel(kernel: &str, os_disk: &str) {
@@ -14,23 +12,27 @@ fn run_test_kernel(kernel: &str, os_disk: &str) {
     cmd.arg("-device")
         .arg("isa-debug-exit,iobase=0xf4,iosize=0x04");
 
-    cmd.stderr(Stdio::null());
-    cmd.stdout(Stdio::null());
-    cmd.stdin(Stdio::null());
-
-    let mut child = cmd.spawn().unwrap();
-    let exit_code = child.wait().unwrap();
-    assert_eq!(exit_code.code(), Some(33)); // 33=success, 35=failed
+    let output = cmd.output().expect("failed to execute qemu");
+    assert_eq!(
+        output.status.code(),
+        Some(33),
+        "test failed:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    ); // 33=success, 35=failed
 }
 
 #[test]
 fn test_kernel_multitasking() {
-    const KERNEL: &str = env!("TEST_KERNEL_MULTITASKING_PATH");
-    run_test_kernel(KERNEL, OS_DISK);
+    run_test_kernel(env!("TEST_KERNEL_MULTITASKING_PATH"), OS_DISK);
 }
 
 #[test]
 fn test_kernel_vfs() {
-    const KERNEL: &str = env!("TEST_KERNEL_VFS_PATH");
-    run_test_kernel(KERNEL, OS_DISK);
+    run_test_kernel(env!("TEST_KERNEL_VFS_PATH"), OS_DISK);
+}
+
+#[test]
+fn test_kernel_vmobject() {
+    run_test_kernel(env!("TEST_KERNEL_VMOBJECT_PATH"), OS_DISK);
 }

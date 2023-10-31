@@ -385,6 +385,7 @@ dependencies = [
  "proc-macro2",
  "test_kernel_multitasking",
  "test_kernel_vfs",
+ "test_kernel_vmobject",
 ]
 
 [[package]]
@@ -1119,6 +1120,14 @@ dependencies = [
 
 [[package]]
 name = "test_kernel_vfs"
+version = "0.1.0"
+dependencies = [
+ "bootloader_api",
+ "kernel",
+]
+
+[[package]]
+name = "test_kernel_vmobject"
 version = "0.1.0"
 dependencies = [
  "bootloader_api",
