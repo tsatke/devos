@@ -11,13 +11,15 @@
 #![feature(negative_impls)]
 #![feature(never_type)]
 
-use bootloader_api::BootInfo;
+extern crate alloc;
+
+use bootloader_api::config::Mapping;
+use bootloader_api::{BootInfo, BootloaderConfig};
 use x86_64::instructions::interrupts;
 
 use crate::arch::{gdt, idt};
 use crate::io::vfs;
-
-extern crate alloc;
+use crate::mem::Size;
 
 pub mod acpi;
 pub mod apic;
@@ -29,6 +31,16 @@ pub mod qemu;
 pub mod screen;
 pub mod syscall;
 pub mod timer;
+
+const KERNEL_STACK_SIZE: Size = Size::KiB(128);
+
+pub const fn bootloader_config() -> BootloaderConfig {
+    let mut config = BootloaderConfig::new_default();
+    config.mappings.page_table_recursive = Some(Mapping::Dynamic);
+    config.mappings.framebuffer = Mapping::Dynamic;
+    config.kernel_stack_size = KERNEL_STACK_SIZE.bytes() as u64;
+    config
+}
 
 #[allow(clippy::needless_pass_by_ref_mut)]
 pub fn kernel_init(boot_info: &'static mut BootInfo) {

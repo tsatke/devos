@@ -6,9 +6,10 @@ pub enum ExitCode {
     Failed = 0x11,
 }
 
-pub fn exit(exit_code: ExitCode) {
+pub fn exit(exit_code: ExitCode) -> ! {
     let mut port = Port::new(0xf4);
     unsafe {
         port.write(exit_code as u32);
     }
+    unreachable!()
 }

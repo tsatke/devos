@@ -7,7 +7,6 @@ extern crate alloc;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
-use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::instructions::hlt;
 use x86_64::VirtAddr;
@@ -17,19 +16,10 @@ use kernel::arch::panic::handle_panic;
 use kernel::io::path::Path;
 use kernel::io::vfs::vfs;
 use kernel::mem::virt::{AllocationStrategy, VmObject};
-use kernel::mem::Size;
-use kernel::{kernel_init, process, screen, serial_println};
+use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use vga::Color;
 
-const KERNEL_STACK_SIZE: Size = Size::KiB(128);
-
-const CONFIG: BootloaderConfig = {
-    let mut config = BootloaderConfig::new_default();
-    config.mappings.page_table_recursive = Some(Mapping::Dynamic);
-    config.mappings.framebuffer = Mapping::Dynamic;
-    config.kernel_stack_size = KERNEL_STACK_SIZE.bytes() as u64;
-    config
-};
+const CONFIG: BootloaderConfig = bootloader_config();
 
 #[cfg(not(test))]
 entry_point!(kernel_main, config = &CONFIG);
@@ -50,17 +40,17 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     ls("/bin");
 
-    // let node = vfs().open("/bin/hello_world").unwrap();
-    // let mut buf = [1u8; 10];
-    // serial_println!("before: {:02x?}", buf);
-    // vfs().read(&node, &mut buf, 0).unwrap();
-    // serial_println!("after: {:02x?}", buf);
-    //
-    // process::spawn_task_in_current_process("vga_stuff", vga_stuff);
-    // process::spawn_task_in_current_process("count_even", count_even);
-    // process::spawn_task_in_current_process("count_odd", count_odd);
-    //
-    // let _other_process = process::create(process::current(), "other_process");
+    let node = vfs().open("/bin/hello_world").unwrap();
+    let mut buf = [1u8; 10];
+    serial_println!("before: {:02x?}", buf);
+    vfs().read(&node, &mut buf, 0).unwrap();
+    serial_println!("after: {:02x?}", buf);
+
+    process::spawn_task_in_current_process("vga_stuff", vga_stuff);
+    process::spawn_task_in_current_process("count_even", count_even);
+    process::spawn_task_in_current_process("count_odd", count_odd);
+
+    let _other_process = process::create(process::current(), "other_process");
 
     // sys_execve("/bin/hello_world", &[], &[]).unwrap();
 

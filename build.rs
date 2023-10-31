@@ -20,6 +20,26 @@ fn main() {
     // pass the disk image paths as env variables to the `main.rs`
     println!("cargo:rustc-env=UEFI_PATH={}", uefi_path.display());
 
+    for test_kernel in ["test_kernel_multitasking", "test_kernel_vfs"] {
+        let test_kernel_vfs = PathBuf::from(
+            std::env::var_os(format!(
+                "CARGO_BIN_FILE_{}_{}",
+                test_kernel.to_uppercase(),
+                test_kernel
+            ))
+            .unwrap(),
+        );
+        let test_kernel_vfs_path = out_dir.join("test_kernel_vfs.img");
+        bootloader::UefiBoot::new(&test_kernel_vfs)
+            .create_disk_image(&test_kernel_vfs_path)
+            .unwrap();
+        println!(
+            "cargo:rustc-env={}_PATH={}",
+            test_kernel.to_uppercase(),
+            test_kernel_vfs_path.display()
+        );
+    }
+
     let os_disk_dir = collect_os_disk_artifacts(&out_dir);
     let os_disk_image = create_disk_image(&out_dir, &os_disk_dir);
     println!("cargo:rustc-env=OS_DISK={}", os_disk_image.display());

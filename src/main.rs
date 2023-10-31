@@ -1,12 +1,16 @@
-use clap::Parser;
+extern crate clap;
+
 use std::fs;
 
-extern crate clap;
+use clap::Parser;
 
 // these are set in build.rs at build time
 const UEFI_PATH: &str = env!("UEFI_PATH");
 const KERNEL_BINARY: &str = env!("KERNEL_BINARY");
 const OS_DISK: &str = env!("OS_DISK");
+
+#[cfg(test)]
+mod test_kernels;
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = "The boot tool for DevOS.")]

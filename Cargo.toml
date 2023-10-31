@@ -6,6 +6,8 @@ version = "0.1.0"
 bootloader = "0.11"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
 hello_world = { path = "userspace/hello_world", artifact = "bin", target = "x86_64-unknown-none" }
+test_kernel_multitasking = { path = "test_kernels/test_kernel_multitasking", artifact = "bin", target = "x86_64-unknown-none" }
+test_kernel_vfs = { path = "test_kernels/test_kernel_vfs", artifact = "bin", target = "x86_64-unknown-none" }
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -22,6 +24,8 @@ members = [
     "driver/ide",
     "driver/pci",
     "driver/vga",
+    "test_kernels/test_kernel_multitasking",
+    "test_kernels/test_kernel_vfs",
     "userspace/hello_world",
 ]
 

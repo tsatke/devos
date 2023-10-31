@@ -383,6 +383,8 @@ dependencies = [
  "kernel",
  "ovmf-prebuilt",
  "proc-macro2",
+ "test_kernel_multitasking",
+ "test_kernel_vfs",
 ]
 
 [[package]]
@@ -1104,6 +1106,23 @@ dependencies = [
  "redox_syscall",
  "rustix",
  "windows-sys 0.45.0",
+]
+
+[[package]]
+name = "test_kernel_multitasking"
+version = "0.1.0"
+dependencies = [
+ "bootloader_api",
+ "kernel",
+ "x86_64",
+]
+
+[[package]]
+name = "test_kernel_vfs"
+version = "0.1.0"
+dependencies = [
+ "bootloader_api",
+ "kernel",
 ]
 
 [[package]]
