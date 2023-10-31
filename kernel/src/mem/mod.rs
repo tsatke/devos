@@ -15,6 +15,7 @@ mod address_space;
 mod heap;
 mod physical;
 mod size;
+pub mod virt;
 
 const HEAP_START: usize = 0x4444_4444_0000;
 const HEAP_SIZE: Size = Size::MiB(2);

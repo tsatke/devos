@@ -10,13 +10,14 @@ use core::slice::from_raw_parts;
 use bootloader_api::config::Mapping;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::instructions::hlt;
+use x86_64::VirtAddr;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
 use kernel::io::path::Path;
 use kernel::io::vfs::vfs;
+use kernel::mem::virt::{AllocationStrategy, VmObject};
 use kernel::mem::Size;
-use kernel::syscall::unistd::sys_execve;
 use kernel::{kernel_init, process, screen, serial_println};
 use vga::Color;
 
@@ -49,19 +50,34 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     ls("/bin");
 
-    let node = vfs().open("/bin/hello_world").unwrap();
-    let mut buf = [1u8; 10];
-    serial_println!("before: {:02x?}", buf);
-    vfs().read(&node, &mut buf, 0).unwrap();
-    serial_println!("after: {:02x?}", buf);
+    // let node = vfs().open("/bin/hello_world").unwrap();
+    // let mut buf = [1u8; 10];
+    // serial_println!("before: {:02x?}", buf);
+    // vfs().read(&node, &mut buf, 0).unwrap();
+    // serial_println!("after: {:02x?}", buf);
+    //
+    // process::spawn_task_in_current_process("vga_stuff", vga_stuff);
+    // process::spawn_task_in_current_process("count_even", count_even);
+    // process::spawn_task_in_current_process("count_odd", count_odd);
+    //
+    // let _other_process = process::create(process::current(), "other_process");
 
-    process::spawn_task_in_current_process("vga_stuff", vga_stuff);
-    process::spawn_task_in_current_process("count_even", count_even);
-    process::spawn_task_in_current_process("count_odd", count_odd);
+    // sys_execve("/bin/hello_world", &[], &[]).unwrap();
 
-    let _other_process = process::create(process::current(), "other_process");
+    let addr = VirtAddr::new(0x1111_0000_0000);
+    let vm_object =
+        VmObject::create_memory_backed(addr, 8192, AllocationStrategy::AllocateOnAccess).unwrap();
+    process::current().write().add_vm_object(vm_object);
 
-    sys_execve("/bin/hello_world", &[], &[]).unwrap();
+    unsafe { addr.as_mut_ptr::<u64>().write(0xdeadbeef) };
+    unsafe {
+        VirtAddr::new(addr.as_u64() + 4096)
+            .as_mut_ptr::<u64>()
+            .write(0xdeadbeef)
+    };
+    serial_println!("data: 0x{:x?}", unsafe { addr.as_ptr::<u64>().read() });
+
+    panic!("kernel main returned")
 }
 
 fn ls(p: impl AsRef<Path>) {

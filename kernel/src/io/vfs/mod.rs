@@ -10,7 +10,6 @@ use core::sync::atomic::Ordering::Relaxed;
 use error::Result;
 use error::VfsError;
 use spin::RwLock;
-use vfs_node::VfsNode;
 
 pub mod devfs;
 mod error;
@@ -19,6 +18,7 @@ mod file_system;
 mod vfs_node;
 
 pub use file_system::*;
+pub use vfs_node::*;
 
 static VFS: Vfs = Vfs::new();
 

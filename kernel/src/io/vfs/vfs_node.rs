@@ -1,9 +1,12 @@
+use alloc::sync::Arc;
+use core::fmt::{Debug, Formatter};
+
+use spin::RwLock;
+use x86_64::instructions::interrupts;
+
 use crate::io::path::{OwnedPath, Path};
 use crate::io::vfs;
 use crate::io::vfs::{FileSystem, VfsHandle};
-use alloc::sync::Arc;
-use spin::RwLock;
-use x86_64::instructions::interrupts;
 
 pub struct VfsNode {
     /// The path of this node.
@@ -11,6 +14,15 @@ pub struct VfsNode {
     /// The file system specific handle.
     handle: VfsHandle,
     fs: Arc<RwLock<dyn FileSystem>>,
+}
+
+impl Debug for VfsNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("VfsNode")
+            .field("path", &self.path)
+            .field("handle", &self.handle)
+            .finish()
+    }
 }
 
 impl VfsNode {

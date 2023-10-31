@@ -1,20 +1,24 @@
-use crate::mem::AddressSpace;
-use crate::process::task::{Ready, Running, Task};
 use alloc::string::String;
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
 use derive_more::Display;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::instructions::interrupts::without_interrupts;
+
+pub use scheduler::*;
+pub use tree::*;
+
+use crate::mem::virt::VmObject;
+use crate::mem::AddressSpace;
+use crate::process::task::{Ready, Running, Task};
 
 pub mod elf;
 mod scheduler;
 mod task;
 mod tree;
-
-pub use scheduler::*;
-pub use tree::*;
 
 pub fn create(parent: Process, name: impl Into<String>) -> Process {
     let address_space = AddressSpace::allocate_new();
@@ -98,17 +102,29 @@ impl Process {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct ProcessData {
     address_space: AddressSpace,
+    vm_objects: Vec<VmObject>,
 }
 
 impl ProcessData {
     fn new(address_space: AddressSpace) -> Self {
-        Self { address_space }
+        Self {
+            address_space,
+            vm_objects: Vec::new(),
+        }
     }
 
     pub fn address_space(&self) -> &AddressSpace {
         &self.address_space
+    }
+
+    pub fn add_vm_object(&mut self, vm_object: VmObject) {
+        self.vm_objects.push(vm_object);
+    }
+
+    pub fn vm_objects(&self) -> &[VmObject] {
+        &self.vm_objects
     }
 }

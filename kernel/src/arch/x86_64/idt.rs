@@ -1,7 +1,7 @@
-use conquer_once::spin::Lazy;
 use core::arch::asm;
 use core::mem::transmute;
 
+use conquer_once::spin::Lazy;
 use num_enum::IntoPrimitive;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::PrivilegeLevel;
@@ -200,12 +200,34 @@ extern "x86-interrupt" fn page_fault_handler(
 ) {
     use x86_64::registers::control::Cr2;
 
-    panic!(
-        "EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\n{:#?}",
-        Cr2::read(),
-        error_code,
-        stack_frame
-    );
+    // FIXME: not all error codes can be handled like this
+
+    let accessed_address = Cr2::read();
+
+    let current = process::current();
+    let data = current.read();
+    let vm_object = {
+        data.vm_objects()
+            .iter()
+            .find(|vm_object| vm_object.contains_addr(accessed_address))
+    };
+
+    if vm_object.is_none() {
+        panic!(
+            "EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\n{:#?}",
+            Cr2::read(),
+            error_code,
+            stack_frame
+        );
+    }
+
+    let vm_object = vm_object.unwrap();
+    let offset = (accessed_address.as_u64() - vm_object.addr().as_u64()) as usize;
+    vm_object.prepare_for_access(offset).unwrap();
+
+    unsafe {
+        end_of_interrupt();
+    }
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
