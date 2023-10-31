@@ -29,7 +29,7 @@ impl VmObject {
     pub fn prepare_for_access(&self, offset: usize) -> Result<(), AllocationError> {
         let page = Page::<Size4KiB>::containing_address(self.addr + offset);
         let frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
-        self.underlying.write().add_phys_frame(frame.clone());
+        self.underlying.write().add_phys_frame(frame);
         map_page!(
             page,
             frame,

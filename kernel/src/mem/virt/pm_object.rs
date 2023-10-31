@@ -99,7 +99,7 @@ impl Drop for PmObject {
 fn deallocate_pm_object(pm_object: &PmObject) {
     let mut guard = PhysicalMemoryManager::lock();
     for frame in &pm_object.phys_frames {
-        guard.deallocate_frame(frame.clone());
+        guard.deallocate_frame(*frame);
     }
 }
 

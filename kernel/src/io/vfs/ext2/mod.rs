@@ -1,6 +1,3 @@
-use crate::io::path::{Component, Path};
-use crate::io::vfs::error::{Result, VfsError};
-use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, Stat, VfsHandle};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::string::ToString;
@@ -8,10 +5,16 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
 use ext2::Type;
-use file::Ext2Inode;
 use filesystem::BlockDevice;
 use spin::RwLock;
+
+use file::Ext2Inode;
+
+use crate::io::path::{Component, Path};
+use crate::io::vfs::error::{Result, VfsError};
+use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, Stat, VfsHandle};
 
 mod file;
 
@@ -131,7 +134,7 @@ where
             .map(|entry| {
                 let name = entry.name().unwrap().to_string();
                 let ext2_type = entry.typ().unwrap();
-                return DirEntry::new(name, ext2_type.into());
+                DirEntry::new(name, ext2_type.into())
             })
             .collect())
     }
