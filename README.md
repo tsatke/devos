@@ -31,7 +31,7 @@ Check out the next [milestone](https://github.com/tsatke/devos/milestone/1) for 
 - [x] Virtual File System with EXT2 implementation (read-only for now)
 - [x] Preemptive multitasking (processes & threads)
 - [ ] Interactive shell
-- [ ] Test framework
+- [x] Test framework
 
 ### Build and Run
 
