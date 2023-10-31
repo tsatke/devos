@@ -38,6 +38,9 @@ jobs:
       - name: Install e2fsprogs
         run: |
           sudo apt install -y e2fsprogs
+      - name: Install qemu
+        run: |
+          sudo apt install -y qemu-system-x86
       - name: Test
         run: |
           cargo test
