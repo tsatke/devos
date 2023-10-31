@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 bootloader_api.workspace = true
 kernel = { path = "../../kernel" }
+x86_64.workspace = true

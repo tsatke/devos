@@ -44,7 +44,7 @@ impl PmObject {
                 let mut res = Vec::with_capacity(num_frames);
                 let mut guard = PhysicalMemoryManager::lock();
                 for _ in 0..num_frames {
-                    let next_frame = guard.allocate_frame().ok_or(AllocationError);
+                    let next_frame = guard.allocate_frame().ok_or(AllocationError::OutOfMemory);
                     match next_frame {
                         Ok(frame) => res.push(frame),
                         Err(e) => {

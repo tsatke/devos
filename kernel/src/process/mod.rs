@@ -7,6 +7,7 @@ use core::sync::atomic::Ordering::Relaxed;
 use derive_more::Display;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::instructions::interrupts::without_interrupts;
+use x86_64::VirtAddr;
 
 pub use scheduler::*;
 pub use tree::*;
@@ -122,6 +123,11 @@ impl ProcessData {
 
     pub fn add_vm_object(&mut self, vm_object: VmObject) {
         self.vm_objects.push(vm_object);
+    }
+
+    pub fn remove_vm_object(&mut self, addr: VirtAddr) -> Option<VmObject> {
+        let index = self.vm_objects.iter().position(|o| o.addr() == &addr)?;
+        Some(self.vm_objects.remove(index))
     }
 
     pub fn vm_objects(&self) -> &[VmObject] {

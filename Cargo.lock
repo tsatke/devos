@@ -1132,6 +1132,7 @@ version = "0.1.0"
 dependencies = [
  "bootloader_api",
  "kernel",
+ "x86_64",
 ]
 
 [[package]]
