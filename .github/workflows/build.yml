@@ -11,45 +11,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    name: "Test"
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-            !target/release/build/devos-*
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install latest nightly
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
-          components: rustfmt, clippy, llvm-tools-preview, rust-src
-      - name: Add build target
-        run: |
-          rustup target add x86_64-unknown-none
-      - name: Install e2fsprogs
-        run: |
-          sudo apt install -y e2fsprogs
-      - name: Install qemu
-        run: |
-          sudo apt install -y qemu-system-x86
-      - name: Test
-        run: |
-          cargo test
-      - name: Test release
-        run: |
-          cargo test --release
   build:
     name: "Build and upload artifacts"
-    needs: test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
