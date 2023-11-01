@@ -1,3 +1,4 @@
+use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -72,7 +73,7 @@ pub struct Process {
     id: ProcessId,
     name: String,
     address_space: Arc<RwLock<AddressSpace>>,
-    vm_objects: Arc<RwLock<Vec<VmObject>>>,
+    vm_objects: Arc<RwLock<Vec<Box<dyn VmObject>>>>,
 }
 
 impl Process {
@@ -98,7 +99,7 @@ impl Process {
         &self.address_space
     }
 
-    pub fn vm_objects(&self) -> &RwLock<Vec<VmObject>> {
+    pub fn vm_objects(&self) -> &RwLock<Vec<Box<dyn VmObject>>> {
         &self.vm_objects
     }
 }

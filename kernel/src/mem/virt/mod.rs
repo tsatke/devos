@@ -1,9 +1,11 @@
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::Size4KiB;
 
+pub use memory_backed::*;
 pub use pm_object::*;
 pub use vm_object::*;
 
+mod memory_backed;
 mod pm_object;
 mod vm_object;
 

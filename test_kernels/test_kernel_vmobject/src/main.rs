@@ -2,12 +2,16 @@
 #![no_main]
 #![feature(panic_info_message)]
 
+extern crate alloc;
+
+use alloc::boxed::Box;
 use core::panic::PanicInfo;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::VirtAddr;
 
-use kernel::mem::virt::{AllocationStrategy, VmObject};
+use kernel::mem::virt::AllocationStrategy;
+use kernel::mem::virt::MemoryBackedVmObject;
 use kernel::qemu::ExitCode;
 use kernel::{bootloader_config, kernel_init, process, serial_print, serial_println};
 
@@ -31,12 +35,15 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 fn test_memory_backed(allocation_strategy: AllocationStrategy) {
     let addr = VirtAddr::new(0x1111_1111_0000); // this address must be reusable since we drop the VmObject at the end of the function
-    let vm_object = VmObject::create_memory_backed(addr, 8192, allocation_strategy)
+    let vm_object = MemoryBackedVmObject::create(addr, 8192, allocation_strategy)
         .expect("unable to create VmObject");
 
     // for the page fault handler to correctly handle page faults with the vmobjects, we need
     // to tell the project about the vmobject
-    process::current().vm_objects().write().push(vm_object);
+    process::current()
+        .vm_objects()
+        .write()
+        .push(Box::new(vm_object));
 
     unsafe {
         let ptr1 = addr.as_mut_ptr::<u64>();
