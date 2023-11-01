@@ -20,6 +20,13 @@ fn run_test_kernel(kernel: &str, os_disk: &str) {
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     ); // 33=success, 35=failed
+
+    println!("{}", String::from_utf8_lossy(&output.stdout));
+}
+
+#[test]
+fn test_kernel_unittests() {
+    run_test_kernel(env!("TEST_KERNEL_UNITTESTS_PATH"), OS_DISK);
 }
 
 #[test]

@@ -15,7 +15,9 @@ elfloader.workspace = true
 graphics.workspace = true
 ide.workspace = true
 kernel_api.workspace = true
+kernel_test_framework.workspace = true
 linked_list_allocator.workspace = true
+linkme.workspace = true
 mkfs-ext2.workspace = true
 mkfs-filesystem.workspace = true
 num_enum.workspace = true
@@ -29,3 +31,4 @@ x86_64.workspace = true
 
 [features]
 default = []
+kernel_test = []

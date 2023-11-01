@@ -7,6 +7,7 @@ bootloader = "0.11"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
 hello_world = { path = "userspace/hello_world", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_multitasking = { path = "test_kernels/test_kernel_multitasking", artifact = "bin", target = "x86_64-unknown-none" }
+test_kernel_unittests = { path = "test_kernels/test_kernel_unittests", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_vfs = { path = "test_kernels/test_kernel_vfs", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_vmobject = { path = "test_kernels/test_kernel_vmobject", artifact = "bin", target = "x86_64-unknown-none" }
 
@@ -25,8 +26,12 @@ members = [
     "driver/ide",
     "driver/pci",
     "driver/vga",
+    "kernel_test_framework",
+    "kernel_test_framework/derive",
     "test_kernels/test_kernel_multitasking",
+    "test_kernels/test_kernel_unittests",
     "test_kernels/test_kernel_vfs",
+    "test_kernels/test_kernel_vmobject",
     "userspace/hello_world",
 ]
 
@@ -41,7 +46,9 @@ elfloader = "0.16.0"
 graphics = { path = "driver/graphics" }
 ide = { path = "driver/ide" }
 kernel_api = { path = "kernel_api" }
+kernel_test_framework = { path = "kernel_test_framework" }
 linked_list_allocator = "0.10.5"
+linkme = "0.3.17"
 mkfs-ext2 = { git = "https://github.com/tsatke/mkfs" }
 mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
 num_enum = { version = "0.7.0", default-features = false }
