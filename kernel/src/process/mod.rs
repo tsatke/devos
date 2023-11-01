@@ -5,9 +5,8 @@ use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
 use derive_more::Display;
-use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use spin::RwLock;
 use x86_64::instructions::interrupts::without_interrupts;
-use x86_64::VirtAddr;
 
 pub use scheduler::*;
 pub use tree::*;
@@ -72,17 +71,18 @@ impl ProcessId {
 pub struct Process {
     id: ProcessId,
     name: String,
-    inner: Arc<RwLock<ProcessData>>,
+    address_space: Arc<RwLock<AddressSpace>>,
+    vm_objects: Arc<RwLock<Vec<VmObject>>>,
 }
 
 impl Process {
     #[allow(clippy::arc_with_non_send_sync)] // FIXME: I don't currently see a way around this
     pub fn new(name: impl Into<String>, address_space: AddressSpace) -> Self {
-        let data = ProcessData::new(address_space);
         Self {
             id: ProcessId::new(),
             name: name.into(),
-            inner: Arc::new(RwLock::new(data)),
+            address_space: Arc::new(RwLock::new(address_space)),
+            vm_objects: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -94,43 +94,11 @@ impl Process {
         &self.name
     }
 
-    pub fn read(&self) -> RwLockReadGuard<ProcessData> {
-        self.inner.read()
-    }
-
-    pub fn write(&self) -> RwLockWriteGuard<ProcessData> {
-        self.inner.write()
-    }
-}
-
-#[derive(Debug)]
-pub struct ProcessData {
-    address_space: AddressSpace,
-    vm_objects: Vec<VmObject>,
-}
-
-impl ProcessData {
-    fn new(address_space: AddressSpace) -> Self {
-        Self {
-            address_space,
-            vm_objects: Vec::new(),
-        }
-    }
-
-    pub fn address_space(&self) -> &AddressSpace {
+    pub fn address_space(&self) -> &RwLock<AddressSpace> {
         &self.address_space
     }
 
-    pub fn add_vm_object(&mut self, vm_object: VmObject) {
-        self.vm_objects.push(vm_object);
-    }
-
-    pub fn remove_vm_object(&mut self, addr: VirtAddr) -> Option<VmObject> {
-        let index = self.vm_objects.iter().position(|o| o.addr() == &addr)?;
-        Some(self.vm_objects.remove(index))
-    }
-
-    pub fn vm_objects(&self) -> &[VmObject] {
+    pub fn vm_objects(&self) -> &RwLock<Vec<VmObject>> {
         &self.vm_objects
     }
 }

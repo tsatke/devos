@@ -62,8 +62,7 @@ impl VmObject {
             let last_page = Page::<Size4KiB>::containing_address(addr + size);
             let page_range = Page::<Size4KiB>::range(first_page, last_page);
             let current_process = process::current();
-            let current_process_data = current_process.read();
-            let address_space = current_process_data.address_space();
+            let address_space = current_process.address_space().read();
             let pm_object_guard = pm_object.read();
             let frames = pm_object_guard.phys_frames();
             for (page, frame) in page_range.zip(frames.iter().cloned()) {
@@ -112,8 +111,7 @@ impl Drop for VmObject {
 
 fn deallocate_vm_object(vm_object: &VmObject) {
     let current_process = process::current();
-    let current_process_data = current_process.read();
-    let address_space = current_process_data.address_space();
+    let address_space = current_process.address_space().read();
     for page in Page::<Size4KiB>::range(
         Page::<Size4KiB>::containing_address(vm_object.addr),
         Page::<Size4KiB>::containing_address(vm_object.addr + vm_object.size), // no -1 since the range is exclusive

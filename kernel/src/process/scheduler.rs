@@ -1,10 +1,12 @@
+use alloc::collections::VecDeque;
+use core::mem::swap;
+
+use x86_64::instructions::{hlt, interrupts};
+
 use crate::arch::switch::switch;
 use crate::process::task::{Finished, Ready, Running, Task};
 use crate::process::{Process, ProcessId, ProcessTree};
 use crate::serial_println;
-use alloc::collections::VecDeque;
-use core::mem::swap;
-use x86_64::instructions::{hlt, interrupts};
 
 static mut SCHEDULER: Option<Scheduler> = None;
 
@@ -135,7 +137,7 @@ impl Scheduler {
 
         // we know that `task` is going to be the next task, and for reading the address space, we need
         // to acquire a lock, so do that before we disable interrupts
-        let cr3_value = task.process().read().address_space().cr3_value();
+        let cr3_value = task.process().address_space().read().cr3_value();
 
         /*
         IMPORTANT!!!

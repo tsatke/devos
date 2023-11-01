@@ -205,9 +205,9 @@ extern "x86-interrupt" fn page_fault_handler(
     let accessed_address = Cr2::read();
 
     let current = process::current();
-    let data = current.read();
+    let vm_objects = current.vm_objects().read();
     let vm_object = {
-        data.vm_objects()
+        vm_objects
             .iter()
             .find(|vm_object| vm_object.contains_addr(accessed_address))
     };

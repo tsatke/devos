@@ -36,7 +36,7 @@ fn test_memory_backed(allocation_strategy: AllocationStrategy) {
 
     // for the page fault handler to correctly handle page faults with the vmobjects, we need
     // to tell the project about the vmobject
-    process::current().write().add_vm_object(vm_object);
+    process::current().vm_objects().write().push(vm_object);
 
     unsafe {
         let ptr1 = addr.as_mut_ptr::<u64>();
@@ -51,7 +51,7 @@ fn test_memory_backed(allocation_strategy: AllocationStrategy) {
     }
 
     // remove the vmobject from the process so that it gets dropped
-    let _vmo = process::current().write().remove_vm_object(addr); // don't call the variable just `_`, see https://users.rust-lang.org/t/unused-variables-that-need-to-not-be-prematurely-dropped/17192/2 , which in our code leads to a deadlock
+    let _ = process::current().vm_objects().write().pop();
 }
 
 #[panic_handler]

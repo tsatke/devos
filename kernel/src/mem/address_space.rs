@@ -37,8 +37,7 @@ impl AddressSpace {
         let pt_page = Page::containing_address(pt_vaddr);
 
         let current_process = process::current();
-        let data = current_process.read();
-        let current_addr_space = data.address_space();
+        let current_addr_space = current_process.address_space().read();
         unsafe {
             current_addr_space.map_to(
                 pt_page,
@@ -116,7 +115,7 @@ impl AddressSpace {
     /// # Safety
     /// Mapping a page is inherently unsafe. See [`Mapper::map_to`] for more details.
     pub unsafe fn map_to(
-        &self, // FIXME: should take &mut self
+        &self,
         page: Page,
         frame: PhysFrame,
         flags: PageTableFlags,

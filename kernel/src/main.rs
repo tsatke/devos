@@ -57,7 +57,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let addr = VirtAddr::new(0x1111_0000_0000);
     let vm_object =
         VmObject::create_memory_backed(addr, 8192, AllocationStrategy::AllocateOnAccess).unwrap();
-    process::current().write().add_vm_object(vm_object);
+    process::current().vm_objects().write().push(vm_object);
 
     unsafe { addr.as_mut_ptr::<u64>().write(0xdeadbeef) };
     unsafe {
