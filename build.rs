@@ -1,7 +1,11 @@
+extern crate bootloader;
+
 use std::fs;
 use std::io::Error;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use bootloader::BootConfig;
 
 fn main() {
     // set by cargo, build scripts should use this directory for output files
@@ -11,9 +15,14 @@ fn main() {
     let kernel = PathBuf::from(std::env::var_os("CARGO_BIN_FILE_KERNEL_kernel").unwrap());
     println!("cargo:rustc-env=KERNEL_BINARY={}", kernel.display());
 
+    let mut boot_config = BootConfig::default();
+    boot_config.frame_buffer_logging = false;
+    boot_config.serial_logging = false;
+
     // create an UEFI disk image
     let uefi_path = out_dir.join("uefi.img");
     bootloader::UefiBoot::new(&kernel)
+        .set_boot_config(&boot_config)
         .create_disk_image(&uefi_path)
         .unwrap();
 
@@ -40,6 +49,7 @@ fn main() {
         );
         let test_kernel_path = out_dir.join(format!("{test_kernel}.img"));
         bootloader::UefiBoot::new(&test_kernel_binary_path)
+            .set_boot_config(&boot_config)
             .create_disk_image(&test_kernel_path)
             .unwrap();
         println!(
