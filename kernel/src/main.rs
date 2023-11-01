@@ -8,23 +8,16 @@ use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
-use x86_64::instructions::hlt;
-use x86_64::VirtAddr;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::io::path::Path;
-use kernel::io::vfs::vfs;
-use kernel::mem::virt::{AllocationStrategy, VmObject};
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use vga::Color;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
-#[cfg(not(test))]
 entry_point!(kernel_main, config = &CONFIG);
 
-#[cfg(not(test))]
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let ramdisk = boot_info
         .ramdisk_addr
@@ -38,56 +31,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info);
 
-    ls("/bin");
-
-    let node = vfs().open("/bin/hello_world").unwrap();
-    let mut buf = [1u8; 10];
-    serial_println!("before: {:02x?}", buf);
-    vfs().read(&node, &mut buf, 0).unwrap();
-    serial_println!("after: {:02x?}", buf);
-
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
-    process::spawn_task_in_current_process("count_even", count_even);
-    process::spawn_task_in_current_process("count_odd", count_odd);
 
     let _other_process = process::create(process::current(), "other_process");
 
     // sys_execve("/bin/hello_world", &[], &[]).unwrap();
 
-    let addr = VirtAddr::new(0x1111_0000_0000);
-    let vm_object =
-        VmObject::create_memory_backed(addr, 8192, AllocationStrategy::AllocateOnAccess).unwrap();
-    process::current().vm_objects().write().push(vm_object);
-
-    unsafe { addr.as_mut_ptr::<u64>().write(0xdeadbeef) };
-    unsafe {
-        VirtAddr::new(addr.as_u64() + 4096)
-            .as_mut_ptr::<u64>()
-            .write(0xdeadbeef)
-    };
-    serial_println!("data: 0x{:x?}", unsafe { addr.as_ptr::<u64>().read() });
-
     panic!("kernel main returned")
-}
-
-fn ls(p: impl AsRef<Path>) {
-    vfs().read_dir(p).unwrap().for_each(|e| {
-        serial_println!("{:?}", e);
-    })
-}
-
-extern "C" fn count_even() {
-    for i in (0..10).step_by(2) {
-        serial_println!("{}", i);
-        hlt();
-    }
-}
-
-extern "C" fn count_odd() {
-    for i in (1..10).step_by(2) {
-        serial_println!("{}", i);
-        hlt();
-    }
 }
 
 #[allow(dead_code)]
@@ -141,7 +91,6 @@ extern "C" fn vga_stuff() {
     }
 }
 
-#[cfg(not(test))]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!(
