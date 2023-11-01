@@ -63,6 +63,7 @@ mod tests {
     use kernel_test_framework::kernel_test;
 
     #[kernel_test]
+    #[allow(clippy::eq_op)]
     fn test_it_works() {
         assert_eq!(2 + 2, 4);
     }
