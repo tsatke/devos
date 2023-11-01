@@ -3,20 +3,13 @@ use alloc::vec::Vec;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
 
-use crate::io::vfs::VfsNode;
 use crate::mem::physical::PhysicalMemoryManager;
 use crate::mem::virt::AllocationError;
 
 #[derive(Debug)]
 pub struct PmObject {
-    kind: PmObjectKind,
+    allocation_strategy: AllocationStrategy,
     phys_frames: Vec<PhysFrame>,
-}
-
-#[derive(Debug)]
-pub enum PmObjectKind {
-    Memory(AllocationStrategy),
-    File(File),
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -25,15 +18,8 @@ pub enum AllocationStrategy {
     AllocateOnAccess,
 }
 
-#[derive(Debug)]
-pub struct File {
-    pub node: VfsNode,
-    pub offset: usize,
-    pub size: usize,
-}
-
 impl PmObject {
-    pub fn create_memory_backed(
+    pub fn create(
         size: usize,
         allocation_strategy: AllocationStrategy,
     ) -> Result<Self, AllocationError> {
@@ -61,13 +47,9 @@ impl PmObject {
         };
 
         Ok(Self {
-            kind: PmObjectKind::Memory(allocation_strategy),
+            allocation_strategy,
             phys_frames,
         })
-    }
-
-    pub fn kind(&self) -> &PmObjectKind {
-        &self.kind
     }
 
     pub fn phys_frames(&self) -> &[PhysFrame] {
@@ -75,10 +57,7 @@ impl PmObject {
     }
 
     pub fn allocation_strategy(&self) -> AllocationStrategy {
-        match self.kind {
-            PmObjectKind::Memory(v) => v,
-            PmObjectKind::File(_) => AllocationStrategy::AllocateOnAccess,
-        }
+        self.allocation_strategy
     }
 
     pub fn add_phys_frame(&mut self, frame: PhysFrame) {
@@ -100,29 +79,5 @@ fn deallocate_pm_object(pm_object: &PmObject) {
     let mut guard = PhysicalMemoryManager::lock();
     for frame in &pm_object.phys_frames {
         guard.deallocate_frame(*frame);
-    }
-}
-
-impl PmObjectKind {
-    pub fn is_memory_backed(&self) -> bool {
-        matches!(self, PmObjectKind::Memory(_))
-    }
-
-    pub fn allocation_strategy(&self) -> Option<&AllocationStrategy> {
-        match self {
-            PmObjectKind::Memory(strategy) => Some(strategy),
-            _ => None,
-        }
-    }
-
-    pub fn is_file_backed(&self) -> bool {
-        matches!(self, PmObjectKind::File(_))
-    }
-
-    pub fn file(&self) -> Option<&File> {
-        match self {
-            PmObjectKind::File(file) => Some(file),
-            _ => None,
-        }
     }
 }

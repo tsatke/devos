@@ -24,7 +24,7 @@ impl VmObject {
         size: usize,
         allocation_strategy: AllocationStrategy,
     ) -> Result<Self, AllocationError> {
-        let pm_object = PmObject::create_memory_backed(size, allocation_strategy)?;
+        let pm_object = PmObject::create(size, allocation_strategy)?;
         Self::create(Arc::new(RwLock::new(pm_object)), addr, size)
     }
 

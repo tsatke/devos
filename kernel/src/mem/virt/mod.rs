@@ -12,6 +12,7 @@ pub enum AllocationError {
     OutOfMemory,
     PageAlreadyMapped,
     PageAlreadyMappedInHugePage,
+    IoError,
 }
 
 impl From<MapToError<Size4KiB>> for AllocationError {
