@@ -73,7 +73,7 @@ impl VmObject {
                             frame,
                             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
                         )?
-                        .flush(); // TODO: can we do one big flush at the end?
+                        .flush();
                 }
             }
 
