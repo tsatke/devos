@@ -40,6 +40,16 @@ To run the kernel in QEMU
 cargo run
 ```
 
+### Running tests
+
+To run tests with QEMU, run
+
+```plain
+cargo test
+```
+
+This will run kernel unit tests, as well as all `test_kernels`.
+
 ### Debugging
 
 To debug the kernel in QEMU, run
