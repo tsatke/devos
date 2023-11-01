@@ -37,7 +37,7 @@ impl AddressSpace {
         let pt_page = Page::containing_address(pt_vaddr);
 
         let current_process = process::current();
-        let current_addr_space = current_process.address_space().read();
+        let mut current_addr_space = current_process.address_space().write();
         unsafe {
             current_addr_space.map_to(
                 pt_page,
@@ -115,7 +115,7 @@ impl AddressSpace {
     /// # Safety
     /// Mapping a page is inherently unsafe. See [`Mapper::map_to`] for more details.
     pub unsafe fn map_to(
-        &self,
+        &mut self,
         page: Page,
         frame: PhysFrame,
         flags: PageTableFlags,
@@ -125,7 +125,7 @@ impl AddressSpace {
     }
 
     pub fn unmap(
-        &self,
+        &mut self,
         page: Page,
     ) -> Result<(PhysFrame<Size4KiB>, MapperFlush<Size4KiB>), UnmapError> {
         self.get_recursive_page_table().unmap(page)

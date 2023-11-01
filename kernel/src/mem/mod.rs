@@ -26,7 +26,7 @@ pub fn init(boot_info: &'static BootInfo) {
     let recursive_index = boot_info.recursive_index.into_option().unwrap();
     let (pt_phys_addr, cr3flags) = Cr3::read();
 
-    let address_space = AddressSpace::new(pt_phys_addr, cr3flags, recursive_index);
+    let mut address_space = AddressSpace::new(pt_phys_addr, cr3flags, recursive_index);
 
     // **This is extremely dangerous, only modify if you know what you do!!!**
     // TODO: remove the two-stage approach
@@ -98,7 +98,7 @@ macro_rules! map_page {
     ($page:expr, $frame:expr, $size:ident, $flags:expr) => {{
         let page: Page<$size> = $page;
         let process = $crate::process::current();
-        let address_space = process.address_space().read();
+        let mut address_space = process.address_space().write();
         unsafe { address_space.map_to(page, $frame, $flags).unwrap().flush() }
     }};
 }
