@@ -1,9 +1,12 @@
-use crate::io::path::Path;
-use crate::io::vfs::error::VfsError;
-use crate::io::vfs::FsId;
 use alloc::string::String;
 use alloc::vec::Vec;
+
 use derive_more::Constructor;
+
+use crate::io::path::Path;
+use crate::io::vfs::error::Result;
+use crate::io::vfs::FsId;
+use crate::mem::virt::{AllocationError, AllocationStrategy, PmObject};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct VfsHandle(u64);
@@ -24,7 +27,7 @@ pub trait FileSystem: Send + Sync {
     /// Returns the file system id of this file system.
     fn fsid(&self) -> FsId;
 
-    fn exists(&mut self, path: &Path) -> Result<bool, VfsError> {
+    fn exists(&mut self, path: &Path) -> Result<bool> {
         let _ = self.open(path)?;
         Ok(true)
     }
@@ -37,31 +40,42 @@ pub trait FileSystem: Send + Sync {
     /// Files that have been closed must not be read from or written to.
     /// Implementations should return [`VfsError::HandleClosed`] if the handle
     /// is invalid.
-    fn open(&mut self, path: &Path) -> Result<VfsHandle, VfsError>;
+    fn open(&mut self, path: &Path) -> Result<VfsHandle>;
 
     /// Closes the file associated with the given handle.
-    fn close(&mut self, handle: VfsHandle) -> Result<(), VfsError>;
+    fn close(&mut self, handle: VfsHandle) -> Result<()>;
 
-    fn read_dir(&mut self, path: &Path) -> Result<Vec<DirEntry>, VfsError>;
+    fn read_dir(&mut self, path: &Path) -> Result<Vec<DirEntry>>;
 
     /// Reads from the given offset from the file associated with the given handle
     /// into the given buffer.
     /// This returns how many bytes were read.
     /// If an error occurs, the buffer may be partially filled.
-    fn read(&mut self, handle: VfsHandle, buf: &mut [u8], offset: usize)
-        -> Result<usize, VfsError>;
+    fn read(&mut self, handle: VfsHandle, buf: &mut [u8], offset: usize) -> Result<usize>;
 
     /// Writes the given buffer to the given offset from the file associated with
     /// the given handle.
     /// This returns how many bytes were written.
     /// If an error occurs, the file may be partially written.
-    fn write(&mut self, handle: VfsHandle, buf: &[u8], offset: usize) -> Result<usize, VfsError>;
+    fn write(&mut self, handle: VfsHandle, buf: &[u8], offset: usize) -> Result<usize>;
 
-    fn truncate(&mut self, handle: VfsHandle, size: usize) -> Result<(), VfsError>;
+    fn truncate(&mut self, handle: VfsHandle, size: usize) -> Result<()>;
 
-    fn stat(&mut self, handle: VfsHandle) -> Result<Stat, VfsError>;
+    fn stat(&mut self, handle: VfsHandle) -> Result<Stat>;
 
-    fn stat_path(&mut self, p: &Path) -> Result<Stat, VfsError> {
+    /// Create a PmObject that can be used for a VmObject in a memory mapped file.
+    /// The file system has the opportunity to create a PmObject that is backed by
+    /// direct physical memory (such as the framebuffer file), or to create a
+    /// PmObject that is backed by memory (and the VmObject will handle the reading
+    /// from the file).
+    fn create_pm_object_for_mmap(
+        &mut self,
+        _handle: VfsHandle,
+    ) -> core::result::Result<PmObject, AllocationError> {
+        PmObject::create(0, AllocationStrategy::AllocateOnAccess)
+    }
+
+    fn stat_path(&mut self, p: &Path) -> Result<Stat> {
         let handle = self.open(p)?;
         self.stat(handle)
     }
@@ -73,10 +87,10 @@ pub trait FileSystem: Send + Sync {
     /// In a single threaded environment, if this function returns successfully,
     /// it is guaranteed that [`FileSystem::open`] will succeed with the newly
     /// created node.
-    fn create(&mut self, path: &Path, ftype: FileType) -> Result<(), VfsError>;
+    fn create(&mut self, path: &Path, ftype: FileType) -> Result<()>;
 
     /// Removes the node at the given path.
-    fn remove(&mut self, path: &Path) -> Result<(), VfsError>;
+    fn remove(&mut self, path: &Path) -> Result<()>;
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

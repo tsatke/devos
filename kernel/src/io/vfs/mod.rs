@@ -1,24 +1,26 @@
-use crate::io::path::{OwnedPath, Path};
-use crate::io::vfs::devfs::VirtualDevFs;
-use crate::io::vfs::ext2::VirtualExt2Fs;
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
+use spin::RwLock;
+
 use error::Result;
 use error::VfsError;
-use spin::RwLock;
+pub use file_system::*;
+pub use vfs_node::*;
+
+use crate::io::path::{OwnedPath, Path};
+use crate::io::vfs::devfs::VirtualDevFs;
+use crate::io::vfs::ext2::VirtualExt2Fs;
 
 pub mod devfs;
 mod error;
 pub mod ext2;
 mod file_system;
 mod vfs_node;
-
-pub use file_system::*;
-pub use vfs_node::*;
 
 static VFS: Vfs = Vfs::new();
 
@@ -212,4 +214,42 @@ impl Vfs {
 /// It is not intended to be called by you.
 fn close_vfs_node(node: &VfsNode) {
     let _ = vfs().internal_close(node);
+}
+
+#[cfg(feature = "kernel_test")]
+mod tests {
+    use alloc::vec;
+
+    use kernel_test_framework::kernel_test;
+
+    use crate::io::vfs::vfs;
+
+    #[kernel_test]
+    fn test_read_from_offset_zero() {
+        let mut buf = vec![0_u8; 5];
+        let file = vfs().open("/var/data/hello.txt").unwrap();
+        let bytes_read = vfs().read(&file, &mut buf, 0).unwrap();
+        assert_eq!(buf.len(), bytes_read);
+        assert_eq!(b"Hello", buf.as_slice());
+    }
+
+    #[kernel_test]
+    fn test_read_from_offset() {
+        let mut buf = vec![0_u8; 5];
+        let file = vfs().open("/var/data/hello.txt").unwrap();
+        let bytes_read = vfs().read(&file, &mut buf, 7).unwrap();
+        assert_eq!(buf.len(), bytes_read);
+        assert_eq!(b"World", buf.as_slice());
+    }
+
+    #[kernel_test]
+    fn test_read_single_bytes() {
+        let mut arr = [0_u8; 1];
+        let file = vfs().open("/var/data/numbers").unwrap();
+        for i in 0..=0xFF {
+            let bytes_read = vfs().read(&file, &mut arr, i).unwrap();
+            assert_eq!(1, bytes_read);
+            assert_eq!(i as u8, arr[0]);
+        }
+    }
 }
