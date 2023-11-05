@@ -10,7 +10,7 @@ use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::instructions::hlt;
 
 use kernel::qemu::ExitCode;
-use kernel::{bootloader_config, kernel_init, process, serial_println};
+use kernel::{bootloader_config, kernel_init, process, serial_print, serial_println};
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -21,6 +21,18 @@ static COUNTER: AtomicU64 = AtomicU64::new(0);
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     kernel_init(boot_info);
 
+    serial_print!("test_async_counter...");
+    test_counter();
+    serial_println!("[ok]");
+
+    serial_print!("test_no_addressspace_lock...");
+    test_no_addressspace_lock();
+    serial_println!("[ok]");
+
+    kernel::qemu::exit(ExitCode::Success)
+}
+
+fn test_counter() {
     assert_eq!(0, COUNTER.load(Relaxed));
 
     process::spawn_task_in_current_process("count1", count);
@@ -32,8 +44,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     }
 
     assert_eq!(15, COUNTER.load(Relaxed));
+}
 
-    kernel::qemu::exit(ExitCode::Success)
+fn test_no_addressspace_lock() {
+    let process = process::current();
+    let guard = process.address_space().write();
+    hlt(); // if the scheduler locks the address space in `reschedule`, this will deadlock
+    drop(guard);
 }
 
 extern "C" fn count() {
