@@ -1,6 +1,7 @@
 use alloc::sync::Arc;
 use core::slice;
 
+use derive_more::Constructor;
 use spin::RwLock;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::{Page, PageTableFlags, Size4KiB};
@@ -10,9 +11,10 @@ use crate::mem::physical::PhysicalMemoryManager;
 use crate::mem::virt::{AllocationError, AllocationStrategy, PmObject, VmObject};
 use crate::{map_page, process};
 
-#[derive(Debug)]
+#[derive(Constructor, Debug)]
 pub struct MemoryBackedVmObject {
     underlying: Arc<RwLock<PmObject>>,
+    allocation_strategy: AllocationStrategy,
     addr: VirtAddr,
     size: usize,
 }
@@ -51,21 +53,26 @@ impl MemoryBackedVmObject {
             }
         }
 
-        Ok(Self {
-            underlying: Arc::new(RwLock::new(pm_object)),
+        Ok(Self::new(
+            Arc::new(RwLock::new(pm_object)),
+            allocation_strategy,
             addr,
             size,
-        })
+        ))
     }
 }
 
 impl VmObject for MemoryBackedVmObject {
-    fn addr(&self) -> &VirtAddr {
-        &self.addr
+    fn addr(&self) -> VirtAddr {
+        self.addr
     }
 
     fn size(&self) -> usize {
         self.size
+    }
+
+    fn allocation_strategy(&self) -> AllocationStrategy {
+        self.allocation_strategy
     }
 
     fn prepare_for_access(&self, offset: usize) -> Result<(), AllocationError> {
