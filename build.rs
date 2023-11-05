@@ -1,4 +1,5 @@
 extern crate bootloader;
+extern crate fs_extra;
 
 use std::fs;
 use std::io::Error;
@@ -59,12 +60,12 @@ fn main() {
         );
     }
 
-    let os_disk_dir = collect_os_disk_artifacts(&out_dir);
-    let os_disk_image = create_disk_image(&out_dir, &os_disk_dir);
+    let os_disk_dir = build_os_disk(&out_dir);
+    let os_disk_image = create_ext2_image(&out_dir, &os_disk_dir);
     println!("cargo:rustc-env=OS_DISK={}", os_disk_image.display());
 }
 
-fn create_disk_image(out_dir: &Path, os_disk_dir: &Path) -> PathBuf {
+fn create_ext2_image(out_dir: &Path, os_disk_dir: &Path) -> PathBuf {
     let image_file = out_dir.join("os_disk.img").to_path_buf();
     let _ = fs::remove_file(&image_file); // if this fails, doesn't matter
 
@@ -81,19 +82,33 @@ fn create_disk_image(out_dir: &Path, os_disk_dir: &Path) -> PathBuf {
     image_file
 }
 
-fn collect_os_disk_artifacts(out_dir: &Path) -> PathBuf {
+fn build_os_disk(out_dir: &Path) -> PathBuf {
     let os_disk_dir = out_dir.join("os_disk");
     if os_disk_dir.exists() {
         fs::remove_dir_all(&os_disk_dir).unwrap();
     }
-    fs::create_dir(&os_disk_dir).unwrap();
 
-    // set up rootdir structure
-    fs::create_dir(os_disk_dir.join("bin")).unwrap();
-    fs::create_dir(os_disk_dir.join("dev")).unwrap();
-    fs::create_dir(os_disk_dir.join("mnt")).unwrap();
+    // copy the os_disk dir
+    let os_disk_src_dir =
+        PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("os_disk");
+    fs_extra::dir::copy(&os_disk_src_dir, &out_dir, &Default::default()).unwrap();
 
-    let load_bindep = |bindep_name: &str, dest: &str| {
+    // remove all .gitkeep files anywhere in `os_disk_dir`
+    fs::read_dir(&os_disk_dir)
+        .unwrap()
+        .map(Result::unwrap)
+        .filter_map(|e| {
+            let path = e.path();
+            if path.is_file() && path.file_name().unwrap() == ".gitkeep" {
+                return Some(path);
+            }
+            None
+        })
+        .for_each(|e| {
+            fs::remove_file(e).unwrap();
+        });
+
+    let copy_bindep = |bindep_name: &str, dest: &str| {
         let env_name = format!(
             "CARGO_BIN_FILE_{}_{}",
             bindep_name.to_uppercase(),
@@ -113,7 +128,7 @@ fn collect_os_disk_artifacts(out_dir: &Path) -> PathBuf {
         }
     };
 
-    load_bindep("hello_world", "/bin");
+    copy_bindep("hello_world", "/bin");
 
     os_disk_dir
 }

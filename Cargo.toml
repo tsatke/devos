@@ -4,6 +4,7 @@ version = "0.1.0"
 
 [build-dependencies]
 bootloader = "0.11"
+fs_extra = "1.3.0"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
 hello_world = { path = "userspace/hello_world", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_multitasking = { path = "test_kernels/test_kernel_multitasking", artifact = "bin", target = "x86_64-unknown-none" }
