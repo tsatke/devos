@@ -22,11 +22,11 @@ entry_point!(kernel_main, config = &CONFIG);
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     kernel_init(boot_info);
 
-    serial_print!("test_allocate_now...");
+    serial_print!("test_memory_backed_allocate_now...");
     test_memory_backed(AllocationStrategy::AllocateNow);
     serial_println!("[ok]");
 
-    serial_print!("test_allocate_on_access...");
+    serial_print!("test_memory_backed_allocate_on_access...");
     test_memory_backed(AllocationStrategy::AllocateOnAccess);
     serial_println!("[ok]");
 
