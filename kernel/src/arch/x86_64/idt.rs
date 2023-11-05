@@ -215,9 +215,7 @@ extern "x86-interrupt" fn page_fault_handler(
     if vm_object.is_none() {
         panic!(
             "EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\n{:#?}",
-            Cr2::read(),
-            error_code,
-            stack_frame
+            accessed_address, error_code, stack_frame
         );
     }
 
