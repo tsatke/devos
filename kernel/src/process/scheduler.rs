@@ -121,8 +121,15 @@ impl Scheduler {
     ///
     /// Only call this on timer interrupts and if you know what you're doing.
     pub unsafe fn reschedule(&mut self) {
-        // @dev please note that you have to enable interrupts manually if you wish to exit early
-        // and that this will not be done for you except if the method ends in the actual task switch
+        /*
+        IMPORTANT!!!
+        WE CAN NOT ACQUIRE ANY LOCKS!!!
+        This will cause deadlocks and/or instability!
+
+        Imagine the lock being held by the current task, so we are unable
+        to acquire the lock in here. This means, we won't be able to switch
+        to another task, and the current task will never release the lock.
+        */
 
         while let Some(task) = self.finished.pop_front() {
             self.free_task(task);
@@ -135,14 +142,11 @@ impl Scheduler {
             Some(t) => t,
         };
 
-        // we know that `task` is going to be the next task, and for reading the address space, we need
-        // to acquire a lock, so do that before we disable interrupts
-        let cr3_value = task.process().address_space().read().cr3_value();
+        let cr3_value = task.process().cr3_value();
 
         /*
-        IMPORTANT!!!
-        From here until the end of the function, WE CAN NOT ACQUIRE ANY LOCKS!!!
-        This will cause deadlocks!
+        @dev please note that from here on, you have to enable interrupts manually if you wish to exit early
+        and that this will not be done for you except if the method ends in the actual task switch
         */
         interrupts::disable(); // will be enabled again during task switch (in assembly)
 

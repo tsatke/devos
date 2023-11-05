@@ -71,6 +71,7 @@ impl ProcessId {
 #[derive(Clone, Debug)]
 pub struct Process {
     id: ProcessId,
+    cr3_value: usize, // TODO: remove this, read it from the address space (maybe use an atomic to circumvent the locking?)
     name: String,
     address_space: Arc<RwLock<AddressSpace>>,
     vm_objects: Arc<RwLock<Vec<Box<dyn VmObject>>>>,
@@ -81,6 +82,7 @@ impl Process {
     pub fn new(name: impl Into<String>, address_space: AddressSpace) -> Self {
         Self {
             id: ProcessId::new(),
+            cr3_value: address_space.cr3_value(),
             name: name.into(),
             address_space: Arc::new(RwLock::new(address_space)),
             vm_objects: Arc::new(RwLock::new(Vec::new())),
@@ -97,6 +99,10 @@ impl Process {
 
     pub fn address_space(&self) -> &RwLock<AddressSpace> {
         &self.address_space
+    }
+
+    pub(in crate::process) fn cr3_value(&self) -> usize {
+        self.cr3_value
     }
 
     pub fn vm_objects(&self) -> &RwLock<Vec<Box<dyn VmObject>>> {
