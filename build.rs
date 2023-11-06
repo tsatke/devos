@@ -91,7 +91,7 @@ fn build_os_disk(out_dir: &Path) -> PathBuf {
     // copy the os_disk dir
     let os_disk_src_dir =
         PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("os_disk");
-    fs_extra::dir::copy(&os_disk_src_dir, &out_dir, &Default::default()).unwrap();
+    fs_extra::dir::copy(os_disk_src_dir, out_dir, &Default::default()).unwrap();
 
     // remove all .gitkeep files anywhere in `os_disk_dir`
     fs::read_dir(&os_disk_dir)
