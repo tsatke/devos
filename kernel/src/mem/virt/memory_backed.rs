@@ -26,26 +26,16 @@ impl MemoryBackedVmObject {
         allocation_strategy: AllocationStrategy,
     ) -> Result<Self, AllocationError> {
         let pm_object = PmObject::create(size, allocation_strategy)?;
+        let mut res = Self::new(
+            Arc::new(RwLock::new(pm_object)),
+            allocation_strategy,
+            addr,
+            size,
+        );
 
         if allocation_strategy == AllocationStrategy::AllocateNow {
             // we should also map the memory immediately
-            let first_page = Page::<Size4KiB>::containing_address(addr);
-            let last_page = Page::<Size4KiB>::containing_address(addr + size);
-            let page_range = Page::<Size4KiB>::range(first_page, last_page);
-            let current_process = process::current();
-            let mut address_space = current_process.address_space().write();
-            let frames = pm_object.phys_frames();
-            for (page, frame) in page_range.zip(frames.iter().cloned()) {
-                unsafe {
-                    address_space
-                        .map_to(
-                            page,
-                            frame,
-                            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                        )?
-                        .flush();
-                }
-            }
+            res.map_pages()?;
 
             unsafe {
                 // safety: we just mapped the pages, so we can safely zero them
@@ -53,12 +43,29 @@ impl MemoryBackedVmObject {
             }
         }
 
-        Ok(Self::new(
-            Arc::new(RwLock::new(pm_object)),
-            allocation_strategy,
-            addr,
-            size,
-        ))
+        Ok(res)
+    }
+
+    pub(in crate::mem::virt) fn map_pages(&mut self) -> Result<(), AllocationError> {
+        let first_page = Page::<Size4KiB>::containing_address(self.addr);
+        let last_page = Page::<Size4KiB>::containing_address(self.addr + self.size);
+        let page_range = Page::<Size4KiB>::range(first_page, last_page);
+        let current_process = process::current();
+        let mut address_space = current_process.address_space().write();
+        let guard = self.underlying.read();
+        let frames = guard.phys_frames();
+        for (page, frame) in page_range.zip(frames.iter().cloned()) {
+            unsafe {
+                address_space
+                    .map_to(
+                        page,
+                        frame,
+                        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                    )?
+                    .flush();
+            }
+        }
+        Ok(())
     }
 }
 
@@ -110,14 +117,15 @@ impl Drop for MemoryBackedVmObject {
 fn deallocate(vm_object: &MemoryBackedVmObject) {
     let current_process = process::current();
     let mut address_space = current_process.address_space().write();
-    for page in Page::<Size4KiB>::range(
+    let range = Page::<Size4KiB>::range_inclusive(
         Page::<Size4KiB>::containing_address(vm_object.addr),
-        Page::<Size4KiB>::containing_address(vm_object.addr + vm_object.size), // no -1 since the range is exclusive
-    ) {
-        address_space
-            .unmap(page)
-            .unwrap() // if we allocated correctly, this can't happen
-            .1
-            .flush();
+        Page::<Size4KiB>::containing_address(
+            vm_object.addr + vm_object.size.wrapping_add_signed(-1),
+        ),
+    );
+    for page in range {
+        if let Ok((_, flusher)) = address_space.unmap(page) {
+            flusher.flush(); // we might not have mapped all pages
+        }
     }
 }

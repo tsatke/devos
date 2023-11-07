@@ -1,14 +1,16 @@
-use crate::io::vfs::error::{Result, VfsError};
-use crate::io::vfs::Stat;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::mem::size_of;
+
 use derive_more::Constructor;
 use ext2::{BlockAddress, InodeAddress};
 use filesystem::BlockDevice;
 use spin::RwLock;
+
+use crate::io::vfs::error::{Result, VfsError};
+use crate::io::vfs::Stat;
 
 #[derive(Constructor)]
 pub struct Ext2Inode<T> {
@@ -22,19 +24,16 @@ where
     T: BlockDevice,
 {
     pub fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize> {
-        let block_size = self.fs.read().superblock().block_size() as usize;
+        let block_size = self.fs.read().superblock().block_size();
+        let offset = offset as u32;
 
-        let start_block = offset as u32 / block_size as u32;
-        let end_block = (offset as u32 + buf.len() as u32) / block_size as u32;
-        let relative_offset = offset % block_size;
-        let block_count = if buf.len() % block_size == 0 {
-            end_block - start_block
-        } else {
-            end_block - start_block + 1
-        } as usize;
+        let start_block = offset / block_size;
+        let end_block = (offset + buf.len() as u32 - 1) / block_size;
+        let relative_offset = (offset % block_size) as usize;
+        let block_count = (end_block - start_block + 1) as usize;
 
         // read blocks
-        let mut data: Vec<u8> = vec![0_u8; block_count * block_size]; // TODO: avoid allocation - maybe try to only allocate the first and last block if the read is not aligned, but read the rest directly into the buffer
+        let mut data: Vec<u8> = vec![0_u8; block_count * block_size as usize]; // TODO: avoid allocation - maybe try to only allocate the first and last block if the read is not aligned, but read the rest directly into the buffer
         self.read_blocks(start_block as usize, end_block as usize, &mut data)?;
         buf.copy_from_slice(&data[relative_offset..relative_offset + buf.len()]);
 

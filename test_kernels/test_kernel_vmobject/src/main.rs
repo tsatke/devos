@@ -6,12 +6,14 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use core::panic::PanicInfo;
+use core::slice::from_raw_parts;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::VirtAddr;
 
-use kernel::mem::virt::AllocationStrategy;
+use kernel::io::vfs::vfs;
 use kernel::mem::virt::MemoryBackedVmObject;
+use kernel::mem::virt::{AllocationStrategy, VfsNodeBackedVmObject};
 use kernel::qemu::ExitCode;
 use kernel::{bootloader_config, kernel_init, process, serial_print, serial_println};
 
@@ -22,6 +24,10 @@ entry_point!(kernel_main, config = &CONFIG);
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     kernel_init(boot_info);
 
+    serial_print!("test_vfs_node_backed...");
+    test_vfs_node_backed();
+    serial_println!("[ok]");
+
     serial_print!("test_memory_backed_allocate_now...");
     test_memory_backed(AllocationStrategy::AllocateNow);
     serial_println!("[ok]");
@@ -31,6 +37,24 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     serial_println!("[ok]");
 
     kernel::qemu::exit(ExitCode::Success)
+}
+
+fn test_vfs_node_backed() {
+    let file = vfs().open("/var/data/hello.txt").unwrap();
+    let addr = VirtAddr::new(0x1111_1111_0000);
+    let size = 13;
+    let offset = 0;
+    let vm_object = VfsNodeBackedVmObject::create(file, offset, addr, size).unwrap();
+    process::current()
+        .vm_objects()
+        .write()
+        .push(Box::new(vm_object));
+
+    let text = core::str::from_utf8(unsafe { from_raw_parts(addr.as_ptr::<u8>(), size) }).unwrap();
+    assert_eq!("Hello, World!", text);
+
+    // remove the vmobject from the process so that it gets dropped
+    let _ = process::current().vm_objects().write().pop();
 }
 
 fn test_memory_backed(allocation_strategy: AllocationStrategy) {
