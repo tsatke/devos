@@ -25,7 +25,7 @@ impl VfsNodeBackedVmObject {
         let fs = node.fs().clone();
         let mut guard = fs.write();
         let pm_object = guard.create_pm_object_for_mmap(node.handle())?;
-        let should_map = pm_object.phys_frames().len() > 0;
+        let should_map = !pm_object.phys_frames().is_empty();
         let allocation_strategy = pm_object.allocation_strategy();
         let mut vm_object = MemoryBackedVmObject::new(
             Arc::new(RwLock::new(pm_object)),
@@ -65,14 +65,14 @@ impl VmObject for VfsNodeBackedVmObject {
         // TODO: read from the vfsnode into the accessed page
 
         let accessed_page = Page::<Size4KiB>::containing_address(self.addr() + offset);
-        let mut slice = unsafe {
+        let slice = unsafe {
             from_raw_parts_mut(
                 accessed_page.start_address().as_mut_ptr::<u8>(),
                 Size4KiB::SIZE as usize,
             )
         };
         vfs()
-            .read(&self.node, &mut slice, self.offset + offset)
+            .read(&self.node, slice, self.offset + offset)
             .map_err(|_| AllocationError::IoError)?;
 
         Ok(())
