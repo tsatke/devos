@@ -21,7 +21,7 @@ proc-macro2 = "1.0.66" # override 1.0.56 which doesn't work on nightly anymore
 [workspace]
 members = [
     "kernel",
-    "kernel_api",
+    "kernel/api",
     "std",
     "driver/graphics",
     "driver/ide",
@@ -47,7 +47,7 @@ derive_more = "0.99.17"
 elfloader = "0.16.0"
 graphics = { path = "driver/graphics" }
 ide = { path = "driver/ide" }
-kernel_api = { path = "kernel_api" }
+kernel_api = { path = "kernel/api" }
 kernel_test_framework = { path = "kernel_test_framework" }
 linked_list_allocator = "0.10.5"
 linkme = "0.3.17"
