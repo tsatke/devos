@@ -47,6 +47,7 @@ fn main() {
 target modules load --file {KERNEL_BINARY} --slide 0x8000000000
 gdb-remote localhost:1234
 b _start
+b rust_begin_unwind
 c"#
         );
         fs::write("debug.lldb", content).expect("unable to create debug file");
