@@ -132,7 +132,7 @@ impl Scheduler {
         */
 
         while let Some(task) = self.finished.pop_front() {
-            self.free_task(task);
+            self.free_task(task); // FIXME: deallocating tasks will acquire locks, such as to the address space for unmapping pages etc., so move this to a separate task
         }
 
         let task = match self.ready.pop_front() {
