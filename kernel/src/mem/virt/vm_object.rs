@@ -4,7 +4,7 @@ use x86_64::VirtAddr;
 
 use crate::mem::virt::{AllocationError, AllocationStrategy};
 
-pub trait VmObject: Debug {
+pub trait VmObject: Debug + Send + Sync {
     fn addr(&self) -> VirtAddr;
 
     fn size(&self) -> usize;

@@ -42,6 +42,7 @@ bitflags = "2.4.1"
 bootloader_api = "0.11"
 bresenham = "0.1.1"
 conquer-once = { version = "0.4.0", default-features = false }
+crossbeam-queue = { version = "0.3.8", default-features = false, features = ["alloc"] }
 derive_more = "0.99.17"
 elfloader = "0.16.0"
 graphics = { path = "driver/graphics" }

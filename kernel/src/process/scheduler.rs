@@ -1,17 +1,41 @@
 use alloc::collections::VecDeque;
 use core::mem::swap;
 
+use conquer_once::spin::OnceCell;
+use crossbeam_queue::ArrayQueue;
 use x86_64::instructions::{hlt, interrupts};
 
 use crate::arch::switch::switch;
 use crate::process::task::{Finished, Ready, Running, Task};
-use crate::process::{Process, ProcessId, ProcessTree};
+use crate::process::{spawn_task_in_current_process, Process, ProcessId, ProcessTree};
 use crate::serial_println;
 
 static mut SCHEDULER: Option<Scheduler> = None;
+static FINISHED_TASKS: OnceCell<ArrayQueue<Task<Finished>>> = OnceCell::uninit();
 
 pub fn init(root_process: Process) {
     unsafe { SCHEDULER = Some(Scheduler::new(root_process)) };
+    FINISHED_TASKS.init_once(|| ArrayQueue::new(10));
+
+    // now that the scheduler is initialized, we can spawn the cleanup task
+    spawn_task_in_current_process("cleanup_finished_tasks", cleanup_finished_tasks);
+}
+
+extern "C" fn cleanup_finished_tasks() {
+    let queue = FINISHED_TASKS
+        .try_get()
+        .expect("finished task queue not initialized");
+    loop {
+        match queue.pop() {
+            Some(task) => {
+                unsafe { scheduler_mut().free_task(task) };
+            }
+            None => {
+                hlt();
+                continue;
+            }
+        }
+    }
 }
 
 pub(in crate::process) unsafe fn scheduler() -> &'static Scheduler {
@@ -132,7 +156,14 @@ impl Scheduler {
         */
 
         while let Some(task) = self.finished.pop_front() {
-            self.free_task(task); // FIXME: deallocating tasks will acquire locks, such as to the address space for unmapping pages etc., so move this to a separate task
+            match FINISHED_TASKS
+                .try_get()
+                .expect("finished task queue not initialized")
+                .push(task)
+            {
+                Ok(_) => {}
+                Err(t) => self.finished.push_front(t),
+            };
         }
 
         let task = match self.ready.pop_front() {
