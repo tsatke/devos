@@ -14,8 +14,13 @@ An operating system and kernel developed with the Rust programming language, wit
 
 ### Requirements
 
-* QEMU
+* QEMU (for running and testing the kernel)
 * [`rustup`](https://rustup.rs)
+* `cc` (probably already available on your system)
+* `mke2fs` for now
+
+With those installed, you can simply run `cargo build` to build an image.
+If you also have QEMU installed, `cargo run` and `cargo test` also will work.
 
 ### Features
 Check out the next [milestone](https://github.com/tsatke/devos/milestone/1) for progress.
