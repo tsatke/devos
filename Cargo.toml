@@ -23,10 +23,10 @@ members = [
     "kernel",
     "kernel/api",
     "std",
-    "driver/graphics",
-    "driver/ide",
-    "driver/pci",
-    "driver/vga",
+    "kernel/driver/graphics",
+    "kernel/driver/ide",
+    "kernel/driver/pci",
+    "kernel/driver/vga",
     "kernel_test_framework",
     "kernel_test_framework/derive",
     "test_kernels/test_kernel_multitasking",
@@ -45,8 +45,8 @@ conquer-once = { version = "0.4.0", default-features = false }
 crossbeam-queue = { version = "0.3.8", default-features = false, features = ["alloc"] }
 derive_more = "0.99.17"
 elfloader = "0.16.0"
-graphics = { path = "driver/graphics" }
-ide = { path = "driver/ide" }
+graphics = { path = "kernel/driver/graphics" }
+ide = { path = "kernel/driver/ide" }
 kernel_api = { path = "kernel/api" }
 kernel_test_framework = { path = "kernel_test_framework" }
 linked_list_allocator = "0.10.5"
@@ -54,11 +54,11 @@ linkme = "0.3.17"
 mkfs-ext2 = { git = "https://github.com/tsatke/mkfs" }
 mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
 num_enum = { version = "0.7.0", default-features = false }
-pci = { path = "driver/pci" }
+pci = { path = "kernel/driver/pci" }
 raw-cpuid = { version = "11.0", default-features = false }
 spin = "0.9.8"
 uart_16550 = "0.3"
-vga = { path = "driver/vga" }
+vga = { path = "kernel/driver/vga" }
 x2apic = "0.4"
 x86_64 = "0.14"
 
