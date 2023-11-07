@@ -65,7 +65,7 @@ impl VmObject for VfsNodeBackedVmObject {
         // TODO: read from the vfsnode into the accessed page
 
         let accessed_page = Page::<Size4KiB>::containing_address(self.addr() + offset);
-        let slice = unsafe {
+        let mut slice = unsafe {
             from_raw_parts_mut(
                 accessed_page.start_address().as_mut_ptr::<u8>(),
                 Size4KiB::SIZE as usize,
