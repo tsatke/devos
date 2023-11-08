@@ -1,11 +1,19 @@
 use alloc::collections::{BTreeMap, BTreeSet};
 
+use spin::RwLock;
+
 use crate::process::task::TaskId;
 use crate::process::{Process, ProcessId};
 use crate::serial_println;
 
+static PROCESS_TREE: RwLock<ProcessTree> = RwLock::new(ProcessTree::new());
+
+pub fn process_tree() -> &'static RwLock<ProcessTree> {
+    &PROCESS_TREE
+}
+
 pub struct ProcessTree {
-    root_pid: ProcessId,
+    root_pid: Option<ProcessId>,
     processes_by_id: BTreeMap<ProcessId, Process>,
     parents: BTreeMap<ProcessId, ProcessId>,
     children: BTreeMap<ProcessId, BTreeSet<ProcessId>>,
@@ -13,22 +21,28 @@ pub struct ProcessTree {
 }
 
 impl ProcessTree {
-    pub fn new(root_process: Process, root_process_task: &TaskId) -> Self {
-        let root_pid = *root_process.process_id();
-        let mut s = Self {
-            root_pid,
+    pub const fn new() -> Self {
+        Self {
+            root_pid: None,
             processes_by_id: BTreeMap::new(),
             parents: BTreeMap::new(),
             children: BTreeMap::new(),
             tasks: BTreeMap::new(),
-        };
-        s.processes_by_id.insert(root_pid, root_process);
-        s.add_task(&root_pid, root_process_task);
-        s
+        }
     }
 
     pub fn process_by_id(&self, process_id: &ProcessId) -> Option<&Process> {
         self.processes_by_id.get(process_id)
+    }
+
+    pub fn set_root(&mut self, process: Process) {
+        if self.root_pid.is_some() {
+            panic!("root process already set");
+        }
+
+        let process_id = *process.process_id();
+        self.root_pid = Some(process_id);
+        self.processes_by_id.insert(process_id, process);
     }
 
     pub fn insert_process(&mut self, parent: Process, process: Process) {
@@ -72,7 +86,7 @@ impl ProcessTree {
 
     pub fn dump(&self) {
         serial_println!("=== start process tree dump");
-        self.dump_process(&self.root_pid, 4);
+        self.dump_process(&self.root_pid.expect("no root process set"), 4);
         serial_println!("=== end process tree dump");
     }
 
@@ -85,13 +99,15 @@ impl ProcessTree {
             .children
             .get(process_id)
             .map_or(0, |children| children.len());
+        let vm_objects = process.vm_objects().read().len();
         serial_println!(
-            "{:indent$}{} (pid={}, tasks={}, children={})",
+            "{:indent$}{} (pid={}, tasks={}, children={}, vm_objects={})",
             "",
             process_name,
             process_id,
             tasks,
             children,
+            vm_objects,
             indent = indent
         );
         if let Some(children) = self.children.get(process_id) {

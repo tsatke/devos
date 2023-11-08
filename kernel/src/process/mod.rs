@@ -7,7 +7,6 @@ use core::sync::atomic::Ordering::Relaxed;
 
 use derive_more::Display;
 use spin::RwLock;
-use x86_64::instructions::interrupts::without_interrupts;
 
 pub use scheduler::*;
 pub use tree::*;
@@ -21,14 +20,22 @@ mod scheduler;
 mod task;
 mod tree;
 
+pub fn init(root_process: Process) {
+    let current_task = unsafe { Task::kernel_task(root_process.clone()) };
+    let mut pt_guard = process_tree().write();
+    pt_guard.set_root(root_process.clone());
+    pt_guard.add_task(root_process.process_id(), current_task.task_id());
+
+    scheduler::init(current_task);
+}
+
 pub fn create(parent: Process, name: impl Into<String>) -> Process {
     let address_space = AddressSpace::allocate_new();
     let process = Process::new(name, address_space);
 
-    without_interrupts(|| {
-        let process_tree = unsafe { scheduler_mut().process_tree_mut() };
-        process_tree.insert_process(parent, process.clone());
-    });
+    process_tree()
+        .write()
+        .insert_process(parent, process.clone());
 
     process
 }
