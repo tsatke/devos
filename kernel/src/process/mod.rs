@@ -47,7 +47,7 @@ pub fn spawn_task_in_current_process(name: impl Into<String>, func: extern "C" f
 
 pub fn spawn_task(name: impl Into<String>, process: Process, func: extern "C" fn()) {
     let task = Task::<Ready>::new(process, name, func);
-    unsafe { spawn(task) }
+    spawn(task)
 }
 
 pub fn exit() -> ! {

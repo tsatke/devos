@@ -2,7 +2,7 @@ use alloc::collections::VecDeque;
 use core::mem::swap;
 
 use conquer_once::spin::OnceCell;
-use crossbeam_queue::ArrayQueue;
+use crossbeam_queue::{ArrayQueue, SegQueue};
 use x86_64::instructions::{hlt, interrupts};
 
 use crate::arch::switch::switch;
@@ -12,19 +12,33 @@ use crate::serial_println;
 
 static mut SCHEDULER: Option<Scheduler> = None;
 static FINISHED_TASKS: OnceCell<ArrayQueue<Task<Finished>>> = OnceCell::uninit();
+static NEW_TASKS: OnceCell<SegQueue<Task<Ready>>> = OnceCell::uninit();
+
+fn finished_tasks() -> &'static ArrayQueue<Task<Finished>> {
+    FINISHED_TASKS
+        .try_get()
+        .expect("finished task queue not initialized")
+}
+
+fn new_tasks() -> &'static SegQueue<Task<Ready>> {
+    NEW_TASKS.try_get().expect("new task queue not initialized")
+}
 
 pub fn init(root_process: Process) {
     unsafe { SCHEDULER = Some(Scheduler::new(root_process)) };
     FINISHED_TASKS.init_once(|| ArrayQueue::new(10));
+    NEW_TASKS.init_once(|| SegQueue::new());
 
     // now that the scheduler is initialized, we can spawn the cleanup task
     spawn_task_in_current_process("cleanup_finished_tasks", cleanup_finished_tasks);
 }
 
+pub(crate) fn spawn(task: Task<Ready>) {
+    new_tasks().push(task)
+}
+
 extern "C" fn cleanup_finished_tasks() {
-    let queue = FINISHED_TASKS
-        .try_get()
-        .expect("finished task queue not initialized");
+    let queue = finished_tasks();
     loop {
         match queue.pop() {
             Some(task) => {
@@ -51,14 +65,6 @@ pub(in crate::process) unsafe fn scheduler_mut() -> &'static mut Scheduler {
 /// This may or may not return, make sure to use it in a way that can handle both cases.
 pub(crate) unsafe fn reschedule() {
     unsafe { scheduler_mut().reschedule() }
-}
-
-/// # Safety
-/// This is unsafe because it may alias the scheduler.
-/// Make sure that you are outside of a ['reschedule'] call
-/// and that there does not exist a mutable reference to the scheduler.
-pub(crate) unsafe fn spawn(task: Task<Ready>) {
-    unsafe { scheduler_mut().spawn(task) }
 }
 
 pub(crate) unsafe fn exit_current_task() -> ! {
@@ -155,12 +161,14 @@ impl Scheduler {
         to another task, and the current task will never release the lock.
         */
 
+        // move new tasks to the ready queue
+        while let Some(task) = new_tasks().pop() {
+            self.ready.push_back(task);
+        }
+
+        // move finished tasks to the finished queue
         while let Some(task) = self.finished.pop_front() {
-            match FINISHED_TASKS
-                .try_get()
-                .expect("finished task queue not initialized")
-                .push(task)
-            {
+            match finished_tasks().push(task) {
                 Ok(_) => {}
                 Err(t) => self.finished.push_front(t),
             };
