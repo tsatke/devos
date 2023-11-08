@@ -1,5 +1,7 @@
 use alloc::collections::VecDeque;
 use core::mem::swap;
+use core::sync::atomic::AtomicBool;
+use core::sync::atomic::Ordering::Relaxed;
 
 use conquer_once::spin::OnceCell;
 use crossbeam_queue::{ArrayQueue, SegQueue};
@@ -68,12 +70,13 @@ pub(crate) unsafe fn reschedule() {
 }
 
 pub(crate) unsafe fn exit_current_task() -> ! {
-    unsafe { scheduler_mut().exit_current_task() }
+    unsafe { scheduler().exit_current_task() }
 }
 
 pub struct Scheduler {
     process_tree: ProcessTree,
     current_task: Task<Running>,
+    current_task_should_exit: AtomicBool,
     ready: VecDeque<Task<Ready>>,
     finished: VecDeque<Task<Finished>>,
 }
@@ -90,6 +93,7 @@ impl Scheduler {
         Self {
             process_tree: ProcessTree::new(root_process, current_task.task_id()),
             current_task,
+            current_task_should_exit: AtomicBool::new(false),
             ready: VecDeque::new(),
             finished: VecDeque::new(),
         }
@@ -113,11 +117,8 @@ impl Scheduler {
         self.ready.push_back(task);
     }
 
-    pub fn exit_current_task(&mut self) -> ! {
-        self.current_task.mark_as_should_exit();
-        unsafe {
-            reschedule();
-        }
+    pub fn exit_current_task(&self) -> ! {
+        self.current_task_should_exit.store(true, Relaxed);
         loop {
             hlt();
         }
@@ -193,7 +194,8 @@ impl Scheduler {
         let mut task = task.into_running();
         swap(&mut self.current_task, &mut task);
 
-        let old_stack_ptr_ref = if task.should_exit() {
+        let should_exit = self.current_task_should_exit.swap(false, Relaxed);
+        let old_stack_ptr_ref = if should_exit {
             let task = task.into_finished();
             self.finished.push_back(task);
             self.finished.back_mut().unwrap().last_stack_ptr_mut()

@@ -1,6 +1,3 @@
-use crate::mem::Size;
-use crate::process;
-use crate::process::Process;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use core::fmt::Debug;
@@ -8,8 +5,13 @@ use core::marker::PhantomData;
 use core::mem::size_of;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
 use derive_more::Display;
 use x86_64::registers::rflags::RFlags;
+
+use crate::mem::Size;
+use crate::process;
+use crate::process::Process;
 
 const STACK_SIZE: usize = Size::KiB(32).bytes();
 
@@ -55,7 +57,6 @@ macro_rules! state_transition {
                     name: value.name,
                     process: value.process,
                     last_stack_ptr: value.last_stack_ptr,
-                    should_exit: value.should_exit,
                     stack: value.stack,
                     _state: Default::default(),
                 }
@@ -79,7 +80,6 @@ where
     process: Process,
     last_stack_ptr: usize,
     stack: Option<Box<[u8; STACK_SIZE]>>,
-    should_exit: bool,
     _state: PhantomData<S>,
 }
 
@@ -116,14 +116,6 @@ where
 
     pub fn last_stack_ptr_mut(&mut self) -> &mut usize {
         &mut self.last_stack_ptr
-    }
-
-    pub(in crate::process) fn mark_as_should_exit(&mut self) {
-        self.should_exit = true;
-    }
-
-    pub(in crate::process) fn should_exit(&self) -> bool {
-        self.should_exit
     }
 }
 
@@ -173,7 +165,6 @@ impl Task<Ready> {
             process,
             last_stack_ptr: 0, // will be set correctly in [`setup_stack`]
             stack: Some(Box::new([0; STACK_SIZE])),
-            should_exit: false,
             _state: Default::default(),
         };
         task.setup_stack(entry_point);
@@ -252,7 +243,6 @@ impl Task<Running> {
             process: kernel_process,
             last_stack_ptr: 0, // will be set correctly during the next `reschedule`
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)
-            should_exit: false,
             _state: Default::default(),
         }
     }
