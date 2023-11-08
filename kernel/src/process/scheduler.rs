@@ -31,7 +31,7 @@ pub fn init(kernel_task: Task<Running>) {
     FINISHED_TASKS.init_once(SegQueue::new);
     NEW_TASKS.init_once(SegQueue::new);
 
-    // now that the scheduler is initialized, we can spawn the cleanup task
+    // now that the finish queue is initialized, we can spawn the cleanup task
     spawn_task_in_current_process("cleanup_finished_tasks", cleanup_finished_tasks);
 }
 
