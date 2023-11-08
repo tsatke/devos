@@ -76,4 +76,6 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           name: devos-boot-images
-          path: target/release/build/**/out/*.img
+          path: |
+            target/release/build/**/out/os_disk.img
+            target/release/build/**/out/uefi.img
