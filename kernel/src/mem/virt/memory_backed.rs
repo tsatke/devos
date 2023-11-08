@@ -1,3 +1,4 @@
+use alloc::string::String;
 use alloc::sync::Arc;
 use core::slice;
 
@@ -13,24 +14,29 @@ use crate::{map_page, process};
 
 #[derive(Constructor, Debug)]
 pub struct MemoryBackedVmObject {
+    name: String,
     underlying: Arc<RwLock<PmObject>>,
     allocation_strategy: AllocationStrategy,
     addr: VirtAddr,
     size: usize,
+    flags: PageTableFlags,
 }
 
 impl MemoryBackedVmObject {
     pub fn create(
+        name: String,
         addr: VirtAddr,
         size: usize,
         allocation_strategy: AllocationStrategy,
     ) -> Result<Self, AllocationError> {
         let pm_object = PmObject::create(size, allocation_strategy)?;
         let mut res = Self::new(
+            name,
             Arc::new(RwLock::new(pm_object)),
             allocation_strategy,
             addr,
             size,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         );
 
         if allocation_strategy == AllocationStrategy::AllocateNow {
@@ -56,13 +62,7 @@ impl MemoryBackedVmObject {
         let frames = guard.phys_frames();
         for (page, frame) in page_range.zip(frames.iter().cloned()) {
             unsafe {
-                address_space
-                    .map_to(
-                        page,
-                        frame,
-                        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                    )?
-                    .flush();
+                address_space.map_to(page, frame, self.flags)?.flush();
             }
         }
         Ok(())
@@ -70,12 +70,20 @@ impl MemoryBackedVmObject {
 }
 
 impl VmObject for MemoryBackedVmObject {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
     fn addr(&self) -> VirtAddr {
         self.addr
     }
 
     fn size(&self) -> usize {
         self.size
+    }
+
+    fn flags(&self) -> PageTableFlags {
+        self.flags
     }
 
     fn allocation_strategy(&self) -> AllocationStrategy {

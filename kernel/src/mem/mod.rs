@@ -1,5 +1,10 @@
+use alloc::boxed::Box;
+use alloc::string::ToString;
+use alloc::sync::Arc;
+
 use bootloader_api::info::MemoryRegionKind;
 use bootloader_api::BootInfo;
+use spin::RwLock;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
@@ -8,6 +13,7 @@ pub use address_space::*;
 pub use heap::*;
 pub use size::*;
 
+use crate::mem::virt::{AllocationStrategy, MemoryBackedVmObject, PmObject};
 use crate::process::Process;
 use crate::{process, serial_println};
 
@@ -49,16 +55,14 @@ pub fn init(boot_info: &'static BootInfo) {
         // create `PhysFrame` types from the start addresses
         .map(|addr| PhysFrame::containing_address(PhysAddr::new(addr)));
 
+    let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
     (HEAP_START..=HEAP_START + HEAP_SIZE.bytes())
         .step_by(Size4KiB::SIZE as usize)
         .map(|v| VirtAddr::new(v as u64))
         .map(Page::<Size4KiB>::containing_address)
         .for_each(|p| unsafe {
             let frame = usable_frames.next().unwrap();
-            address_space
-                .map_to(p, frame, PageTableFlags::PRESENT | PageTableFlags::WRITABLE)
-                .unwrap()
-                .flush();
+            address_space.map_to(p, frame, flags).unwrap().flush();
         });
 
     serial_println!(
@@ -81,6 +85,24 @@ pub fn init(boot_info: &'static BootInfo) {
     );
 
     let root_process = Process::new("root", address_space);
+
+    // create the kheap vm_object and add it to the process
+
+    // this pm_object shouldn't allocate anything, and it also shouldn't try to free anything on drop
+    let kheap_pm_object = PmObject::create(0, AllocationStrategy::AllocateOnAccess).unwrap();
+    let kheap_vm_object = MemoryBackedVmObject::new(
+        "kernel_heap".to_string(),
+        Arc::new(RwLock::new(kheap_pm_object)),
+        AllocationStrategy::AllocateNow,
+        VirtAddr::new(HEAP_START as u64),
+        HEAP_SIZE.bytes(),
+        flags,
+    );
+
+    root_process
+        .vm_objects()
+        .write()
+        .push(Box::new(kheap_vm_object)); // this needs to happen after we've initialized the heap
     process::init(root_process);
 
     // let _new_address_space = AddressSpace::allocate_new(&mut address_space);

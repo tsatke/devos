@@ -1,6 +1,8 @@
 use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::string::String;
 
 use spin::RwLock;
+use x86_64::structures::paging::PageTableFlags;
 
 use crate::process::task::TaskId;
 use crate::process::{Process, ProcessId};
@@ -110,10 +112,47 @@ impl ProcessTree {
             vm_objects,
             indent = indent
         );
+        process.vm_objects().read().iter().for_each(|vm_object| {
+            serial_println!(
+                "{:indent$}*vm_object: {:#p}-{:#p} {:#x} {} {}",
+                "",
+                vm_object.addr(),
+                vm_object.addr() + vm_object.size(),
+                vm_object.size(),
+                page_table_flags_to_string(vm_object.flags()),
+                vm_object.name(),
+                indent = indent + 4
+            )
+        });
         if let Some(children) = self.children.get(process_id) {
             for child in children {
                 self.dump_process(child, indent + 4);
             }
         }
     }
+}
+
+fn page_table_flags_to_string(flags: PageTableFlags) -> String {
+    macro_rules! flag {
+        ($buf:expr, $flag:expr, $char:literal) => {
+            if flags.contains($flag) {
+                $buf.push($char);
+            } else {
+                $buf.push('-');
+            }
+        };
+        ($buf:expr, not $flag:expr, $char:literal) => {
+            if !flags.contains($flag) {
+                $buf.push($char);
+            } else {
+                $buf.push('-');
+            }
+        };
+    }
+    let mut s = String::new();
+    flag!(s, PageTableFlags::USER_ACCESSIBLE, 'u');
+    flag!(s, PageTableFlags::PRESENT, 'r');
+    flag!(s, PageTableFlags::WRITABLE, 'w');
+    flag!(s, not PageTableFlags::NO_EXECUTE, 'x');
+    s
 }

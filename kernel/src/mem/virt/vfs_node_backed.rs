@@ -1,8 +1,9 @@
+use alloc::string::String;
 use alloc::sync::Arc;
 use core::slice::from_raw_parts_mut;
 
 use spin::RwLock;
-use x86_64::structures::paging::{Page, PageSize, Size4KiB};
+use x86_64::structures::paging::{Page, PageSize, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 use crate::io::vfs::{vfs, VfsNode};
@@ -17,6 +18,7 @@ pub struct VfsNodeBackedVmObject {
 
 impl VfsNodeBackedVmObject {
     pub fn create(
+        name: String,
         node: VfsNode,
         offset: usize,
         addr: VirtAddr,
@@ -28,10 +30,12 @@ impl VfsNodeBackedVmObject {
         let should_map = !pm_object.phys_frames().is_empty();
         let allocation_strategy = pm_object.allocation_strategy();
         let mut vm_object = MemoryBackedVmObject::new(
+            name,
             Arc::new(RwLock::new(pm_object)),
             allocation_strategy,
             addr,
             size,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         );
         if should_map {
             // the file system provided physical memory for the file, immediately map it
@@ -46,12 +50,20 @@ impl VfsNodeBackedVmObject {
 }
 
 impl VmObject for VfsNodeBackedVmObject {
+    fn name(&self) -> &str {
+        self.vm_object.name()
+    }
+
     fn addr(&self) -> VirtAddr {
         self.vm_object.addr()
     }
 
     fn size(&self) -> usize {
         self.vm_object.size()
+    }
+
+    fn flags(&self) -> PageTableFlags {
+        self.vm_object.flags()
     }
 
     fn allocation_strategy(&self) -> AllocationStrategy {

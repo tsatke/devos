@@ -5,6 +5,7 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
+use alloc::string::ToString;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -44,7 +45,8 @@ fn test_vfs_node_backed() {
     let addr = VirtAddr::new(0x1111_1111_0000);
     let size = 13;
     let offset = 0;
-    let vm_object = VfsNodeBackedVmObject::create(file, offset, addr, size).unwrap();
+    let vm_object =
+        VfsNodeBackedVmObject::create("test".to_string(), file, offset, addr, size).unwrap();
     process::current()
         .vm_objects()
         .write()
@@ -59,8 +61,9 @@ fn test_vfs_node_backed() {
 
 fn test_memory_backed(allocation_strategy: AllocationStrategy) {
     let addr = VirtAddr::new(0x1111_1111_0000); // this address must be reusable since we drop the VmObject at the end of the function
-    let vm_object = MemoryBackedVmObject::create(addr, 8192, allocation_strategy)
-        .expect("unable to create VmObject");
+    let vm_object =
+        MemoryBackedVmObject::create("test".to_string(), addr, 8192, allocation_strategy)
+            .expect("unable to create VmObject");
 
     // for the page fault handler to correctly handle page faults with the vmobjects, we need
     // to tell the project about the vmobject
