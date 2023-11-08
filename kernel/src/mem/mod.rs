@@ -104,8 +104,6 @@ pub fn init(boot_info: &'static BootInfo) {
         .write()
         .push(Box::new(kheap_vm_object)); // this needs to happen after we've initialized the heap
     process::init(root_process);
-
-    // let _new_address_space = AddressSpace::allocate_new(&mut address_space);
 }
 
 /// Map a physical frame to a page in the current address space.
