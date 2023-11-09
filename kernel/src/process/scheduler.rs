@@ -75,7 +75,7 @@ pub struct Scheduler {
     current_task: Task<Running>,
     current_task_should_exit: AtomicBool,
     ready: VecDeque<Task<Ready>>,
-    finished: VecDeque<Task<Finished>>,
+    _dummy_last_stack_ptr: usize,
 }
 
 impl Scheduler {
@@ -89,7 +89,7 @@ impl Scheduler {
             current_task: kernel_task,
             current_task_should_exit: AtomicBool::new(false),
             ready: VecDeque::new(),
-            finished: VecDeque::new(),
+            _dummy_last_stack_ptr: 0,
         }
     }
 
@@ -141,11 +141,6 @@ impl Scheduler {
             self.ready.push_back(task);
         }
 
-        // move finished tasks to the finished queue
-        while let Some(task) = self.finished.pop_front() {
-            finished_tasks().push(task);
-        }
-
         let task = match self.ready.pop_front() {
             None => {
                 return;
@@ -168,8 +163,8 @@ impl Scheduler {
         let should_exit = self.current_task_should_exit.swap(false, Relaxed);
         let old_stack_ptr_ref = if should_exit {
             let task = task.into_finished();
-            self.finished.push_back(task);
-            self.finished.back_mut().unwrap().last_stack_ptr_mut()
+            finished_tasks().push(task);
+            &mut self._dummy_last_stack_ptr
         } else {
             let task = task.into_ready();
             self.ready.push_back(task);
