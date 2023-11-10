@@ -68,6 +68,37 @@ impl MemoryBackedVmObject {
         }
         Ok(())
     }
+
+    pub(in crate::mem::virt) fn prepare_for_access_and_modify_page(
+        &self,
+        offset: usize,
+        modify: impl Fn(Page) -> Result<(), AllocationError>,
+    ) -> Result<(), AllocationError> {
+        let page = Page::<Size4KiB>::containing_address(self.addr + offset);
+        let frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
+        self.underlying.write().add_phys_frame(frame);
+
+        if self.flags.contains(PageTableFlags::WRITABLE) {
+            map_page!(page, frame, Size4KiB, self.flags);
+        } else {
+            map_page!(
+                page,
+                frame,
+                Size4KiB,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE
+            );
+        }
+
+        modify(page)?;
+
+        if !self.flags.contains(PageTableFlags::WRITABLE) {
+            // remap the page with the actual flags
+            unmap_page!(page, Size4KiB);
+            map_page!(page, frame, Size4KiB, self.flags);
+        }
+
+        Ok(())
+    }
 }
 
 impl VmObject for MemoryBackedVmObject {
@@ -92,37 +123,19 @@ impl VmObject for MemoryBackedVmObject {
     }
 
     fn prepare_for_access(&self, offset: usize) -> Result<(), AllocationError> {
-        let page = Page::<Size4KiB>::containing_address(self.addr + offset);
-        let frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
-        self.underlying.write().add_phys_frame(frame);
-
-        if self.flags.contains(PageTableFlags::WRITABLE) {
-            map_page!(page, frame, Size4KiB, self.flags);
-        } else {
-            map_page!(
-                page,
-                frame,
-                Size4KiB,
-                PageTableFlags::PRESENT | PageTableFlags::WRITABLE
-            );
-        }
-
-        unsafe {
-            // safety: we just mapped the page, so we can safely zero it
-            slice::from_raw_parts_mut(
-                page.start_address().as_mut_ptr::<u8>(),
-                page.size() as usize,
-            )
+        let modify = |page: Page<Size4KiB>| -> Result<(), AllocationError> {
+            unsafe {
+                // safety: we just mapped the page, so we can safely zero it
+                slice::from_raw_parts_mut(
+                    page.start_address().as_mut_ptr::<u8>(),
+                    page.size() as usize,
+                )
+            }
             .fill(0);
-        }
+            Ok(())
+        };
 
-        if !self.flags.contains(PageTableFlags::WRITABLE) {
-            // remap the page with the actual flags
-            unmap_page!(page, Size4KiB);
-            map_page!(page, frame, Size4KiB, self.flags);
-        }
-
-        Ok(())
+        self.prepare_for_access_and_modify_page(offset, modify)
     }
 }
 

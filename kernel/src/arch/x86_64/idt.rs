@@ -214,11 +214,10 @@ extern "x86-interrupt" fn page_fault_handler(
 
     let current = process::current();
     let vm_objects = current.vm_objects().read();
-    let vm_object = {
-        vm_objects
-            .iter()
-            .find(|vm_object| vm_object.contains_addr(accessed_address))
-    };
+    let vm_object = vm_objects
+        .iter()
+        .find(|(_, vm_object)| vm_object.contains_addr(accessed_address))
+        .map(|(_, vm_object)| vm_object);
 
     if vm_object.is_none() {
         do_panic();

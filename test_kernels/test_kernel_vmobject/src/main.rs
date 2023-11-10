@@ -51,7 +51,7 @@ fn test_memory_backed(allocation_strategy: AllocationStrategy) {
     process::current()
         .vm_objects()
         .write()
-        .push(Box::new(vm_object));
+        .insert(addr, Box::new(vm_object));
 
     unsafe {
         let ptr1 = addr.as_mut_ptr::<u64>();
@@ -66,7 +66,7 @@ fn test_memory_backed(allocation_strategy: AllocationStrategy) {
     }
 
     // remove the vmobject from the process so that it gets dropped
-    let _ = process::current().vm_objects().write().pop();
+    let _ = process::current().vm_objects().write().remove(&addr);
 }
 
 #[panic_handler]

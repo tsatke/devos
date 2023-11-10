@@ -90,11 +90,12 @@ pub fn init(boot_info: &'static BootInfo) {
 
     // this pm_object shouldn't allocate anything, and it also shouldn't try to free anything on drop
     let kheap_pm_object = PmObject::create(0, AllocationStrategy::AllocateOnAccess).unwrap();
+    let kheap_start_addr = VirtAddr::new(HEAP_START as u64);
     let kheap_vm_object = MemoryBackedVmObject::new(
         "kernel_heap".to_string(),
         Arc::new(RwLock::new(kheap_pm_object)),
         AllocationStrategy::AllocateNow,
-        VirtAddr::new(HEAP_START as u64),
+        kheap_start_addr,
         HEAP_SIZE.bytes(),
         flags,
     );
@@ -102,7 +103,7 @@ pub fn init(boot_info: &'static BootInfo) {
     root_process
         .vm_objects()
         .write()
-        .push(Box::new(kheap_vm_object)); // this needs to happen after we've initialized the heap
+        .insert(kheap_start_addr, Box::new(kheap_vm_object)); // this needs to happen after we've initialized the heap
     process::init(root_process);
 }
 

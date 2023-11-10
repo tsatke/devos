@@ -4,6 +4,7 @@ use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
 use crate::mem::virt::{AllocationError, AllocationStrategy};
+use crate::process::fd::Fileno;
 
 pub trait VmObject: Debug + Send + Sync {
     fn name(&self) -> &str;
@@ -15,6 +16,10 @@ pub trait VmObject: Debug + Send + Sync {
     fn flags(&self) -> PageTableFlags;
 
     fn allocation_strategy(&self) -> AllocationStrategy;
+
+    fn underlying_fd(&self) -> Option<Fileno> {
+        None
+    }
 
     fn contains_addr(&self, addr: VirtAddr) -> bool {
         let my_addr = self.addr();

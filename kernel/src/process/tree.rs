@@ -114,18 +114,22 @@ impl ProcessTree {
             open_fds,
             indent = indent
         );
-        process.vm_objects().read().iter().for_each(|vm_object| {
-            serial_println!(
-                "{:indent$}*vm_object: {:#p}-{:#p} {:#016x} {} {}",
-                "",
-                vm_object.addr(),
-                vm_object.addr() + vm_object.size(),
-                vm_object.size(),
-                page_table_flags_to_string(vm_object.flags()),
-                vm_object.name(),
-                indent = indent + 4
-            )
-        });
+        process
+            .vm_objects()
+            .read()
+            .iter()
+            .for_each(|(_, vm_object)| {
+                serial_println!(
+                    "{:indent$}*vm_object: {:#p}-{:#p} {:#016x} {} {}",
+                    "",
+                    vm_object.addr(),
+                    vm_object.addr() + vm_object.size(),
+                    vm_object.size(),
+                    page_table_flags_to_string(vm_object.flags()),
+                    vm_object.name(),
+                    indent = indent + 4
+                )
+            });
         process.open_fds().read().iter().for_each(|(fileno, fd)| {
             serial_println!(
                 "{:indent$}*open_fd: {} (fileno={})",

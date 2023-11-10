@@ -1,17 +1,17 @@
 use alloc::string::String;
-use alloc::sync::Arc;
 use core::slice::from_raw_parts_mut;
 
-use spin::RwLock;
-use x86_64::structures::paging::{Page, PageSize, PageTableFlags, Size4KiB};
+use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
-use crate::io::vfs::{vfs, VfsNode};
 use crate::mem::virt::{AllocationError, AllocationStrategy, MemoryBackedVmObject, VmObject};
+use crate::process;
+use crate::process::fd::Fileno;
 
+// FIXME: once we have write support in the fs, the drop impl should write dirty pages back to disk
 #[derive(Debug)]
 pub struct FileBackedVmObject {
-    node: VfsNode,
+    fd: Fileno,
     offset: usize,
     vm_object: MemoryBackedVmObject,
 }
@@ -19,32 +19,22 @@ pub struct FileBackedVmObject {
 impl FileBackedVmObject {
     pub fn create(
         name: String,
-        node: VfsNode,
+        fd: Fileno,
         offset: usize,
         addr: VirtAddr,
         size: usize,
+        flags: PageTableFlags,
     ) -> Result<Self, AllocationError> {
-        let fs = node.fs().clone();
-        let mut guard = fs.write();
-        let pm_object = guard.create_pm_object_for_mmap(node.handle())?;
-        let should_map = !pm_object.phys_frames().is_empty();
-        let allocation_strategy = pm_object.allocation_strategy();
-        let mut vm_object = MemoryBackedVmObject::new(
-            name,
-            Arc::new(RwLock::new(pm_object)),
-            allocation_strategy,
-            addr,
-            size,
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-        );
-        if should_map {
-            // the file system provided physical memory for the file, immediately map it
-            vm_object.map_pages()?;
-        }
         Ok(Self {
-            node,
+            fd,
             offset,
-            vm_object,
+            vm_object: MemoryBackedVmObject::create(
+                name,
+                addr,
+                size,
+                AllocationStrategy::AllocateOnAccess,
+                flags,
+            )?,
         })
     }
 }
@@ -70,26 +60,29 @@ impl VmObject for FileBackedVmObject {
         self.vm_object.allocation_strategy()
     }
 
+    fn underlying_fd(&self) -> Option<Fileno> {
+        Some(self.fd)
+    }
+
     fn prepare_for_access(&self, offset: usize) -> Result<(), AllocationError> {
+        let fd = self.fd;
+        let file_offset = self.offset + offset;
         // make sure that the accessed page is already mapped
-        self.vm_object.prepare_for_access(offset)?;
+        self.vm_object
+            .prepare_for_access_and_modify_page(offset, |page| {
+                let slice = unsafe {
+                    // safety: we just mapped the page, so we can safely zero it
+                    from_raw_parts_mut(
+                        page.start_address().as_mut_ptr::<u8>(),
+                        page.size() as usize,
+                    )
+                };
+                slice.fill(0);
 
-        // TODO: read from the vfsnode into the accessed page
-
-        let accessed_page = Page::<Size4KiB>::containing_address(self.addr() + offset);
-        let slice = unsafe {
-            from_raw_parts_mut(
-                accessed_page.start_address().as_mut_ptr::<u8>(),
-                Size4KiB::SIZE as usize,
-            )
-        };
-        vfs()
-            .read(&self.node, slice, self.offset + offset)
-            .map_err(|_| AllocationError::IoError)?;
-
-        Ok(())
+                process::current()
+                    .read_at(fd, slice, file_offset)
+                    .map_err(|_| AllocationError::IoError)?;
+                Ok(())
+            })
     }
 }
-
-// we don't need to implement drop, because the drop impl for the underlying memory backed
-// vm object and the drop impl for the vfs node should take care of everything

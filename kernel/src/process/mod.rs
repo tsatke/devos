@@ -2,12 +2,12 @@ use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::sync::Arc;
-use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
 use derive_more::Display;
 use spin::RwLock;
+use x86_64::VirtAddr;
 
 pub use scheduler::*;
 pub use tree::*;
@@ -86,8 +86,8 @@ pub struct Process {
     cr3_value: usize, // TODO: remove this, read it from the address space (maybe use an atomic to circumvent the locking?)
     name: String,
     address_space: Arc<RwLock<AddressSpace>>,
-    vm_objects: Arc<RwLock<Vec<Box<dyn VmObject>>>>,
-    next_fd: FilenoAllocator,
+    vm_objects: Arc<RwLock<BTreeMap<VirtAddr, Box<dyn VmObject>>>>,
+    next_fd: Arc<FilenoAllocator>,
     open_fds: Arc<RwLock<BTreeMap<Fileno, FileDescriptor>>>,
 }
 
@@ -98,8 +98,8 @@ impl Process {
             cr3_value: address_space.cr3_value(),
             name: name.into(),
             address_space: Arc::new(RwLock::new(address_space)),
-            vm_objects: Arc::new(RwLock::new(Vec::new())),
-            next_fd: FilenoAllocator::new(),
+            vm_objects: Arc::new(RwLock::new(BTreeMap::new())),
+            next_fd: Arc::new(FilenoAllocator::new()),
             open_fds: Arc::new(RwLock::new(BTreeMap::new())),
         }
     }
@@ -120,8 +120,15 @@ impl Process {
         self.cr3_value
     }
 
-    pub fn vm_objects(&self) -> &RwLock<Vec<Box<dyn VmObject>>> {
+    pub fn vm_objects(&self) -> &RwLock<BTreeMap<VirtAddr, Box<dyn VmObject>>> {
         &self.vm_objects
+    }
+
+    pub fn has_mmap_at(&self, addr: VirtAddr) -> bool {
+        self.vm_objects
+            .read()
+            .iter()
+            .any(|(_, vmo)| vmo.contains_addr(addr))
     }
 
     pub fn open_fds(&self) -> &RwLock<BTreeMap<Fileno, FileDescriptor>> {
@@ -148,6 +155,20 @@ impl Process {
         fd.read(buf)
     }
 
+    pub fn read_at(
+        &self,
+        fileno: Fileno,
+        buf: &mut [u8],
+        offset: usize,
+    ) -> Result<usize, VfsError> {
+        let mut guard = self.open_fds.write();
+        let fd = match guard.get_mut(&fileno) {
+            Some(fd) => fd,
+            None => return Err(VfsError::HandleClosed),
+        };
+        fd.read_at(buf, offset)
+    }
+
     pub fn write(&self, fileno: Fileno, buf: &[u8]) -> Result<usize, VfsError> {
         let mut guard = self.open_fds.write();
         let fd = match guard.get_mut(&fileno) {
@@ -158,11 +179,13 @@ impl Process {
     }
 
     pub fn close_fd(&self, fd: Fileno) -> Result<(), VfsError> {
-        let fd = match self.open_fds.write().remove(&fd) {
+        let descriptor = match self.open_fds.write().remove(&fd) {
             Some(fd) => fd,
             None => return Err(VfsError::HandleClosed),
         };
-        let node = fd.into_node();
+
+        // close the actual file
+        let node = descriptor.into_node();
         vfs().close(node)
     }
 }

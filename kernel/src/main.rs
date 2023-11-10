@@ -14,7 +14,7 @@ use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
 use kernel::process::fd::Fileno;
 use kernel::process::process_tree;
-use kernel::syscall::{sys_mmap, MapFlags, Prot};
+use kernel::syscall::{sys_close, sys_mmap, sys_munmap, sys_open, MapFlags, Prot};
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use vga::Color;
 
@@ -37,8 +37,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
 
+    let addr = VirtAddr::new(0x1111_1111_0000);
     {
-        let addr = VirtAddr::new(0x1111_1111_0000);
         let len = 13;
         sys_mmap(
             addr,
@@ -53,16 +53,20 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         serial_println!("before write: {:?}", slice);
         slice[4] = 1;
         serial_println!("after write: {:?}", slice);
+        sys_munmap(addr).unwrap();
     }
 
-    // {
-    //     let fd = sys_open("/var/data/hello.txt", 0, 0).unwrap();
-    //     let addr = VirtAddr::new(0x1111_1111_0000);
-    //     let len = 13;
-    //     sys_mmap(addr, len, Prot::Read, MapFlags::Private, fd, 0).expect("mmap failed");
-    //     let slice = unsafe { from_raw_parts(addr.as_ptr::<u8>(), len) };
-    //     serial_println!("file mmap slice: {:?}", slice);
-    // }
+    {
+        let fd = sys_open("/var/data/hello.txt", 0, 0).unwrap();
+        let len = 13;
+        sys_mmap(addr, len, Prot::Read, MapFlags::Private, fd, 0).expect("mmap failed");
+        sys_close(fd).unwrap(); // must not invalidate the mmap according to posix
+        let slice = unsafe { from_raw_parts(addr.as_ptr::<u8>(), len) };
+        serial_println!(
+            "file mmap slice: {:?}",
+            core::str::from_utf8(slice).unwrap()
+        );
+    }
 
     let p1 = process::create(process::current(), "other_process");
     process::create(p1.clone(), "other_process2");
@@ -72,6 +76,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     process::create(p2.clone(), "another_process3");
     process::create(p2.clone(), "another_process4");
     process_tree().read().dump();
+
+    sys_munmap(addr).unwrap();
 
     // sys_execve("/bin/hello_world", &[], &[]).unwrap();
 

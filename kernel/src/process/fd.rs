@@ -24,14 +24,6 @@ pub struct FilenoAllocator {
     inner: AtomicUsize,
 }
 
-impl Clone for FilenoAllocator {
-    fn clone(&self) -> Self {
-        Self {
-            inner: AtomicUsize::new(self.inner.load(Ordering::Relaxed)),
-        }
-    }
-}
-
 impl FilenoAllocator {
     pub const fn new() -> Self {
         Self {
@@ -64,7 +56,7 @@ impl FileDescriptor {
     }
 
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, VfsError> {
-        match vfs().read(&self.node, buf, self.offset) {
+        match self.read_at(buf, self.offset) {
             Ok(v) => {
                 self.offset += v;
                 Ok(v)
@@ -73,13 +65,21 @@ impl FileDescriptor {
         }
     }
 
+    pub fn read_at(&mut self, buf: &mut [u8], offset: usize) -> Result<usize, VfsError> {
+        vfs().read(&self.node, buf, offset)
+    }
+
     pub fn write(&mut self, buf: &[u8]) -> Result<usize, VfsError> {
-        match vfs().write(&self.node, buf, self.offset) {
+        match self.write_at(buf, self.offset) {
             Ok(v) => {
                 self.offset += v;
                 Ok(v)
             }
             e => e,
         }
+    }
+
+    pub fn write_at(&mut self, buf: &[u8], offset: usize) -> Result<usize, VfsError> {
+        vfs().write(&self.node, buf, offset)
     }
 }

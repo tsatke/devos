@@ -1,3 +1,4 @@
+use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::{format, vec};
@@ -14,7 +15,7 @@ use kernel_api::syscall::Errno;
 
 use crate::io::path::Path;
 use crate::io::vfs::{vfs, Stat};
-use crate::mem::virt::{AllocationStrategy, MemoryBackedVmObject};
+use crate::mem::virt::{AllocationStrategy, FileBackedVmObject, MemoryBackedVmObject, VmObject};
 use crate::process::elf::ElfLoader;
 use crate::process::fd::Fileno;
 use crate::{process, serial_println};
@@ -105,6 +106,21 @@ pub fn sys_close(fd: Fileno) -> Result<()> {
     process.close_fd(fd).map_err(Into::into)
 }
 
+pub fn sys_dup(fd: Fileno) -> Result<Fileno> {
+    serial_println!("sys_dup({:?})", fd);
+
+    let process = process::current();
+    let path = process
+        .open_fds()
+        .read()
+        .get(&fd)
+        .map(|desc| desc.node().path().to_owned())
+        .ok_or(Errno::EBADF)?;
+    process
+        .open_file(path.as_path()) // TODO: this aliases the VfsNode and underlying file, does this work as expected and intended?
+        .map_err(Into::into)
+}
+
 pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Result<!> {
     serial_println!("sys_execve({:?}, {:?}, {:?})", path.as_ref(), argv, envp);
 
@@ -159,7 +175,7 @@ bitflags! {
 
 pub fn sys_mmap(
     addr: VirtAddr,
-    len: usize,
+    size: usize,
     prot: Prot,
     map_flags: MapFlags,
     fd: Fileno,
@@ -168,7 +184,7 @@ pub fn sys_mmap(
     serial_println!(
         "sys_mmap({:#x}, {}, {:?}, {:?}, {:?}, {})",
         addr,
-        len,
+        size,
         prot,
         map_flags,
         fd,
@@ -187,21 +203,40 @@ pub fn sys_mmap(
     }
 
     let strategy = AllocationStrategy::AllocateOnAccess;
-    let vmo = if map_flags.contains(MapFlags::Anon) {
-        MemoryBackedVmObject::create(
-            format!("mmap {:#p} (len={})", addr, len),
+    let vmo: Box<dyn VmObject> = if map_flags.contains(MapFlags::Anon) {
+        let vmo = MemoryBackedVmObject::create(
+            format!("mmap {:#p} (len={})", addr, size),
             addr,
-            len,
+            size,
             strategy,
             flags,
         )
-        .map_err(|_| Errno::ENOMEM)?
+        .map_err(|_| Errno::ENOMEM)?;
+        Box::new(vmo)
     } else {
-        todo!("mmap from file")
+        let fd = sys_dup(fd)?;
+        let vmo = FileBackedVmObject::create(
+            format!("mmap {:#p} (len={}, fd={})", addr, size, fd),
+            fd,
+            offset,
+            addr,
+            size,
+            flags,
+        )
+        .map_err(|_| Errno::ENOMEM)?;
+        Box::new(vmo)
     };
-    process::current().vm_objects().write().push(Box::new(vmo));
+    process::current().vm_objects().write().insert(addr, vmo);
 
     Ok(addr)
+}
+
+pub fn sys_munmap(addr: VirtAddr) -> Result<()> {
+    serial_println!("sys_munmap({:#x})", addr);
+    let process = process::current();
+    let mut guard = process.vm_objects().write();
+    guard.remove(&addr);
+    Ok(())
 }
 
 pub fn sys_mount(
