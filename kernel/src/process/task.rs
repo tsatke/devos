@@ -1,5 +1,6 @@
-use alloc::boxed::Box;
 use alloc::string::{String, ToString};
+use alloc::vec;
+use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::mem::size_of;
@@ -79,7 +80,7 @@ where
     name: String,
     process: Process,
     last_stack_ptr: usize,
-    stack: Option<Box<[u8; STACK_SIZE]>>,
+    stack: Option<Vec<u8>>,
     _state: PhantomData<S>,
 }
 
@@ -164,7 +165,7 @@ impl Task<Ready> {
             name: name.into(),
             process,
             last_stack_ptr: 0, // will be set correctly in [`setup_stack`]
-            stack: Some(Box::new([0; STACK_SIZE])),
+            stack: Some(vec![0; STACK_SIZE]),
             _state: Default::default(),
         };
         task.setup_stack(entry_point);
