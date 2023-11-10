@@ -6,7 +6,7 @@ use x86_64::instructions::interrupts;
 
 use crate::io::path::{OwnedPath, Path};
 use crate::io::vfs;
-use crate::io::vfs::{FileSystem, VfsHandle};
+use crate::io::vfs::{FileSystem, VfsError, VfsHandle};
 
 pub struct VfsNode {
     /// The path of this node.
@@ -16,7 +16,7 @@ pub struct VfsNode {
     fs: Arc<RwLock<dyn FileSystem>>,
 }
 
-impl !Clone for VfsNode {} // can't clone because of the drop impl
+impl !Clone for VfsNode {} // can't clone because of the drop impl. However, there's [`VfsNode::duplicate`]
 
 impl Debug for VfsNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -46,6 +46,11 @@ impl VfsNode {
 
     pub fn fs(&self) -> &Arc<RwLock<dyn FileSystem>> {
         &self.fs
+    }
+
+    pub fn duplicate(&self) -> Result<Self, VfsError> {
+        let new_handle = self.fs.write().duplicate(self.handle)?;
+        Ok(Self::new(self.path.clone(), new_handle, self.fs.clone()))
     }
 }
 

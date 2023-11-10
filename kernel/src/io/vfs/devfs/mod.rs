@@ -1,12 +1,13 @@
-use crate::io::path::Path;
-use crate::io::vfs::devfs::zero::Zero;
-use crate::io::vfs::error::{Result, VfsError};
-use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, Stat, VfsHandle};
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
+use crate::io::path::Path;
+use crate::io::vfs::devfs::zero::Zero;
+use crate::io::vfs::error::{Result, VfsError};
+use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, Stat, VfsHandle};
 
 mod zero;
 
@@ -65,6 +66,10 @@ impl FileSystem for VirtualDevFs {
         let handle = next_handle();
         self.handles.insert(handle, implementation);
         Ok(handle)
+    }
+
+    fn duplicate(&mut self, _: VfsHandle) -> Result<VfsHandle> {
+        Err(VfsError::Unsupported)
     }
 
     fn close(&mut self, handle: VfsHandle) -> Result<()> {

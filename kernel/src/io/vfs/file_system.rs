@@ -42,6 +42,8 @@ pub trait FileSystem: Send + Sync {
     /// is invalid.
     fn open(&mut self, path: &Path) -> Result<VfsHandle>;
 
+    fn duplicate(&mut self, handle: VfsHandle) -> Result<VfsHandle>;
+
     /// Closes the file associated with the given handle.
     fn close(&mut self, handle: VfsHandle) -> Result<()>;
 

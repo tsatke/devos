@@ -1,4 +1,3 @@
-use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::{format, vec};
@@ -110,15 +109,15 @@ pub fn sys_dup(fd: Fileno) -> Result<Fileno> {
     serial_println!("sys_dup({:?})", fd);
 
     let process = process::current();
-    let path = process
+    let node = process
         .open_fds()
         .read()
         .get(&fd)
-        .map(|desc| desc.node().path().to_owned())
-        .ok_or(Errno::EBADF)?;
-    process
-        .open_file(path.as_path()) // TODO: this aliases the VfsNode and underlying file, does this work as expected and intended?
-        .map_err(Into::into)
+        .map(|desc| desc.node().duplicate())
+        .ok_or(Errno::EBADF)?
+        .map_err(Into::<Errno>::into)?;
+    let new_fd = process.register_vfs_node_as_open(node);
+    Ok(new_fd)
 }
 
 pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Result<!> {
@@ -214,10 +213,17 @@ pub fn sys_mmap(
         .map_err(|_| Errno::ENOMEM)?;
         Box::new(vmo)
     } else {
-        let fd = sys_dup(fd)?;
+        let process = process::current();
+        let node = process
+            .open_fds()
+            .read()
+            .get(&fd)
+            .ok_or(Errno::EBADF)?
+            .node()
+            .duplicate()?;
         let vmo = FileBackedVmObject::create(
             format!("mmap {:#p} (len={}, fd={})", addr, size, fd),
-            fd,
+            node,
             offset,
             addr,
             size,

@@ -4,14 +4,13 @@ use core::slice::from_raw_parts_mut;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
+use crate::io::vfs::{vfs, VfsNode};
 use crate::mem::virt::{AllocationError, AllocationStrategy, MemoryBackedVmObject, VmObject};
-use crate::process;
-use crate::process::fd::Fileno;
 
 // FIXME: once we have write support in the fs, the drop impl should write dirty pages back to disk
 #[derive(Debug)]
 pub struct FileBackedVmObject {
-    fd: Fileno,
+    node: VfsNode,
     offset: usize,
     vm_object: MemoryBackedVmObject,
 }
@@ -19,14 +18,14 @@ pub struct FileBackedVmObject {
 impl FileBackedVmObject {
     pub fn create(
         name: String,
-        fd: Fileno,
+        node: VfsNode,
         offset: usize,
         addr: VirtAddr,
         size: usize,
         flags: PageTableFlags,
     ) -> Result<Self, AllocationError> {
         Ok(Self {
-            fd,
+            node,
             offset,
             vm_object: MemoryBackedVmObject::create(
                 name,
@@ -60,12 +59,11 @@ impl VmObject for FileBackedVmObject {
         self.vm_object.allocation_strategy()
     }
 
-    fn underlying_fd(&self) -> Option<Fileno> {
-        Some(self.fd)
+    fn underlying_node(&self) -> Option<&VfsNode> {
+        Some(&self.node)
     }
 
     fn prepare_for_access(&self, offset: usize) -> Result<(), AllocationError> {
-        let fd = self.fd;
         let file_offset = self.offset + offset;
         // make sure that the accessed page is already mapped
         self.vm_object
@@ -79,8 +77,8 @@ impl VmObject for FileBackedVmObject {
                 };
                 slice.fill(0);
 
-                process::current()
-                    .read_at(fd, slice, file_offset)
+                vfs()
+                    .read(&self.node, slice, file_offset)
                     .map_err(|_| AllocationError::IoError)?;
                 Ok(())
             })

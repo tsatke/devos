@@ -26,7 +26,7 @@ fn next_handle() -> VfsHandle {
 
 pub struct VirtualExt2Fs<T> {
     fsid: FsId,
-    handles: BTreeMap<VfsHandle, Ext2Inode<T>>,
+    handles: BTreeMap<VfsHandle, Arc<RwLock<Ext2Inode<T>>>>, // there might be multiple VfsHandles pointing to the same inode
     inner: Arc<RwLock<ext2::Ext2Fs<T>>>,
 }
 
@@ -42,12 +42,8 @@ where
         }
     }
 
-    fn resolve_handle(&self, handle: VfsHandle) -> Result<&Ext2Inode<T>> {
+    fn resolve_handle(&self, handle: VfsHandle) -> Result<&Arc<RwLock<Ext2Inode<T>>>> {
         self.handles.get(&handle).ok_or(VfsError::HandleClosed)
-    }
-
-    fn resolve_handle_mut(&mut self, handle: VfsHandle) -> Result<&mut Ext2Inode<T>> {
-        self.handles.get_mut(&handle).ok_or(VfsError::HandleClosed)
     }
 
     fn find_inode(&self, path: &Path) -> Result<(ext2::InodeAddress, ext2::Inode)> {
@@ -109,11 +105,19 @@ where
     }
 
     fn open(&mut self, path: &Path) -> Result<VfsHandle> {
+        // FIXME: instead of returning a new handle, check whether we already have that inode open behind another handle
         let (found_num, found) = self.find_inode(path)?;
         let handle = next_handle();
         let inode = Ext2Inode::new(self.inner.clone(), found_num, found);
-        self.handles.insert(handle, inode);
+        self.handles.insert(handle, Arc::new(RwLock::new(inode)));
         Ok(handle)
+    }
+
+    fn duplicate(&mut self, handle: VfsHandle) -> Result<VfsHandle> {
+        let found = self.resolve_handle(handle)?;
+        let new_handle = next_handle();
+        self.handles.insert(new_handle, found.clone());
+        Ok(new_handle)
     }
 
     fn close(&mut self, handle: VfsHandle) -> Result<()> {
@@ -140,11 +144,11 @@ where
     }
 
     fn read(&mut self, handle: VfsHandle, buf: &mut [u8], offset: usize) -> Result<usize> {
-        self.resolve_handle(handle)?.read(buf, offset)
+        self.resolve_handle(handle)?.read().read(buf, offset)
     }
 
     fn write(&mut self, handle: VfsHandle, buf: &[u8], offset: usize) -> Result<usize> {
-        self.resolve_handle_mut(handle)?.write(buf, offset)
+        self.resolve_handle(handle)?.write().write(buf, offset)
     }
 
     fn truncate(&mut self, _handle: VfsHandle, _size: usize) -> Result<()> {
@@ -152,7 +156,7 @@ where
     }
 
     fn stat(&mut self, handle: VfsHandle) -> Result<Stat> {
-        self.resolve_handle(handle)?.stat()
+        self.resolve_handle(handle)?.read().stat()
     }
 
     fn create(&mut self, _path: &Path, _ftype: FileType) -> Result<()> {
