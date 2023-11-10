@@ -204,7 +204,7 @@ pub fn sys_mmap(
     let strategy = AllocationStrategy::AllocateOnAccess;
     let vmo: Box<dyn VmObject> = if map_flags.contains(MapFlags::Anon) {
         let vmo = MemoryBackedVmObject::create(
-            format!("mmap {:#p} (len={})", addr, size),
+            format!("mmap anon (len={})", size),
             addr,
             size,
             strategy,
@@ -222,7 +222,7 @@ pub fn sys_mmap(
             .node()
             .duplicate()?;
         let vmo = FileBackedVmObject::create(
-            format!("mmap {:#p} (len={}, fd={})", addr, size, fd),
+            format!("mmap '{}' (offset={}, len={})", node.path(), offset, size,),
             node,
             offset,
             addr,

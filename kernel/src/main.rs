@@ -53,6 +53,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         serial_println!("before write: {:?}", slice);
         slice[4] = 1;
         serial_println!("after write: {:?}", slice);
+        process_tree().read().dump_current();
         sys_munmap(addr).unwrap();
     }
 
@@ -66,6 +67,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             "file mmap slice: {:?}",
             core::str::from_utf8(slice).unwrap()
         );
+        process_tree().read().dump_current();
+        sys_munmap(addr).unwrap();
     }
 
     let p1 = process::create(process::current(), "other_process");
@@ -76,8 +79,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     process::create(p2.clone(), "another_process3");
     process::create(p2.clone(), "another_process4");
     process_tree().read().dump();
-
-    sys_munmap(addr).unwrap();
 
     // sys_execve("/bin/hello_world", &[], &[]).unwrap();
 

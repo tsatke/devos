@@ -5,7 +5,7 @@ use spin::RwLock;
 use x86_64::structures::paging::PageTableFlags;
 
 use crate::process::task::TaskId;
-use crate::process::{Process, ProcessId};
+use crate::process::{current, Process, ProcessId};
 use crate::serial_println;
 
 static PROCESS_TREE: RwLock<ProcessTree> = RwLock::new(ProcessTree::new());
@@ -88,11 +88,27 @@ impl ProcessTree {
 
     pub fn dump(&self) {
         serial_println!("=== start process tree dump");
-        self.dump_process(&self.root_pid.expect("no root process set"), 4);
+        self.dump_process_and_children(&self.root_pid.expect("no root process set"), 4);
         serial_println!("=== end process tree dump");
     }
 
-    fn dump_process(&self, process_id: &ProcessId, indent: usize) {
+    pub fn dump_current(&self) {
+        serial_println!("=== start process dump");
+        self.dump_process_no_children(current().process_id(), 4);
+        serial_println!("=== end process dump");
+    }
+
+    fn dump_process_and_children(&self, process_id: &ProcessId, indent: usize) {
+        self.dump_process_no_children(process_id, indent);
+
+        if let Some(children) = self.children.get(process_id) {
+            for child in children {
+                self.dump_process_and_children(child, indent + 4);
+            }
+        }
+    }
+
+    fn dump_process_no_children(&self, process_id: &ProcessId, indent: usize) {
         let process = self.processes_by_id.get(process_id).unwrap();
         let process_name = process.name();
         let process_id = process.process_id();
@@ -139,11 +155,6 @@ impl ProcessTree {
                 indent = indent + 4
             )
         });
-        if let Some(children) = self.children.get(process_id) {
-            for child in children {
-                self.dump_process(child, indent + 4);
-            }
-        }
     }
 }
 
