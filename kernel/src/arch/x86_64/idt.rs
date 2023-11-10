@@ -4,6 +4,7 @@ use core::mem::transmute;
 use conquer_once::spin::Lazy;
 use num_enum::IntoPrimitive;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::structures::paging::PageTableFlags;
 use x86_64::PrivilegeLevel;
 
 use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
@@ -204,6 +205,13 @@ extern "x86-interrupt" fn page_fault_handler(
 
     let accessed_address = Cr2::read();
 
+    let do_panic = || -> ! {
+        panic!(
+            "EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\n{:#?}",
+            accessed_address, error_code, stack_frame
+        );
+    };
+
     let current = process::current();
     let vm_objects = current.vm_objects().read();
     let vm_object = {
@@ -213,13 +221,16 @@ extern "x86-interrupt" fn page_fault_handler(
     };
 
     if vm_object.is_none() {
-        panic!(
-            "EXCEPTION: PAGE FAULT\nAccessed Address: {:?}\nError Code: {:?}\n{:#?}",
-            accessed_address, error_code, stack_frame
-        );
+        do_panic();
     }
 
     let vm_object = vm_object.unwrap();
+    if error_code.contains(PageFaultErrorCode::CAUSED_BY_WRITE)
+        && !vm_object.flags().contains(PageTableFlags::WRITABLE)
+    {
+        do_panic();
+    }
+
     let offset = (accessed_address.as_u64() - vm_object.addr().as_u64()) as usize;
     vm_object.prepare_for_access(offset).unwrap();
 

@@ -116,7 +116,7 @@ impl ProcessTree {
         );
         process.vm_objects().read().iter().for_each(|vm_object| {
             serial_println!(
-                "{:indent$}*vm_object: {:#p}-{:#p} {:#x} {} {}",
+                "{:indent$}*vm_object: {:#p}-{:#p} {:#016x} {} {}",
                 "",
                 vm_object.addr(),
                 vm_object.addr() + vm_object.size(),

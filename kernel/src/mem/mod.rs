@@ -122,3 +122,13 @@ macro_rules! map_page {
         unsafe { address_space.map_to(page, $frame, $flags).unwrap().flush() }
     }};
 }
+
+#[macro_export]
+macro_rules! unmap_page {
+    ($page:expr, $size:ident) => {{
+        let page: Page<$size> = $page;
+        let process = $crate::process::current();
+        let mut address_space = process.address_space().write();
+        address_space.unmap(page).unwrap().1.flush()
+    }};
+}

@@ -10,7 +10,7 @@ use x86_64::VirtAddr;
 
 use crate::mem::physical::PhysicalMemoryManager;
 use crate::mem::virt::{AllocationError, AllocationStrategy, PmObject, VmObject};
-use crate::{map_page, process};
+use crate::{map_page, process, unmap_page};
 
 #[derive(Constructor, Debug)]
 pub struct MemoryBackedVmObject {
@@ -28,6 +28,7 @@ impl MemoryBackedVmObject {
         addr: VirtAddr,
         size: usize,
         allocation_strategy: AllocationStrategy,
+        flags: PageTableFlags,
     ) -> Result<Self, AllocationError> {
         let pm_object = PmObject::create(size, allocation_strategy)?;
         let mut res = Self::new(
@@ -36,7 +37,7 @@ impl MemoryBackedVmObject {
             allocation_strategy,
             addr,
             size,
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+            flags,
         );
 
         if allocation_strategy == AllocationStrategy::AllocateNow {
@@ -94,12 +95,18 @@ impl VmObject for MemoryBackedVmObject {
         let page = Page::<Size4KiB>::containing_address(self.addr + offset);
         let frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
         self.underlying.write().add_phys_frame(frame);
-        map_page!(
-            page,
-            frame,
-            Size4KiB,
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE
-        );
+
+        if self.flags.contains(PageTableFlags::WRITABLE) {
+            map_page!(page, frame, Size4KiB, self.flags);
+        } else {
+            map_page!(
+                page,
+                frame,
+                Size4KiB,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE
+            );
+        }
+
         unsafe {
             // safety: we just mapped the page, so we can safely zero it
             slice::from_raw_parts_mut(
@@ -108,6 +115,13 @@ impl VmObject for MemoryBackedVmObject {
             )
             .fill(0);
         }
+
+        if !self.flags.contains(PageTableFlags::WRITABLE) {
+            // remap the page with the actual flags
+            unmap_page!(page, Size4KiB);
+            map_page!(page, frame, Size4KiB, self.flags);
+        }
+
         Ok(())
     }
 }

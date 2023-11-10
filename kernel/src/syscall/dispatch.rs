@@ -1,9 +1,13 @@
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 
+use x86_64::VirtAddr;
+
 use kernel_api::syscall::{Errno, Syscall};
 
 use crate::process::fd::Fileno;
-use crate::syscall::{sys_access, sys_close, sys_exit, sys_read, sys_write};
+use crate::syscall::{
+    sys_access, sys_close, sys_exit, sys_mmap, sys_read, sys_write, MapFlags, Prot,
+};
 use crate::syscall::{sys_open, AMode};
 
 /// Dispatches syscalls. Inputs are the raw register values, the return value
@@ -14,9 +18,9 @@ pub fn dispatch_syscall(
     arg1: usize,
     arg2: usize,
     arg3: usize,
-    _arg4: usize,
-    _arg5: usize,
-    _arg6: usize,
+    arg4: usize,
+    arg5: usize,
+    arg6: usize,
 ) -> isize {
     let syscall = match TryInto::<Syscall>::try_into(syscall) {
         Ok(v) => v,
@@ -28,6 +32,7 @@ pub fn dispatch_syscall(
             Syscall::Access => dispatch_sys_access(arg1, arg2),
             Syscall::Close => dispatch_sys_close(arg1),
             Syscall::Exit => dispatch_sys_exit(arg1),
+            Syscall::Mmap => dispatch_sys_mmap(arg1, arg2, arg3, arg4, arg5, arg6),
             Syscall::Open => dispatch_sys_open(arg1, arg2, arg3),
             Syscall::Read => dispatch_sys_read(arg1, arg2, arg3),
             Syscall::Write => dispatch_sys_write(arg1, arg2, arg3),
@@ -53,6 +58,29 @@ unsafe fn dispatch_sys_access(arg1: usize, arg2: usize) -> Errno {
         Ok(_v) => todo!("convert Stat into Errno"), // TODO: probably copy to process address space and create pointer
         Err(e) => e,
     }
+}
+
+fn dispatch_sys_mmap(
+    arg1: usize,
+    arg2: usize,
+    arg3: usize,
+    arg4: usize,
+    arg5: usize,
+    arg6: usize,
+) -> Errno {
+    let addr = match VirtAddr::try_new(arg1 as u64) {
+        Ok(v) => v,
+        Err(_) => return Errno::EINVAL,
+    };
+    let len = arg2;
+    let prot = Prot::from_bits_truncate(arg3 as u32);
+    let flags = MapFlags::from_bits_truncate(arg4 as u32);
+    let fd = Fileno::new(arg5);
+    let offset = arg6;
+
+    sys_mmap(addr, len, prot, flags, fd, offset)
+        .map(|addr| addr.as_u64() as usize)
+        .into()
 }
 
 unsafe fn dispatch_sys_read(arg1: usize, arg2: usize, arg3: usize) -> Errno {

@@ -9,6 +9,7 @@ use alloc::string::ToString;
 use core::panic::PanicInfo;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
 use kernel::mem::virt::AllocationStrategy;
@@ -36,9 +37,14 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 fn test_memory_backed(allocation_strategy: AllocationStrategy) {
     let addr = VirtAddr::new(0x1111_1111_0000); // this address must be reusable since we drop the VmObject at the end of the function
-    let vm_object =
-        MemoryBackedVmObject::create("test".to_string(), addr, 8192, allocation_strategy)
-            .expect("unable to create VmObject");
+    let vm_object = MemoryBackedVmObject::create(
+        "test".to_string(),
+        addr,
+        8192,
+        allocation_strategy,
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+    )
+    .expect("unable to create VmObject");
 
     // for the page fault handler to correctly handle page faults with the vmobjects, we need
     // to tell the project about the vmobject

@@ -5,14 +5,16 @@
 extern crate alloc;
 
 use core::panic::PanicInfo;
-use core::slice::from_raw_parts;
+use core::slice::{from_raw_parts, from_raw_parts_mut};
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use x86_64::VirtAddr;
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
+use kernel::process::fd::Fileno;
 use kernel::process::process_tree;
-use kernel::syscall::{sys_close, sys_open};
+use kernel::syscall::{sys_mmap, MapFlags, Prot};
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use vga::Color;
 
@@ -35,7 +37,32 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
 
-    let fd = sys_open("/bin/hello_world", 0, 0).unwrap();
+    {
+        let addr = VirtAddr::new(0x1111_1111_0000);
+        let len = 13;
+        sys_mmap(
+            addr,
+            len,
+            Prot::Read | Prot::Write,
+            MapFlags::Private | MapFlags::Anon,
+            Fileno::new(0),
+            0,
+        )
+        .expect("mmap failed");
+        let slice = unsafe { from_raw_parts_mut(addr.as_mut_ptr::<u8>(), len) };
+        serial_println!("before write: {:?}", slice);
+        slice[4] = 1;
+        serial_println!("after write: {:?}", slice);
+    }
+
+    // {
+    //     let fd = sys_open("/var/data/hello.txt", 0, 0).unwrap();
+    //     let addr = VirtAddr::new(0x1111_1111_0000);
+    //     let len = 13;
+    //     sys_mmap(addr, len, Prot::Read, MapFlags::Private, fd, 0).expect("mmap failed");
+    //     let slice = unsafe { from_raw_parts(addr.as_ptr::<u8>(), len) };
+    //     serial_println!("file mmap slice: {:?}", slice);
+    // }
 
     let p1 = process::create(process::current(), "other_process");
     process::create(p1.clone(), "other_process2");
@@ -45,8 +72,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     process::create(p2.clone(), "another_process3");
     process::create(p2.clone(), "another_process4");
     process_tree().read().dump();
-
-    sys_close(fd).unwrap();
 
     // sys_execve("/bin/hello_world", &[], &[]).unwrap();
 

@@ -1,9 +1,12 @@
+use alloc::boxed::Box;
 use alloc::string::ToString;
-use alloc::vec;
+use alloc::{format, vec};
 use core::intrinsics::transmute;
 
 use bitflags::bitflags;
 use elfloader::ElfBinary;
+use x86_64::structures::paging::PageTableFlags;
+use x86_64::VirtAddr;
 
 pub use dispatch::*;
 pub use error::*;
@@ -11,6 +14,7 @@ use kernel_api::syscall::Errno;
 
 use crate::io::path::Path;
 use crate::io::vfs::{vfs, Stat};
+use crate::mem::virt::{AllocationStrategy, MemoryBackedVmObject};
 use crate::process::elf::ElfLoader;
 use crate::process::fd::Fileno;
 use crate::{process, serial_println};
@@ -131,6 +135,73 @@ pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Resul
 pub fn sys_exit(status: usize) -> ! {
     serial_println!("sys_exit({})", status);
     process::exit();
+}
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+    pub struct Prot : u32 {
+        const None = 0x0;
+        const Read = 0x1;
+        const Write = 0x2;
+        const Exec = 0x4;
+    }
+}
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+    pub struct MapFlags : u32 {
+        const Shared = 0x1;
+        const Private = 0x2;
+        const Fixed = 0x4;
+        const Anon = 0x8;
+    }
+}
+
+pub fn sys_mmap(
+    addr: VirtAddr,
+    len: usize,
+    prot: Prot,
+    map_flags: MapFlags,
+    fd: Fileno,
+    offset: usize,
+) -> Result<VirtAddr> {
+    serial_println!(
+        "sys_mmap({:#x}, {}, {:?}, {:?}, {:?}, {})",
+        addr,
+        len,
+        prot,
+        map_flags,
+        fd,
+        offset
+    );
+
+    let mut flags = PageTableFlags::empty();
+    if prot.contains(Prot::Read) {
+        flags |= PageTableFlags::PRESENT;
+    }
+    if prot.contains(Prot::Write) {
+        flags |= PageTableFlags::WRITABLE;
+    }
+    if !prot.contains(Prot::Exec) {
+        flags |= PageTableFlags::NO_EXECUTE;
+    }
+
+    let strategy = AllocationStrategy::AllocateOnAccess;
+    let vmo = if map_flags.contains(MapFlags::Anon) {
+        MemoryBackedVmObject::create(
+            format!("mmap {:#p} (len={})", addr, len),
+            addr,
+            len,
+            strategy,
+            flags,
+        )
+        .map_err(|_| Errno::ENOMEM)?
+    } else {
+        todo!("mmap from file")
+    };
+    process::current().vm_objects().write().push(Box::new(vmo));
+
+    Ok(addr)
 }
 
 pub fn sys_mount(
