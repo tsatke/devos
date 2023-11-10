@@ -102,14 +102,16 @@ impl ProcessTree {
             .get(process_id)
             .map_or(0, |children| children.len());
         let vm_objects = process.vm_objects().read().len();
+        let open_fds = process.open_fds().read().len();
         serial_println!(
-            "{:indent$}{} (pid={}, tasks={}, children={}, vm_objects={})",
+            "{:indent$}{} (pid={}, tasks={}, children={}, vm_objects={}, open_fds={})",
             "",
             process_name,
             process_id,
             tasks,
             children,
             vm_objects,
+            open_fds,
             indent = indent
         );
         process.vm_objects().read().iter().for_each(|vm_object| {
@@ -121,6 +123,15 @@ impl ProcessTree {
                 vm_object.size(),
                 page_table_flags_to_string(vm_object.flags()),
                 vm_object.name(),
+                indent = indent + 4
+            )
+        });
+        process.open_fds().read().iter().for_each(|(fileno, fd)| {
+            serial_println!(
+                "{:indent$}*open_fd: {} (fileno={})",
+                "",
+                fd.node().path(),
+                fileno,
                 indent = indent + 4
             )
         });

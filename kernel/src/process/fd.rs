@@ -59,6 +59,10 @@ impl FileDescriptor {
         self.node
     }
 
+    pub fn node(&self) -> &VfsNode {
+        &self.node
+    }
+
     pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, VfsError> {
         match vfs().read(&self.node, buf, self.offset) {
             Ok(v) => {

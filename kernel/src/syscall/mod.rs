@@ -95,9 +95,10 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Result<Stat> {
     vfs().stat_path(path).map_err(Into::into)
 }
 
-pub fn sys_close(fd: usize) -> Result<()> {
+pub fn sys_close(fd: Fileno) -> Result<()> {
     serial_println!("sys_close({})", fd);
-    Err(Errno::ENOSYS)
+    let process = process::current();
+    process.close_fd(fd).map_err(Into::into)
 }
 
 pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Result<!> {

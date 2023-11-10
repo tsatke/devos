@@ -12,6 +12,7 @@ use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
 use kernel::process::process_tree;
+use kernel::syscall::{sys_close, sys_open};
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use vga::Color;
 
@@ -34,6 +35,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
 
+    let fd = sys_open("/bin/hello_world", 0, 0).unwrap();
+
     let p1 = process::create(process::current(), "other_process");
     process::create(p1.clone(), "other_process2");
     process::create(p1.clone(), "other_process3");
@@ -42,6 +45,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     process::create(p2.clone(), "another_process3");
     process::create(p2.clone(), "another_process4");
     process_tree().read().dump();
+
+    sys_close(fd).unwrap();
 
     // sys_execve("/bin/hello_world", &[], &[]).unwrap();
 

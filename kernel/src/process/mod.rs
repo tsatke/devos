@@ -124,6 +124,10 @@ impl Process {
         &self.vm_objects
     }
 
+    pub fn open_fds(&self) -> &RwLock<BTreeMap<Fileno, FileDescriptor>> {
+        &self.open_fds
+    }
+
     pub fn open_file<P>(&self, path: P) -> Result<Fileno, VfsError>
     where
         P: AsRef<Path>,

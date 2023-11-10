@@ -2,6 +2,7 @@ use core::slice::{from_raw_parts, from_raw_parts_mut};
 
 use kernel_api::syscall::{Errno, Syscall};
 
+use crate::process::fd::Fileno;
 use crate::syscall::{sys_access, sys_close, sys_exit, sys_read, sys_write};
 use crate::syscall::{sys_open, AMode};
 
@@ -72,7 +73,7 @@ unsafe fn dispatch_sys_open(arg1: usize, arg2: usize, arg3: usize) -> Errno {
 }
 
 fn dispatch_sys_close(arg1: usize) -> Errno {
-    sys_close(arg1).into()
+    sys_close(Fileno::new(arg1)).into()
 }
 
 fn dispatch_sys_exit(arg1: usize) -> ! {
