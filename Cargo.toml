@@ -16,7 +16,6 @@ test_kernel_vmobject = { path = "test_kernels/test_kernel_vmobject", artifact = 
 clap = { version = "4", features = ["derive"] }
 # used for UEFI booting in QEMU
 ovmf-prebuilt = "0.1.0-alpha.1"
-proc-macro2 = "1.0.66" # override 1.0.56 which doesn't work on nightly anymore
 
 [workspace]
 members = [

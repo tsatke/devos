@@ -403,7 +403,6 @@ dependencies = [
  "hello_world",
  "kernel",
  "ovmf-prebuilt",
- "proc-macro2",
  "test_kernel_multitasking",
  "test_kernel_unittests",
  "test_kernel_vfs",
