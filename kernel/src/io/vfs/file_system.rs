@@ -93,6 +93,7 @@ pub trait FileSystem: Send + Sync {
     fn remove(&mut self, path: &Path) -> Result<()>;
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FileType {
     RegularFile,

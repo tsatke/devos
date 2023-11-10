@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -11,11 +12,15 @@ use spin::RwLock;
 pub use scheduler::*;
 pub use tree::*;
 
+use crate::io::path::Path;
+use crate::io::vfs::{vfs, VfsError};
 use crate::mem::virt::VmObject;
 use crate::mem::AddressSpace;
+use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::task::{Ready, Running, Task};
 
 pub mod elf;
+pub mod fd;
 mod scheduler;
 mod task;
 mod tree;
@@ -82,6 +87,8 @@ pub struct Process {
     name: String,
     address_space: Arc<RwLock<AddressSpace>>,
     vm_objects: Arc<RwLock<Vec<Box<dyn VmObject>>>>,
+    next_fd: FilenoAllocator,
+    open_fds: Arc<RwLock<BTreeMap<Fileno, FileDescriptor>>>,
 }
 
 impl Process {
@@ -92,6 +99,8 @@ impl Process {
             name: name.into(),
             address_space: Arc::new(RwLock::new(address_space)),
             vm_objects: Arc::new(RwLock::new(Vec::new())),
+            next_fd: FilenoAllocator::new(),
+            open_fds: Arc::new(RwLock::new(BTreeMap::new())),
         }
     }
 
@@ -113,5 +122,43 @@ impl Process {
 
     pub fn vm_objects(&self) -> &RwLock<Vec<Box<dyn VmObject>>> {
         &self.vm_objects
+    }
+
+    pub fn open_file<P>(&self, path: P) -> Result<Fileno, VfsError>
+    where
+        P: AsRef<Path>,
+    {
+        let path = path.as_ref();
+        let node = vfs().open(path)?;
+        let fd = self.next_fd.next();
+        self.open_fds.write().insert(fd, FileDescriptor::new(node));
+        Ok(fd)
+    }
+
+    pub fn read(&self, fileno: Fileno, buf: &mut [u8]) -> Result<usize, VfsError> {
+        let mut guard = self.open_fds.write();
+        let fd = match guard.get_mut(&fileno) {
+            Some(fd) => fd,
+            None => return Err(VfsError::HandleClosed),
+        };
+        fd.read(buf)
+    }
+
+    pub fn write(&self, fileno: Fileno, buf: &[u8]) -> Result<usize, VfsError> {
+        let mut guard = self.open_fds.write();
+        let fd = match guard.get_mut(&fileno) {
+            Some(fd) => fd,
+            None => return Err(VfsError::HandleClosed),
+        };
+        fd.write(buf)
+    }
+
+    pub fn close_fd(&self, fd: Fileno) -> Result<(), VfsError> {
+        let fd = match self.open_fds.write().remove(&fd) {
+            Some(fd) => fd,
+            None => return Err(VfsError::HandleClosed),
+        };
+        let node = fd.into_node();
+        vfs().close(node)
     }
 }

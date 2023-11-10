@@ -16,6 +16,8 @@ pub struct VfsNode {
     fs: Arc<RwLock<dyn FileSystem>>,
 }
 
+impl !Clone for VfsNode {} // can't clone because of the drop impl
+
 impl Debug for VfsNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("VfsNode")

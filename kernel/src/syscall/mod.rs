@@ -10,8 +10,9 @@ pub use error::*;
 use kernel_api::syscall::Errno;
 
 use crate::io::path::Path;
-use crate::io::vfs::{vfs, Stat, VfsError};
+use crate::io::vfs::{vfs, Stat};
 use crate::process::elf::ElfLoader;
+use crate::process::fd::Fileno;
 use crate::{process, serial_println};
 
 mod dispatch;
@@ -81,18 +82,6 @@ bitflags! {
     }
 }
 
-// TODO: OpenFlags and Mode
-pub fn sys_open(path: impl AsRef<Path>, flags: usize, mode: usize) -> Result<usize> {
-    serial_println!(
-        "sys_open({:#p} ({}), {}, {})",
-        path.as_ref().as_ptr(),
-        path.as_ref(),
-        flags,
-        mode
-    );
-    Ok(0)
-}
-
 pub enum FsType {
     Ext2,
 }
@@ -103,16 +92,7 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Result<Stat> {
         return Err(Errno::ENOSYS);
     }
 
-    match vfs().stat_path(path) {
-        Ok(v) => Ok(v),
-        Err(e) => Err(match e {
-            VfsError::NoSuchFileSystem => Errno::ENXIO,
-            VfsError::NoSuchFile => Errno::ENOENT,
-            VfsError::Unsupported => Errno::ENOSYS,
-            VfsError::HandleClosed => Errno::EBADF,
-            VfsError::ReadError => Errno::EIO,
-        }),
-    }
+    vfs().stat_path(path).map_err(Into::into)
 }
 
 pub fn sys_close(fd: usize) -> Result<()> {
@@ -159,6 +139,19 @@ pub fn sys_mount(
     _mountflags: MountFlags,
 ) -> Result<()> {
     Err(Errno::ENOSYS)
+}
+
+// TODO: OpenFlags and Mode
+pub fn sys_open(path: impl AsRef<Path>, flags: usize, mode: usize) -> Result<Fileno> {
+    serial_println!(
+        "sys_open({:#p} ({}), {}, {})",
+        path.as_ref().as_ptr(),
+        path.as_ref(),
+        flags,
+        mode
+    );
+    let process = process::current();
+    process.open_file(&path).map_err(Into::into)
 }
 
 pub fn sys_read(fd: usize, buf: &mut [u8]) -> Result<usize> {

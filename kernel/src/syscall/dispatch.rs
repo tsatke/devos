@@ -2,9 +2,8 @@ use core::slice::{from_raw_parts, from_raw_parts_mut};
 
 use kernel_api::syscall::{Errno, Syscall};
 
-use crate::syscall;
-use crate::syscall::AMode;
 use crate::syscall::{sys_access, sys_close, sys_exit, sys_read, sys_write};
+use crate::syscall::{sys_open, AMode};
 
 /// Dispatches syscalls. Inputs are the raw register values, the return value
 /// is the result of the syscall that is identified by the [`syscall`] argument.
@@ -67,7 +66,9 @@ unsafe fn dispatch_sys_write(arg1: usize, arg2: usize, arg3: usize) -> Errno {
 
 unsafe fn dispatch_sys_open(arg1: usize, arg2: usize, arg3: usize) -> Errno {
     let path = unsafe { *(arg1 as *const &str) };
-    syscall::sys_open(path, arg2, arg3).into()
+    sys_open(path, arg2, arg3)
+        .map(|fileno| fileno.as_usize())
+        .into()
 }
 
 fn dispatch_sys_close(arg1: usize) -> Errno {

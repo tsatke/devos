@@ -1,3 +1,5 @@
+use kernel_api::syscall::Errno;
+
 pub(crate) type Result<T> = core::result::Result<T, VfsError>;
 
 #[derive(Debug)]
@@ -14,4 +16,16 @@ pub enum VfsError {
     /// a function from the vfs.
     HandleClosed,
     ReadError,
+}
+
+impl From<VfsError> for Errno {
+    fn from(value: VfsError) -> Self {
+        match value {
+            VfsError::NoSuchFileSystem => Errno::ENXIO,
+            VfsError::NoSuchFile => Errno::ENOENT,
+            VfsError::Unsupported => Errno::ENOSYS,
+            VfsError::HandleClosed => Errno::EBADF,
+            VfsError::ReadError => Errno::EIO,
+        }
+    }
 }

@@ -69,6 +69,7 @@ impl Vfs {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn unmount<P>(&self, mount_point: P) -> Result<()>
     where
         P: AsRef<Path>,
@@ -78,6 +79,7 @@ impl Vfs {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn exists<P>(&self, path: P) -> Result<bool>
     where
         P: AsRef<Path>,
@@ -104,6 +106,7 @@ impl Vfs {
         self.internal_close(&node)
     }
 
+    #[allow(dead_code)]
     pub fn read_dir<P>(&self, path: P) -> Result<impl Iterator<Item = DirEntry>>
     where
         P: AsRef<Path>,
@@ -132,6 +135,7 @@ impl Vfs {
         guard.write(node.handle(), buf, offset)
     }
 
+    #[allow(dead_code)]
     pub fn truncate(&self, node: &VfsNode, size: usize) -> Result<()> {
         let mut guard = node.fs().write();
         guard.truncate(node.handle(), size)
@@ -152,6 +156,7 @@ impl Vfs {
         guard.stat_path(path.as_path())
     }
 
+    #[allow(dead_code)]
     pub fn create<P>(&self, path: P, ftype: FileType) -> Result<()>
     where
         P: AsRef<Path>,
@@ -162,6 +167,7 @@ impl Vfs {
         guard.create(path.as_path(), ftype)
     }
 
+    #[allow(dead_code)]
     pub fn remove<P>(&self, path: P) -> Result<()>
     where
         P: AsRef<Path>,
