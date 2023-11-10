@@ -1,11 +1,13 @@
 use core::arch::asm;
-use kernel_api::syscall::Syscall;
-
-mod io;
-mod unistd;
 
 pub use io::*;
+use kernel_api::syscall::Syscall;
+pub use mman::*;
 pub use unistd::*;
+
+mod io;
+mod mman;
+mod unistd;
 
 /// # Safety
 /// Depending on the syscall, the caller must ensure that all arguments are valid.

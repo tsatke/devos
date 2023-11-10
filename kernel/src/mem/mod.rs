@@ -24,7 +24,7 @@ mod size;
 pub mod virt;
 
 const HEAP_START: usize = 0x4444_4444_0000;
-const HEAP_SIZE: Size = Size::MiB(2);
+const HEAP_SIZE: Size = Size::MiB(8);
 
 pub fn init(boot_info: &'static BootInfo) {
     physical::init_stage1(boot_info);
