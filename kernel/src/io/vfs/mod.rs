@@ -7,8 +7,7 @@ use core::sync::atomic::Ordering::Relaxed;
 
 use spin::RwLock;
 
-use error::Result;
-use error::VfsError;
+pub use error::*;
 pub use file_system::*;
 pub use vfs_node::*;
 

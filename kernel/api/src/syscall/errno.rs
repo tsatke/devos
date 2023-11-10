@@ -1,4 +1,4 @@
-use core::num::TryFromIntError;
+use derive_more::Deref;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct PositiveOrZeroIsize(isize);
@@ -34,336 +34,245 @@ impl NegativeIsize {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Errno {
-    Ok(PositiveOrZeroIsize),
-    Err(NegativeIsize),
-}
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Deref)]
+pub struct Errno(isize);
 
-impl<T> From<Result<T, Errno>> for Errno {
-    fn from(result: Result<T, Errno>) -> Self {
-        match result {
-            Ok(_) => OK,
-            Err(e) => e,
-        }
+impl From<()> for Errno {
+    fn from(_: ()) -> Self {
+        Self::new(0)
     }
 }
 
-impl Errno {
-    const fn from_isize(value: isize) -> Self {
-        if value >= 0 {
-            Self::Ok(PositiveOrZeroIsize::new(value).unwrap())
-        } else {
-            Self::Err(NegativeIsize::new(value).unwrap())
+impl<T: Into<Errno>, E: Into<Errno>> From<Result<T, E>> for Errno {
+    fn from(value: Result<T, E>) -> Self {
+        match value {
+            Ok(v) => v.into(),
+            Err(e) => e.into(),
         }
-    }
-
-    pub const fn is_err(&self) -> bool {
-        match self {
-            Errno::Ok(_) => false,
-            Errno::Err(_) => true,
-        }
-    }
-
-    pub const fn is_ok(&self) -> bool {
-        match self {
-            Errno::Ok(_) => true,
-            Errno::Err(_) => false,
-        }
-    }
-
-    pub const fn ok(&self) -> Option<&PositiveOrZeroIsize> {
-        match self {
-            Errno::Ok(v) => Some(v),
-            Errno::Err(_) => None,
-        }
-    }
-
-    pub const fn err(&self) -> Option<&NegativeIsize> {
-        match self {
-            Errno::Ok(_) => None,
-            Errno::Err(v) => Some(v),
-        }
-    }
-}
-
-impl TryFrom<usize> for Errno {
-    type Error = TryFromIntError;
-
-    fn try_from(value: usize) -> Result<Self, Self::Error> {
-        let signed = TryFrom::try_from(value)?;
-        Ok(Self::Ok(PositiveOrZeroIsize::new(signed).unwrap()))
     }
 }
 
 impl From<isize> for Errno {
     fn from(value: isize) -> Self {
-        Self::from_isize(value)
+        Self(value)
     }
 }
 
-impl From<Errno> for isize {
-    fn from(value: Errno) -> Self {
-        match value {
-            Errno::Ok(v) => v.get(),
-            Errno::Err(v) => v.get(),
+impl From<usize> for Errno {
+    fn from(value: usize) -> Self {
+        match TryInto::<isize>::try_into(value) {
+            Ok(v) => Self::new(v),
+            Err(_) => Self::EINVAL,
         }
     }
 }
 
-macro_rules! errno {
-    ($($(#[$($attrs:tt)*])* $name:ident = -$rc:expr),*,) => {
-        $(
-            $(#[$($attrs)*])*
-            pub const $name: Errno = Errno::from_isize(-$rc);
-        )*
-
-        impl ::core::fmt::Display for Errno {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                let num: isize = (*self).into();
-                match num {
-                    $(
-                    -$rc => write!(f, stringify!($name)),
-                    )*
-                    x if x < 0 => write!(f, "Unknown({})", num),
-                    _ => write!(f, "{}", num),
-                }
-            }
-        }
-
-        impl ::core::fmt::Debug for Errno {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-                let num: isize = (*self).into();
-                match num {
-                    $(
-                    -$rc => write!(f, "Err({})", stringify!($name)),
-                    )*
-                    x if x < 0 => write!(f, "Err({})", num),
-                    _ => write!(f, "Ok({})", num),
-                }
-            }
-        }
-    };
-}
-
-pub const OK: Errno = Errno::from_isize(0);
-
-errno! {
+impl Errno {
     /// Operation not permitted
     ///
     /// An attempt was made to perform an operation that the caller does not have the required permissions to perform.
-    EPERM = -1,
+    pub const EPERM: Self = Self::new(-1);
 
     /// No such file or directory
     ///
     /// A component of a specified pathname did not exist, or the pathname was an empty string.
-    ENOENT = -2,
+    pub const ENOENT: Self = Self::new(-2);
 
     /// No such process
     ///
     /// A specified process does not exist, or the process group ID does not match any existing process or process group.
-    ESRCH = -3,
+    pub const ESRCH: Self = Self::new(-3);
 
     /// Interrupted system call
     ///
     /// A system call was interrupted by a signal before it could complete.
-    EINTR = -4,
+    pub const EINTR: Self = Self::new(-4);
 
     /// Input/output error
     ///
     /// An error occurred while performing an input or output operation on a device or file.
-    EIO = -5,
+    pub const EIO: Self = Self::new(-5);
 
     /// No such device or address
     ///
     /// The specified device or address does not exist or is not accessible.
-    ENXIO = -6,
+    pub const ENXIO: Self = Self::new(-6);
 
     /// Argument list too long
     ///
     /// The number of arguments or the total length of the arguments for a command or system call exceeded the maximum allowed size.
-    E2BIG = -7,
+    pub const E2BIG: Self = Self::new(-7);
 
     /// Exec format error
     ///
     /// An executable file has a format error or is not suitable for execution on the current system.
-    ENOEXEC = -8,
+    pub const ENOEXEC: Self = Self::new(-8);
 
     /// Bad file descriptor
     ///
     /// The specified file descriptor is invalid or not open for the requested operation.
-    EBADF = -9,
+    pub const EBADF: Self = Self::new(-9);
 
     /// No child processes
     ///
     /// A wait or similar function was called, but there are no child processes to wait for.
-    ECHILD = -10,
+    pub const ECHILD: Self = Self::new(-10);
 
     /// Resource temporarily unavailable (also EAGAIN)
     ///
     /// The requested operation would cause the process to be blocked, and the operation was requested to be non-blocking.
-    EWOULDBLOCK = -11,
+    pub const EWOULDBLOCK: Self = Self::new(-11);
 
     /// Not enough space (out of memory)
     ///
     /// The system does not have enough memory to complete the requested operation.
-    ENOMEM = -12,
+    pub const ENOMEM: Self = Self::new(-12);
 
     /// Permission denied
     ///
     /// The requested operation is not allowed due to insufficient permissions or access rights.
-    EACCES = -13,
+    pub const EACCES: Self = Self::new(-13);
 
     /// Bad address
     ///
     /// The address specified in a system call or operation is invalid or outside the address space of the process.
-    EFAULT = -14,
+    pub const EFAULT: Self = Self::new(-14);
 
     /// Block device required
     ///
     /// The operation requires a block device, but a non-block device was specified.
-    ENOTBLK = -15,
+    pub const ENOTBLK: Self = Self::new(-15);
 
     /// Device or resource busy
     ///
     /// The requested resource or device is in use and cannot be accessed or modified at this time.
-    EBUSY = -16,
+    pub const EBUSY: Self = Self::new(-16);
 
     /// File exists
     ///
     /// The specified pathname already exists, and the operation requires that it does not exist.
-    EEXIST = -17,
+    pub const EEXIST: Self = Self::new(-17);
 
     /// Cross-device link
     ///
     /// An attempt was made to create a hard link between files on different filesystems or devices.
-    EXDEV = -18,
+    pub const EXDEV: Self = Self::new(-18);
 
     /// No such device
     ///
     /// The specified device does not exist or is not recognized by the system.
-    ENODEV = -19,
+    pub const ENODEV: Self = Self::new(-19);
 
     /// Not a directory
     ///
     /// A component of the specified pathname exists, but it is not a directory when a directory was expected.
-    ENOTDIR = -20,
+    pub const ENOTDIR: Self = Self::new(-20);
 
     /// Is a directory
     ///
     /// The specified pathname refers to a directory, but the operation requires a non-directory object.
-    EISDIR = -21,
+    pub const EISDIR: Self = Self::new(-21);
 
     /// Invalid argument
     ///
     /// One or more of the arguments provided to a system call or operation are invalid or out of the acceptable range.
-    EINVAL = -22,
+    pub const EINVAL: Self = Self::new(-22);
 
     /// File table overflow
     ///
     /// The system-wide limit on the total number of open files has been reached.
-    ENFILE = -23,
+    pub const ENFILE: Self = Self::new(-23);
 
     /// Too many open files
     ///
     /// The per-process limit on the number of open file descriptors has been reached.
-    EMFILE = -24,
+    pub const EMFILE: Self = Self::new(-24);
 
     /// Not a typewriter (Inappropriate ioctl for device)
     ///
     /// The specified file descriptor does not refer to a device that supports the requested ioctl operation.
-    ENOTTY = -25,
+    pub const ENOTTY: Self = Self::new(-25);
 
     /// Text file busy
     ///
     /// An attempt was made to execute a pure-procedure program that is currently open for writing, or an operation that would modify an executable image is attempted.
-    ETXTBSY = -26,
+    pub const ETXTBSY: Self = Self::new(-26);
 
     /// File too large
     ///
     /// The size of a file would exceed the maximum file size allowed by the filesystem or the process.
-    EFBIG = -27,
+    pub const EFBIG: Self = Self::new(-27);
 
     /// No space left on device
     ///
     /// There is not enough space left on the device or filesystem to complete the requested operation.
-    ENOSPC = -28,
+    pub const ENOSPC: Self = Self::new(-28);
 
     /// Invalid seek
     ///
     /// An attempt was made to seek to an invalid position within a file or device.
-    ESPIPE = -29,
+    pub const ESPIPE: Self = Self::new(-29);
 
     /// Read-only file system
     ///
     /// An attempt was made to modify a file or directory on a read-only file system.
-    EROFS = -30,
+    pub const EROFS: Self = Self::new(-30);
 
     /// Too many links
     ///
     /// An attempt was made to create a new hard link, but the maximum number of hard links for a file has been reached.
-    EMLINK = -31,
+    pub const EMLINK: Self = Self::new(-31);
 
     /// Broken pipe
     ///
     /// A write operation was attempted on a pipe or socket that is not connected or has been closed by the peer.
-    EPIPE = -32,
+    pub const EPIPE: Self = Self::new(-32);
 
     /// Math argument out of domain of function
     ///
     /// A mathematical function was called with an argument outside its domain.
-    EDOM = -33,
+    pub const EDOM: Self = Self::new(-33);
 
     /// Result too large
     ///
     /// The result of a mathematical operation is too large to be represented within the range of representable values.
-    ERANGE = -34,
+    pub const ERANGE: Self = Self::new(-34);
 
     /// Resource deadlock avoided
     ///
     /// An attempt was made to lock a resource that would have caused a deadlock.
-    EDEADLK = -35,
+    pub const EDEADLK: Self = Self::new(-35);
 
     /// File name too long
     ///
     /// A specified pathname or filename is longer than the maximum allowed length.
-    ENAMETOOLONG = -36,
+    pub const ENAMETOOLONG: Self = Self::new(-36);
 
     /// No locks available
     ///
     /// The system has reached the maximum number of file locks available.
-    ENOLCK = -37,
+    pub const ENOLCK: Self = Self::new(-37);
 
     /// Function not implemented
     ///
     /// The requested function or system call is not implemented or not known by the system.
-    ENOSYS = -38,
+    pub const ENOSYS: Self = Self::new(-38);
 
     /// Directory not empty
     ///
     /// An attempt was made to remove a directory that is not empty.
-    ENOTEMPTY = -39,
+    pub const ENOTEMPTY: Self = Self::new(-39);
 
     /// Too many levels of symbolic links
     ///
     /// The maximum number of symbolic link expansions has been exceeded during the resolution of a pathname.
-    ELOOP = -40,
-}
+    pub const ELOOP: Self = Self::new(-40);
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    pub const fn new(value: isize) -> Self {
+        Self(value)
+    }
 
-    #[test]
-    fn test_errno_from_isize() {
-        for (input, expected) in &[
-            (100, Errno::Ok(PositiveOrZeroIsize::new(100).unwrap())),
-            (1, Errno::Ok(PositiveOrZeroIsize::new(1).unwrap())),
-            (0, Errno::Ok(PositiveOrZeroIsize::new(0).unwrap())),
-            (-1_isize, Errno::Err(NegativeIsize::new(-1).unwrap())),
-            (-100, Errno::Err(NegativeIsize::new(-100).unwrap())),
-        ] {
-            assert_eq!(expected, &Errno::from(*input))
-        }
+    pub fn as_isize(self) -> isize {
+        *self
     }
 }
