@@ -1,14 +1,14 @@
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::Size4KiB;
 
+pub use file_backed::*;
 pub use memory_backed::*;
 pub use pm_object::*;
-pub use vfs_node_backed::*;
 pub use vm_object::*;
 
+mod file_backed;
 mod memory_backed;
 mod pm_object;
-mod vfs_node_backed;
 mod vm_object;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

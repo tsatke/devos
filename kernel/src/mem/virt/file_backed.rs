@@ -10,13 +10,13 @@ use crate::io::vfs::{vfs, VfsNode};
 use crate::mem::virt::{AllocationError, AllocationStrategy, MemoryBackedVmObject, VmObject};
 
 #[derive(Debug)]
-pub struct VfsNodeBackedVmObject {
+pub struct FileBackedVmObject {
     node: VfsNode,
     offset: usize,
     vm_object: MemoryBackedVmObject,
 }
 
-impl VfsNodeBackedVmObject {
+impl FileBackedVmObject {
     pub fn create(
         name: String,
         node: VfsNode,
@@ -49,7 +49,7 @@ impl VfsNodeBackedVmObject {
     }
 }
 
-impl VmObject for VfsNodeBackedVmObject {
+impl VmObject for FileBackedVmObject {
     fn name(&self) -> &str {
         self.vm_object.name()
     }
