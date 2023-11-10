@@ -9,6 +9,7 @@ use crate::io::vfs::devfs::zero::Zero;
 use crate::io::vfs::error::{Result, VfsError};
 use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, Stat, VfsHandle};
 
+mod stdio;
 mod zero;
 
 static HANDLE_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -61,6 +62,9 @@ impl FileSystem for VirtualDevFs {
     fn open(&mut self, path: &Path) -> Result<VfsHandle> {
         let implementation: Box<dyn DevFile> = match path.as_str() {
             "/zero" => Box::new(Zero),
+            "/stdin" => Box::new(stdio::STDIN),
+            "/stdout" => Box::new(stdio::STDOUT),
+            "/stderr" => Box::new(stdio::STDERR),
             _ => return Err(VfsError::NoSuchFile),
         };
         let handle = next_handle();

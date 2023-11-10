@@ -1,6 +1,7 @@
 use core::arch::asm;
 
 pub use io::*;
+pub use kernel_api::syscall::Errno;
 use kernel_api::syscall::Syscall;
 pub use mman::*;
 pub use unistd::*;

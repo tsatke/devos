@@ -210,11 +210,10 @@ fn free_task(task: Task<Finished>) {
     if !process_tree.has_tasks(&pid) {
         let process = match process_tree.remove_process(&pid) {
             None => {
-                serial_println!(
+                panic!(
                     "tried to free process {}, but process doesn't exist in the process tree",
                     pid
                 );
-                return;
             }
             Some(p) => p,
         };

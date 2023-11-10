@@ -33,11 +33,15 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     kernel_init(boot_info);
 
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
+    process::spawn_task_in_current_process("hello_world", hello_world);
 
+    panic!("kernel_main returned");
+}
+
+extern "C" fn hello_world() {
     sys_execve("/bin/hello_world", &[], &[]).unwrap();
 }
 
-#[allow(dead_code)]
 extern "C" fn vga_stuff() {
     let mut vga = screen::lock();
 

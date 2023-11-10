@@ -90,12 +90,12 @@ fn dispatch_sys_munmap(arg1: usize) -> Errno {
 
 unsafe fn dispatch_sys_read(arg1: usize, arg2: usize, arg3: usize) -> Errno {
     let buf = unsafe { from_raw_parts_mut(arg2 as *mut u8, arg3) };
-    sys_read(arg1, buf).into()
+    sys_read(Fileno::new(arg1), buf).into()
 }
 
 unsafe fn dispatch_sys_write(arg1: usize, arg2: usize, arg3: usize) -> Errno {
     let buf = unsafe { from_raw_parts(arg2 as *const u8, arg3) };
-    sys_write(arg1, buf).into()
+    sys_write(Fileno::new(arg1), buf).into()
 }
 
 unsafe fn dispatch_sys_open(arg1: usize, arg2: usize, arg3: usize) -> Errno {

@@ -3,11 +3,12 @@
 
 extern crate alloc;
 
+use alloc::vec;
 use alloc::vec::Vec;
 
 use linked_list_allocator::LockedHeap;
 
-use std::arch::syscall::{sys_exit, sys_mmap};
+use std::arch::syscall::{sys_close, sys_exit, sys_mmap, sys_open, sys_read, sys_write, Errno};
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -32,12 +33,30 @@ pub fn _start() -> isize {
 
     do_something();
 
+    let stdout = must(sys_open("/dev/stdout", 0, 0));
+    let greeting = must(sys_open("/var/data/hello.txt", 0, 0));
+    let mut data = vec![0_u8; 14];
+    let n_read = must(sys_read(greeting, &mut data[0..13]));
+    data[13] = b'\n';
+    let n_write = must(sys_write(stdout, &data));
+    assert_eq!(n_read, n_write - 1);
+
+    sys_close(stdout);
+    sys_close(greeting);
+
     sys_exit(0);
+}
+
+fn must(errno: Errno) -> usize {
+    if errno.as_isize() < 0 {
+        sys_exit(-errno.as_isize());
+    }
+    errno.as_isize() as usize
 }
 
 fn do_something() {
     let mut v = Vec::new();
-    for i in 0..(4 * 1024) {
+    for i in 0..10 {
         v.push(i);
     }
 }

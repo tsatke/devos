@@ -1,13 +1,17 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use derive_more::{Constructor, Display};
+use derive_more::Display;
 
 use crate::io::vfs::{vfs, VfsError, VfsNode};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Display, Constructor)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Display)]
 pub struct Fileno(usize);
 
 impl Fileno {
+    pub const fn new(value: usize) -> Self {
+        Self(value)
+    }
+
     pub fn as_usize(self) -> usize {
         self.into()
     }

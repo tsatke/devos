@@ -267,13 +267,14 @@ pub fn sys_open(path: impl AsRef<Path>, flags: usize, mode: usize) -> Result<Fil
     process.open_file(&path).map_err(Into::into)
 }
 
-pub fn sys_read(fd: usize, buf: &mut [u8]) -> Result<usize> {
+pub fn sys_read(fd: Fileno, buf: &mut [u8]) -> Result<usize> {
     serial_println!("sys_read({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
-    buf[0] = 1;
-    Ok(1)
+    let process = process::current();
+    process.read(fd, buf).map_err(Into::into)
 }
 
-pub fn sys_write(fd: usize, buf: &[u8]) -> Result<usize> {
+pub fn sys_write(fd: Fileno, buf: &[u8]) -> Result<usize> {
     serial_println!("sys_write({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
-    Err(Errno::ENOSYS)
+    let process = process::current();
+    process.write(fd, buf).map_err(Into::into)
 }

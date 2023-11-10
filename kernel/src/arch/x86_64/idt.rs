@@ -33,7 +33,16 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
             .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
         idt[InterruptIndex::Syscall.into()]
             .set_handler_fn(transmute(syscall_handler as *mut fn()))
-            .set_privilege_level(PrivilegeLevel::Ring3);
+            .set_privilege_level(PrivilegeLevel::Ring3)
+            /*
+            TODO: verify
+            Now I might be completely wrong here, but since we use Rust, we should be safe
+            with interrupts enabled during syscalls - as long as our preemptive multitasking
+            works correctly. Everything that might be accessed falls under Rust's guarantees.
+            As long as we have a separate stack for each syscalls - even if we get preempted
+            during one - we should be fine.
+            */
+            .disable_interrupts(false);
     }
     idt[InterruptIndex::Timer.into()].set_handler_fn(timer_interrupt_handler);
     idt[InterruptIndex::Keyboard.into()].set_handler_fn(keyboard_interrupt_handler);
