@@ -100,12 +100,6 @@ impl Vfs {
         Ok(VfsNode::new(path.into(), handle, fs))
     }
 
-    /// This closes a VfsNode. Use this if you need a potential error that might occur
-    /// when closing the node. Otherwise, you can just drop the node.
-    pub fn close(&self, node: VfsNode) -> Result<()> {
-        self.internal_close(&node)
-    }
-
     #[allow(dead_code)]
     pub fn read_dir<P>(&self, path: P) -> Result<impl Iterator<Item = DirEntry>>
     where
@@ -209,7 +203,7 @@ impl Vfs {
         }
     }
 
-    fn internal_close(&self, node: &VfsNode) -> Result<()> {
+    fn internal_close(&self, node: &Inner) -> Result<()> {
         let mut guard = node.fs().write();
         guard.close(node.handle())
     }
@@ -217,7 +211,7 @@ impl Vfs {
 
 /// This method is intended to be called by the VfsNode when it is dropped.
 /// It is not intended to be called by you.
-fn close_vfs_node(node: &VfsNode) {
+fn close_vfs_node(node: &Inner) {
     let _ = vfs().internal_close(node);
 }
 

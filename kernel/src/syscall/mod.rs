@@ -113,9 +113,8 @@ pub fn sys_dup(fd: Fileno) -> Result<Fileno> {
         .open_fds()
         .read()
         .get(&fd)
-        .map(|desc| desc.node().duplicate())
-        .ok_or(Errno::EBADF)?
-        .map_err(Into::<Errno>::into)?;
+        .map(|desc| desc.node().clone())
+        .ok_or(Errno::EBADF)?;
     let new_fd = process.register_vfs_node_as_open(node);
     Ok(new_fd)
 }
@@ -220,7 +219,7 @@ pub fn sys_mmap(
             .get(&fd)
             .ok_or(Errno::EBADF)?
             .node()
-            .duplicate()?;
+            .clone();
         let vmo = FileBackedVmObject::create(
             format!("mmap '{}' (offset={}, len={})", node.path(), offset, size,),
             node,

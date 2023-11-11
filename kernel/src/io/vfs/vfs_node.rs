@@ -1,14 +1,30 @@
 use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
+use core::ops::Deref;
 
+use derive_more::Constructor;
 use spin::RwLock;
 use x86_64::instructions::interrupts;
 
 use crate::io::path::{OwnedPath, Path};
 use crate::io::vfs;
-use crate::io::vfs::{FileSystem, VfsError, VfsHandle};
+use crate::io::vfs::{FileSystem, VfsHandle};
 
+#[derive(Clone)]
 pub struct VfsNode {
+    inner: Arc<Inner>,
+}
+
+impl Deref for VfsNode {
+    type Target = Arc<Inner>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+#[derive(Constructor)]
+pub struct Inner {
     /// The path of this node.
     path: OwnedPath,
     /// The file system specific handle.
@@ -16,13 +32,13 @@ pub struct VfsNode {
     fs: Arc<RwLock<dyn FileSystem>>,
 }
 
-impl !Clone for VfsNode {} // can't clone because of the drop impl. However, there's [`VfsNode::duplicate`]
+impl !Clone for Inner {}
 
 impl Debug for VfsNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("VfsNode")
-            .field("path", &self.path)
-            .field("handle", &self.handle)
+            .field("path", &self.inner.path)
+            .field("handle", &self.inner.handle)
             .finish()
     }
 }
@@ -33,9 +49,13 @@ impl VfsNode {
         handle: VfsHandle,
         fs: Arc<RwLock<dyn FileSystem>>,
     ) -> Self {
-        Self { path, handle, fs }
+        Self {
+            inner: Arc::new(Inner::new(path, handle, fs)),
+        }
     }
+}
 
+impl Inner {
     pub fn path(&self) -> &Path {
         self.path.as_path()
     }
@@ -47,14 +67,9 @@ impl VfsNode {
     pub fn fs(&self) -> &Arc<RwLock<dyn FileSystem>> {
         &self.fs
     }
-
-    pub fn duplicate(&self) -> Result<Self, VfsError> {
-        let new_handle = self.fs.write().duplicate(self.handle)?;
-        Ok(Self::new(self.path.clone(), new_handle, self.fs.clone()))
-    }
 }
 
-impl Drop for VfsNode {
+impl Drop for Inner {
     fn drop(&mut self) {
         assert!(
             interrupts::are_enabled(),

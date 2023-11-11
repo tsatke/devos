@@ -113,13 +113,6 @@ where
         Ok(handle)
     }
 
-    fn duplicate(&mut self, handle: VfsHandle) -> Result<VfsHandle> {
-        let found = self.resolve_handle(handle)?;
-        let new_handle = next_handle();
-        self.handles.insert(new_handle, found.clone());
-        Ok(new_handle)
-    }
-
     fn close(&mut self, handle: VfsHandle) -> Result<()> {
         self.handles.remove(&handle).ok_or(VfsError::HandleClosed)?;
         Ok(())

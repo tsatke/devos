@@ -72,10 +72,6 @@ impl FileSystem for VirtualDevFs {
         Ok(handle)
     }
 
-    fn duplicate(&mut self, _: VfsHandle) -> Result<VfsHandle> {
-        Err(VfsError::Unsupported)
-    }
-
     fn close(&mut self, handle: VfsHandle) -> Result<()> {
         self.handles.remove(&handle).ok_or(VfsError::HandleClosed)?;
         Ok(())

@@ -190,6 +190,7 @@ impl Process {
 
         // close the actual file
         let node = descriptor.into_node();
-        vfs().close(node)
+        drop(node);
+        Ok(())
     }
 }
