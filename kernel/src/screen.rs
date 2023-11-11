@@ -19,7 +19,7 @@ static VGA: OnceCell<Mutex<Vga1280x800>> = OnceCell::uninit();
 
 pub fn init() {
     if let Some(ctrl) = pci::devices()
-        .filter(|device| {
+        .find(|device| {
             matches!(
                 device.class(),
                 pci::PciDeviceClass::DisplayController(
@@ -27,7 +27,6 @@ pub fn init() {
                 )
             )
         })
-        .next()
         .map(|device| PciStandardHeaderDevice::new(device.clone()).unwrap())
     {
         let bar0 = ctrl.bar0();
