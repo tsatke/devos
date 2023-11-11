@@ -43,6 +43,11 @@ extern "C" fn hello_world() {
 }
 
 extern "C" fn vga_stuff() {
+    if !screen::is_initialized() {
+        serial_println!("screen not initialized, skipping graphics");
+        return;
+    }
+
     let mut vga = screen::lock();
 
     // white screen

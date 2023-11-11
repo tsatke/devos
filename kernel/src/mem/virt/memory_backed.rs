@@ -31,7 +31,7 @@ impl MemoryBackedVmObject {
         flags: PageTableFlags,
     ) -> Result<Self, AllocationError> {
         let pm_object = PmObject::create(size, allocation_strategy)?;
-        let mut res = Self::new(
+        let res = Self::new(
             name,
             Arc::new(RwLock::new(pm_object)),
             allocation_strategy,
@@ -53,7 +53,7 @@ impl MemoryBackedVmObject {
         Ok(res)
     }
 
-    pub(in crate::mem::virt) fn map_pages(&mut self) -> Result<(), AllocationError> {
+    pub fn map_pages(&self) -> Result<(), AllocationError> {
         let first_page = Page::<Size4KiB>::containing_address(self.addr);
         let last_page = Page::<Size4KiB>::containing_address(self.addr + self.size);
         let page_range = Page::<Size4KiB>::range(first_page, last_page);

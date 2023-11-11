@@ -1,12 +1,13 @@
 use alloc::vec::Vec;
 
+use derive_more::Constructor;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
 
 use crate::mem::physical::PhysicalMemoryManager;
 use crate::mem::virt::AllocationError;
 
-#[derive(Debug)]
+#[derive(Debug, Constructor)]
 pub struct PmObject {
     allocation_strategy: AllocationStrategy,
     phys_frames: Vec<PhysFrame>,

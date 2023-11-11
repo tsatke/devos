@@ -37,7 +37,7 @@ const KERNEL_STACK_SIZE: Size = Size::KiB(128);
 pub const fn bootloader_config() -> BootloaderConfig {
     let mut config = BootloaderConfig::new_default();
     config.mappings.page_table_recursive = Some(Mapping::Dynamic);
-    config.mappings.framebuffer = Mapping::Dynamic;
+    config.mappings.framebuffer = Mapping::Dynamic; // TODO: we don't need a frame buffer at all, since we get the frame buffer memory from the pci device tree
     config.kernel_stack_size = KERNEL_STACK_SIZE.bytes() as u64;
     config
 }
@@ -51,11 +51,9 @@ pub fn kernel_init(boot_info: &'static mut BootInfo) {
     apic::init();
     vfs::init();
 
-    let fb = boot_info.framebuffer.as_ref().unwrap();
-    let fb_info = fb.info();
-    screen::init(fb.buffer().as_ptr(), fb_info);
-
     interrupts::enable();
+
+    screen::init();
 }
 
 #[cfg(feature = "kernel_test")]
