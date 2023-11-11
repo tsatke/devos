@@ -1,12 +1,15 @@
-use crate::channel::IdeChannel;
-use crate::drive::IdeDrive;
-use crate::is_bit_set;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt::{Debug, Formatter};
-use pci::{InterruptPin, MassStorageSubClass, PciDeviceClass, PciStandardHeaderDevice};
+
 use spin::RwLock;
+
+use pci::{InterruptPin, MassStorageSubClass, PciDeviceClass, PciStandardHeaderDevice};
+
+use crate::channel::IdeChannel;
+use crate::drive::IdeDrive;
+use crate::is_bit_set;
 
 pub struct IdeController {
     primary: Arc<RwLock<IdeChannel>>,
@@ -30,18 +33,18 @@ impl From<PciStandardHeaderDevice> for IdeController {
 
         let prog_if = device.prog_if();
         let (primary_ctrlbase, primary_iobase) = if is_bit_set(prog_if as u64, 0) {
-            (device.bar1() as u16, device.bar0() as u16)
+            (device.bar1_raw() as u16, device.bar0_raw() as u16)
         } else {
             (0x3F6, 0x1F0)
         };
 
         let (secondary_ctrlbase, secondary_iobase) = if is_bit_set(prog_if as u64, 2) {
-            (device.bar3() as u16, device.bar2() as u16)
+            (device.bar3_raw() as u16, device.bar2_raw() as u16)
         } else {
             (0x376, 0x170)
         };
 
-        let bus_master_ide = device.bar4();
+        let bus_master_ide = device.bar4_raw();
         let primary_master_base = bus_master_ide as u16;
         let secondary_master_base = (bus_master_ide >> 16) as u16;
 

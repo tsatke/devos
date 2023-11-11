@@ -1,6 +1,7 @@
+use core::ops::Deref;
+
 use crate::raw::read_config_double_word;
 use crate::{Error, PciDevice};
-use core::ops::Deref;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(u8)]
@@ -35,6 +36,66 @@ impl Deref for PciStandardHeaderDevice {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum BaseAddressRegister {
+    MemorySpace32(MemorySpace32Bar),
+    MemorySpace64(MemorySpace64Bar),
+    IoSpace(u32),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MemorySpace32Bar {
+    pub addr: u32,
+    pub prefetchable: bool,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct MemorySpace64Bar {
+    pub addr: u64,
+    pub prefetchable: bool,
+}
+
+impl BaseAddressRegister {
+    pub fn new(bar: u32, next_bar: Option<u32>) -> Self {
+        if bar & 0x01 > 0 {
+            // io space bar
+            Self::IoSpace(bar & !0b11)
+        } else {
+            let prefetchable = bar & 0b100 > 0;
+            // memory space bar
+            if bar & 0x02 > 0 {
+                // 64bit bar
+                let addr = (bar & !0b111) as u64 | ((next_bar.unwrap() as u64) << 32);
+                Self::MemorySpace64(MemorySpace64Bar { addr, prefetchable })
+            } else {
+                let addr = bar & !0b111;
+                Self::MemorySpace32(MemorySpace32Bar { addr, prefetchable })
+            }
+        }
+    }
+
+    pub fn memory_space_32(&self) -> Option<MemorySpace32Bar> {
+        match self {
+            Self::MemorySpace32(bar) => Some(*bar),
+            _ => None,
+        }
+    }
+
+    pub fn memory_space_64(&self) -> Option<MemorySpace64Bar> {
+        match self {
+            Self::MemorySpace64(bar) => Some(*bar),
+            _ => None,
+        }
+    }
+
+    pub fn io_space(&self) -> Option<u32> {
+        match self {
+            Self::IoSpace(bar) => Some(*bar),
+            _ => None,
+        }
+    }
+}
+
 impl PciStandardHeaderDevice {
     const OFFSET_BAR0: u8 = 0x10;
     const OFFSET_BAR1: u8 = 0x14;
@@ -51,27 +112,51 @@ impl PciStandardHeaderDevice {
         Ok(PciStandardHeaderDevice { inner })
     }
 
-    pub fn bar0(&self) -> u32 {
+    pub fn bar0(&self) -> BaseAddressRegister {
+        BaseAddressRegister::new(self.bar0_raw(), Some(self.bar1_raw()))
+    }
+
+    pub fn bar1(&self) -> BaseAddressRegister {
+        BaseAddressRegister::new(self.bar1_raw(), Some(self.bar2_raw()))
+    }
+
+    pub fn bar2(&self) -> BaseAddressRegister {
+        BaseAddressRegister::new(self.bar2_raw(), Some(self.bar3_raw()))
+    }
+
+    pub fn bar3(&self) -> BaseAddressRegister {
+        BaseAddressRegister::new(self.bar3_raw(), Some(self.bar4_raw()))
+    }
+
+    pub fn bar4(&self) -> BaseAddressRegister {
+        BaseAddressRegister::new(self.bar4_raw(), Some(self.bar5_raw()))
+    }
+
+    pub fn bar5(&self) -> BaseAddressRegister {
+        BaseAddressRegister::new(self.bar5_raw(), None)
+    }
+
+    pub fn bar0_raw(&self) -> u32 {
         self.read_bar(Self::OFFSET_BAR0)
     }
 
-    pub fn bar1(&self) -> u32 {
+    pub fn bar1_raw(&self) -> u32 {
         self.read_bar(Self::OFFSET_BAR1)
     }
 
-    pub fn bar2(&self) -> u32 {
+    pub fn bar2_raw(&self) -> u32 {
         self.read_bar(Self::OFFSET_BAR2)
     }
 
-    pub fn bar3(&self) -> u32 {
+    pub fn bar3_raw(&self) -> u32 {
         self.read_bar(Self::OFFSET_BAR3)
     }
 
-    pub fn bar4(&self) -> u32 {
+    pub fn bar4_raw(&self) -> u32 {
         self.read_bar(Self::OFFSET_BAR4)
     }
 
-    pub fn bar5(&self) -> u32 {
+    pub fn bar5_raw(&self) -> u32 {
         self.read_bar(Self::OFFSET_BAR5)
     }
 
