@@ -82,8 +82,6 @@ pub fn init(boot_info: &'static BootInfo) {
 
     let root_process = Process::new("root", address_space);
 
-    // create the kheap vm_object and add it to the process
-
     // this pm_object shouldn't allocate anything, and it also shouldn't try to free anything on drop
     let kheap_pm_object = PmObject::create(0, AllocationStrategy_::AllocateOnAccess).unwrap();
     let kheap_start_addr = VirtAddr::new(HEAP_START as u64);
