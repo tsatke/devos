@@ -1,14 +1,19 @@
-use crate::{map_page, serial_println};
-use acpi::{AcpiHandler, AcpiTables, InterruptModel, PhysicalMapping, PlatformInfo};
 use alloc::alloc::Global;
 use alloc::rc::Rc;
-use bootloader_api::BootInfo;
-use conquer_once::spin::OnceCell;
 use core::assert_matches::assert_matches;
 use core::ptr::NonNull;
+
+use acpi::{AcpiHandler, AcpiTables, InterruptModel, PhysicalMapping, PlatformInfo};
+use bootloader_api::BootInfo;
+use conquer_once::spin::OnceCell;
 use spin::Mutex;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
+
+use crate::mem::virt::Interval;
+use crate::mem::Size;
+use crate::process::vmm;
+use crate::{map_page, serial_println};
 
 pub static INTERRUPT_MODEL: OnceCell<InterruptModel<Global>> = OnceCell::uninit();
 
@@ -33,12 +38,17 @@ pub fn init(boot_info: &'static BootInfo) {
 #[derive(Clone, Debug)]
 pub struct KernelAcpi {
     addr: Rc<Mutex<u64>>,
+    reserved_memory_interval: Interval,
 }
 
 impl KernelAcpi {
     pub fn new() -> Self {
+        let interval = vmm()
+            .reserve(Size::MiB(1).bytes())
+            .expect("failed to reserve memory for acpi");
         KernelAcpi {
-            addr: Rc::new(Mutex::new(0x1111_1122_0000)), // TODO: make dynamic
+            addr: Rc::new(Mutex::new(interval.start().as_u64())),
+            reserved_memory_interval: interval,
         }
     }
 }
@@ -51,9 +61,20 @@ impl AcpiHandler for KernelAcpi {
         physical_address: usize,
         size: usize,
     ) -> PhysicalMapping<Self, T> {
-        let page = Page::<Size4KiB>::containing_address(VirtAddr::new(*self.addr.lock()));
-        assert!(size < Size4KiB::SIZE as usize);
-        *self.addr.lock() += Size4KiB::SIZE;
+        let page = {
+            let mut guard = self.addr.lock();
+            if *guard
+                > (self.reserved_memory_interval.start() + self.reserved_memory_interval.size())
+                    .as_u64()
+            {
+                panic!("acpi memory exhausted");
+            }
+
+            let page = Page::<Size4KiB>::containing_address(VirtAddr::new(*guard));
+            assert!(size < Size4KiB::SIZE as usize);
+            *guard += Size4KiB::SIZE;
+            page
+        };
 
         map_page!(
             page,

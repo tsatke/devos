@@ -13,6 +13,16 @@ pub struct Interval {
     size: usize,
 }
 
+impl Interval {
+    pub fn start(&self) -> VirtAddr {
+        self.start
+    }
+
+    pub fn size(&self) -> usize {
+        self.size
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VmmError {
     AlreadyAllocated,
