@@ -13,8 +13,8 @@ pub use address_space::*;
 pub use heap::*;
 pub use size::*;
 
-use crate::mem::virt::{AllocationStrategy, MemoryBackedVmObject, PmObject};
-use crate::process::Process;
+use crate::mem::virt::{AllocationStrategy, Interval, MemoryBackedVmObject, PmObject};
+use crate::process::{vmm, Process};
 use crate::{process, serial_println};
 
 mod address_space;
@@ -91,12 +91,13 @@ pub fn init(boot_info: &'static BootInfo) {
     // this pm_object shouldn't allocate anything, and it also shouldn't try to free anything on drop
     let kheap_pm_object = PmObject::create(0, AllocationStrategy::AllocateOnAccess).unwrap();
     let kheap_start_addr = VirtAddr::new(HEAP_START as u64);
+    let kheap_size = HEAP_SIZE.bytes();
     let kheap_vm_object = MemoryBackedVmObject::new(
         "kernel_heap".to_string(),
         Arc::new(RwLock::new(kheap_pm_object)),
         AllocationStrategy::AllocateNow,
         kheap_start_addr,
-        HEAP_SIZE.bytes(),
+        kheap_size,
         flags,
     );
 
@@ -105,6 +106,13 @@ pub fn init(boot_info: &'static BootInfo) {
         .write()
         .insert(kheap_start_addr, Box::new(kheap_vm_object)); // this needs to happen after we've initialized the heap
     process::init(root_process);
+
+    // we probably don't need this, since the kheap is outside of the area that is managed by the
+    // vmm, but it can't hurt (as long as we don't violate invariants of the vmm,
+    // which we don't - at the time of writing this)
+    vmm()
+        .mark_as_reserved(Interval::new(kheap_start_addr, kheap_size))
+        .unwrap();
 }
 
 /// Map a physical frame to a page in the current address space.
