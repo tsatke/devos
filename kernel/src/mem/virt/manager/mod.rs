@@ -1,12 +1,13 @@
 use alloc::collections::BTreeSet;
 use core::ops::{Deref, DerefMut};
 
+use derive_more::Constructor;
 use spin::RwLock;
 use x86_64::VirtAddr;
 
 use crate::mem::heap_initialized;
 
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Constructor)]
 pub struct Interval {
     start: VirtAddr,
     size: usize,
@@ -36,10 +37,7 @@ impl VirtualMemoryManager {
     }
 
     pub fn reserve(&self, size: usize) -> Result<Interval, VmmError> {
-        let mut interval = Interval {
-            start: self.mem_start,
-            size,
-        };
+        let mut interval = Interval::new(self.mem_start, size);
         let mut guard = self.inner.write();
         while let Some(existing) = guard.find_overlapping_element(interval.start, interval.size) {
             interval.start = existing.start + existing.size;
@@ -99,8 +97,7 @@ mod tests {
 
     use kernel_test_framework::kernel_test;
 
-    use crate::mem::virt::manager::Interval;
-    use crate::mem::virt::{VirtualMemoryManager, VmmError};
+    use crate::mem::virt::{Interval, VirtualMemoryManager, VmmError};
 
     #[kernel_test]
     fn test_allocate() {
@@ -122,11 +119,8 @@ mod tests {
     #[kernel_test]
     fn test_would_overlap_with_existing() {
         let vmm = VirtualMemoryManager::new(VirtAddr::new(0x0), 0x10000);
-        vmm.mark_as_reserved(Interval {
-            start: VirtAddr::new(0x2000),
-            size: 0x1000,
-        })
-        .unwrap();
+        vmm.mark_as_reserved(Interval::new(VirtAddr::new(0x2000), 0x1000))
+            .unwrap();
         let guard = vmm.inner.read();
         assert!(guard
             .find_overlapping_element(VirtAddr::new(0x1000), 0x1000)
