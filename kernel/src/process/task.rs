@@ -156,14 +156,14 @@ impl<'a> StackWriter<'a> {
 
 impl Task<Ready> {
     pub fn new(
-        process: Process,
+        process: &Process,
         name: impl Into<String>,
         entry_point: extern "C" fn(),
     ) -> Task<Ready> {
         let mut task = Self {
             id: TaskId::new(),
             name: name.into(),
-            process,
+            process: process.clone(),
             last_stack_ptr: 0, // will be set correctly in [`setup_stack`]
             stack: Some(vec![0; STACK_SIZE]),
             _state: Default::default(),

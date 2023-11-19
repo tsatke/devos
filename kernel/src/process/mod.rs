@@ -14,7 +14,7 @@ pub use tree::*;
 
 use crate::io::path::Path;
 use crate::io::vfs::{vfs, VfsError, VfsNode};
-use crate::mem::virt::VmObject;
+use crate::mem::virt::{VirtualMemoryManager, VmObject};
 use crate::mem::AddressSpace;
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::task::{Ready, Running, Task};
@@ -45,8 +45,12 @@ pub fn create(parent: Process, name: impl Into<String>) -> Process {
     process
 }
 
-pub fn current() -> Process {
-    current_task().process().clone()
+pub fn current() -> &'static Process {
+    current_task().process()
+}
+
+pub fn vmm() -> &'static VirtualMemoryManager {
+    current().vmm()
 }
 
 pub fn current_task() -> &'static Task<Running> {
@@ -57,7 +61,7 @@ pub fn spawn_task_in_current_process(name: impl Into<String>, func: extern "C" f
     spawn_task(name, current(), func)
 }
 
-pub fn spawn_task(name: impl Into<String>, process: Process, func: extern "C" fn()) {
+pub fn spawn_task(name: impl Into<String>, process: &Process, func: extern "C" fn()) {
     let task = Task::<Ready>::new(process, name, func);
     spawn(task)
 }
@@ -86,6 +90,7 @@ pub struct Process {
     cr3_value: usize, // TODO: remove this, read it from the address space (maybe use an atomic to circumvent the locking?)
     name: String,
     address_space: Arc<RwLock<AddressSpace>>,
+    virtual_memory_manager: Arc<VirtualMemoryManager>,
     vm_objects: Arc<RwLock<BTreeMap<VirtAddr, Box<dyn VmObject>>>>,
     next_fd: Arc<FilenoAllocator>,
     open_fds: Arc<RwLock<BTreeMap<Fileno, FileDescriptor>>>,
@@ -98,6 +103,10 @@ impl Process {
             cr3_value: address_space.cr3_value(),
             name: name.into(),
             address_space: Arc::new(RwLock::new(address_space)),
+            virtual_memory_manager: Arc::new(VirtualMemoryManager::new(
+                VirtAddr::new(0x1111_1111_0000),
+                0x7777_7777_0000,
+            )),
             vm_objects: Arc::new(RwLock::new(BTreeMap::new())),
             next_fd: Arc::new(FilenoAllocator::new()),
             open_fds: Arc::new(RwLock::new(BTreeMap::new())),
@@ -118,6 +127,10 @@ impl Process {
 
     pub(in crate::process) fn cr3_value(&self) -> usize {
         self.cr3_value
+    }
+
+    pub fn vmm(&self) -> &VirtualMemoryManager {
+        &self.virtual_memory_manager
     }
 
     pub fn vm_objects(&self) -> &RwLock<BTreeMap<VirtAddr, Box<dyn VmObject>>> {
