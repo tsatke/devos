@@ -7,7 +7,7 @@ use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PageSize, Phy
 use x86_64::PhysAddr;
 
 use crate::mem::physical::STAGE1_ALLOCATED_FRAMES;
-use crate::mem::{heap_initialized, HEAP_SIZE};
+use crate::mem::virt::heap::{heap_initialized, HEAP_SIZE};
 use crate::serial_println;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

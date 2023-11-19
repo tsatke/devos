@@ -1,9 +1,11 @@
-use crate::mem::HEAP_SIZE;
-use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::Relaxed;
+
+use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
 use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
+
+use crate::mem::virt::heap::HEAP_SIZE;
 
 pub static mut STAGE1_ALLOCATED_FRAMES: AtomicUsize =
     AtomicUsize::new(HEAP_SIZE.bytes() / Size4KiB::SIZE as usize);

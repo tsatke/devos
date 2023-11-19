@@ -3,6 +3,11 @@ use core::sync::atomic::Ordering::Relaxed;
 
 use linked_list_allocator::LockedHeap;
 
+use crate::mem::Size;
+
+pub const HEAP_START: usize = 0x4444_4444_0000;
+pub const HEAP_SIZE: Size = Size::MiB(8);
+
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 static mut INITIALIZED: AtomicBool = AtomicBool::new(false);

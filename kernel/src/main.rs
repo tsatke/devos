@@ -11,6 +11,7 @@ use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
+use kernel::process::process_tree;
 use kernel::syscall::sys_execve;
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use vga::Color;
@@ -34,6 +35,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
     process::spawn_task_in_current_process("hello_world", hello_world);
+
+    process_tree().read().dump();
 
     panic!("kernel_main returned");
 }

@@ -10,21 +10,17 @@ use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size
 use x86_64::{PhysAddr, VirtAddr};
 
 pub use address_space::*;
-pub use heap::*;
 pub use size::*;
+use virt::heap::{HEAP_SIZE, HEAP_START};
 
-use crate::mem::virt::{AllocationStrategy, Interval, MemoryBackedVmObject, PmObject};
+use crate::mem::virt::{heap, AllocationStrategy, Interval, MemoryBackedVmObject, PmObject};
 use crate::process::{vmm, Process};
 use crate::{process, serial_println};
 
 mod address_space;
-mod heap;
 mod physical;
 mod size;
 pub mod virt;
-
-const HEAP_START: usize = 0x4444_4444_0000;
-const HEAP_SIZE: Size = Size::MiB(8);
 
 pub fn init(boot_info: &'static BootInfo) {
     physical::init_stage1(boot_info);

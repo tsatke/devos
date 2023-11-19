@@ -5,7 +5,7 @@ use derive_more::Constructor;
 use spin::RwLock;
 use x86_64::VirtAddr;
 
-use crate::mem::heap_initialized;
+use crate::mem::virt::heap::heap_initialized;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Constructor)]
 pub struct Interval {

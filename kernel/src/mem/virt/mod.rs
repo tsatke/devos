@@ -8,6 +8,7 @@ pub use pm_object::*;
 pub use vm_object::*;
 
 mod file_backed;
+pub mod heap;
 mod manager;
 mod memory_backed;
 mod pm_object;
