@@ -1,5 +1,6 @@
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
+
 use linked_list_allocator::LockedHeap;
 
 #[global_allocator]
@@ -13,7 +14,7 @@ pub fn init(heap_start: *mut u8, heap_size: usize) {
     }
 }
 
-pub fn is_heap_initialized() -> bool {
+pub fn heap_initialized() -> bool {
     unsafe { INITIALIZED.load(Relaxed) }
 }
 

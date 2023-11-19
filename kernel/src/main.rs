@@ -43,7 +43,7 @@ extern "C" fn hello_world() {
 }
 
 extern "C" fn vga_stuff() {
-    if !screen::is_initialized() {
+    if !screen::vga_initialized() {
         serial_println!("screen not initialized, skipping graphics");
         return;
     }

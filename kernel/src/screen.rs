@@ -70,7 +70,7 @@ pub fn init() {
     }
 }
 
-pub fn is_initialized() -> bool {
+pub fn vga_initialized() -> bool {
     VGA.is_initialized()
 }
 

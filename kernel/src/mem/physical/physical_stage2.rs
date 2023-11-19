@@ -1,12 +1,14 @@
-use crate::mem::physical::STAGE1_ALLOCATED_FRAMES;
-use crate::mem::{is_heap_initialized, HEAP_SIZE};
-use crate::serial_println;
 use alloc::vec;
 use alloc::vec::Vec;
-use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
 use core::sync::atomic::Ordering::Relaxed;
+
+use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
+
+use crate::mem::physical::STAGE1_ALLOCATED_FRAMES;
+use crate::mem::{heap_initialized, HEAP_SIZE};
+use crate::serial_println;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum FrameState {
@@ -23,7 +25,7 @@ pub struct MemoryMapPhysicalFrameAllocator {
 impl MemoryMapPhysicalFrameAllocator {
     pub fn from(regions: &'static MemoryRegions) -> Self {
         assert!(
-            is_heap_initialized(),
+            heap_initialized(),
             "Heap must first be initialized before using the physical memory map"
         );
 
