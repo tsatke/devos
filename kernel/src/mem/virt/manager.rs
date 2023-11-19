@@ -62,7 +62,10 @@ pub enum AllocationStrategy {
 }
 
 impl VirtualMemoryManager {
-    pub fn new(mem_start: VirtAddr, mem_size: usize) -> Self {
+    /// # Safety
+    /// The caller must ensure that the memory from `mem_start` to `mem_start + mem_size` is
+    /// unused, unmapped and is effectively owned by this `VirtualMemoryManager`.
+    pub unsafe fn new(mem_start: VirtAddr, mem_size: usize) -> Self {
         assert!(heap_initialized());
         Self {
             mem_start,
@@ -250,7 +253,7 @@ mod tests {
 
     #[kernel_test]
     fn test_allocate() {
-        let vmm = VirtualMemoryManager::new(VirtAddr::new(0x0), 0x10000);
+        let vmm = unsafe { VirtualMemoryManager::new(VirtAddr::new(0x0), 0x10000) };
         let interval = vmm.reserve(0xf000).unwrap();
         // depending on the implementation, these may change
         assert_eq!(interval.start, VirtAddr::new(0x0));
@@ -267,7 +270,7 @@ mod tests {
 
     #[kernel_test]
     fn test_would_overlap_with_existing() {
-        let vmm = VirtualMemoryManager::new(VirtAddr::new(0x0), 0x10000);
+        let vmm = unsafe { VirtualMemoryManager::new(VirtAddr::new(0x0), 0x10000) };
         vmm.mark_as_reserved(Interval::new(VirtAddr::new(0x2000), 0x1000))
             .unwrap();
         let guard = vmm.inner.read();

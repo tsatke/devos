@@ -101,10 +101,9 @@ impl Process {
             cr3_value: address_space.cr3_value(),
             name: name.into(),
             address_space: Arc::new(RwLock::new(address_space)),
-            virtual_memory_manager: Arc::new(VirtualMemoryManager::new(
-                VirtAddr::new(0x1111_1111_0000),
-                0x7777_7777_0000,
-            )),
+            virtual_memory_manager: Arc::new(unsafe {
+                VirtualMemoryManager::new(VirtAddr::new(0x1111_1111_0000), 0x6666_6666_0000)
+            }),
             next_fd: Arc::new(FilenoAllocator::new()),
             open_fds: Arc::new(RwLock::new(BTreeMap::new())),
         }
