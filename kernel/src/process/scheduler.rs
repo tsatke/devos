@@ -220,8 +220,6 @@ fn free_task(task: Task<Finished>) {
 
         // TODO: deallocate address space
 
-        // TODO: close file descriptors
-
         drop(process);
     }
 }
