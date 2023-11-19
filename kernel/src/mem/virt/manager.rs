@@ -26,7 +26,7 @@ impl Interval {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VmmError {
     AlreadyAllocated,
-    NoMoreSpace, // not out of memory, because the memory manager has its own boundaries
+    OutOfMemory,
 }
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ impl VirtualMemoryManager {
             interval.start = existing.start + existing.size;
         }
         if interval.start + interval.size > self.mem_start + self.mem_size {
-            return Err(VmmError::NoMoreSpace);
+            return Err(VmmError::OutOfMemory);
         }
 
         guard.insert(interval);
@@ -118,7 +118,7 @@ mod tests {
         assert_eq!(interval.size, 0xf000);
 
         // this allocation is too large
-        assert_eq!(VmmError::NoMoreSpace, vmm.reserve(0x2000).unwrap_err());
+        assert_eq!(VmmError::OutOfMemory, vmm.reserve(0x2000).unwrap_err());
 
         // we still need to be able to allocate after a failed attempt
         let interval = vmm.reserve(0x1000).unwrap();
