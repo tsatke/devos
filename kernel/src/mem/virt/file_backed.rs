@@ -1,62 +1,35 @@
-use alloc::string::String;
 use core::slice::from_raw_parts_mut;
 
+use derive_more::Constructor;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
 use crate::io::vfs::{vfs, VfsNode};
-use crate::mem::virt::{AllocationError, AllocationStrategy, MemoryBackedVmObject, VmObject};
+use crate::mem::virt::{AllocationError, MemoryBackedVmObject, VmObject};
 
 // FIXME: once we have write support in the fs, the drop impl should write dirty pages back to disk
-#[derive(Debug)]
+#[derive(Debug, Constructor)]
 pub struct FileBackedVmObject {
     node: VfsNode,
     offset: usize,
-    vm_object: MemoryBackedVmObject,
-}
-
-impl FileBackedVmObject {
-    pub fn create(
-        name: String,
-        node: VfsNode,
-        offset: usize,
-        addr: VirtAddr,
-        size: usize,
-        flags: PageTableFlags,
-    ) -> Result<Self, AllocationError> {
-        Ok(Self {
-            node,
-            offset,
-            vm_object: MemoryBackedVmObject::create(
-                name,
-                addr,
-                size,
-                AllocationStrategy::AllocateOnAccess,
-                flags,
-            )?,
-        })
-    }
+    underlying: MemoryBackedVmObject,
 }
 
 impl VmObject for FileBackedVmObject {
     fn name(&self) -> &str {
-        self.vm_object.name()
+        self.underlying.name()
     }
 
     fn addr(&self) -> VirtAddr {
-        self.vm_object.addr()
+        self.underlying.addr()
     }
 
     fn size(&self) -> usize {
-        self.vm_object.size()
+        self.underlying.size()
     }
 
     fn flags(&self) -> PageTableFlags {
-        self.vm_object.flags()
-    }
-
-    fn allocation_strategy(&self) -> AllocationStrategy {
-        self.vm_object.allocation_strategy()
+        self.underlying.flags()
     }
 
     fn underlying_node(&self) -> Option<&VfsNode> {
@@ -66,7 +39,7 @@ impl VmObject for FileBackedVmObject {
     fn prepare_for_access(&self, offset: usize) -> Result<(), AllocationError> {
         let file_offset = self.offset + offset;
         // make sure that the accessed page is already mapped
-        self.vm_object
+        self.underlying
             .prepare_for_access_and_modify_page(offset, |page| {
                 let slice = unsafe {
                     // safety: we just mapped the page, so we can safely zero it

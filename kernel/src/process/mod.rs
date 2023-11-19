@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::sync::Arc;
@@ -14,7 +13,7 @@ pub use tree::*;
 
 use crate::io::path::Path;
 use crate::io::vfs::{vfs, VfsError, VfsNode};
-use crate::mem::virt::{VirtualMemoryManager, VmObject};
+use crate::mem::virt::VirtualMemoryManager;
 use crate::mem::AddressSpace;
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::task::{Ready, Running, Task};
@@ -91,7 +90,6 @@ pub struct Process {
     name: String,
     address_space: Arc<RwLock<AddressSpace>>,
     virtual_memory_manager: Arc<VirtualMemoryManager>,
-    vm_objects: Arc<RwLock<BTreeMap<VirtAddr, Box<dyn VmObject>>>>,
     next_fd: Arc<FilenoAllocator>,
     open_fds: Arc<RwLock<BTreeMap<Fileno, FileDescriptor>>>,
 }
@@ -107,7 +105,6 @@ impl Process {
                 VirtAddr::new(0x1111_1111_0000),
                 0x7777_7777_0000,
             )),
-            vm_objects: Arc::new(RwLock::new(BTreeMap::new())),
             next_fd: Arc::new(FilenoAllocator::new()),
             open_fds: Arc::new(RwLock::new(BTreeMap::new())),
         }
@@ -131,17 +128,6 @@ impl Process {
 
     pub fn vmm(&self) -> &VirtualMemoryManager {
         &self.virtual_memory_manager
-    }
-
-    pub fn vm_objects(&self) -> &RwLock<BTreeMap<VirtAddr, Box<dyn VmObject>>> {
-        &self.vm_objects
-    }
-
-    pub fn has_mmap_at(&self, addr: VirtAddr) -> bool {
-        self.vm_objects
-            .read()
-            .iter()
-            .any(|(_, vmo)| vmo.contains_addr(addr))
     }
 
     pub fn open_fds(&self) -> &RwLock<BTreeMap<Fileno, FileDescriptor>> {

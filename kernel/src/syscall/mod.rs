@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::{format, vec};
 use core::intrinsics::transmute;
@@ -14,9 +13,10 @@ use kernel_api::syscall::Errno;
 
 use crate::io::path::Path;
 use crate::io::vfs::{vfs, Stat};
-use crate::mem::virt::{AllocationStrategy, FileBackedVmObject, MemoryBackedVmObject, VmObject};
+use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::process::elf::ElfLoader;
 use crate::process::fd::Fileno;
+use crate::process::vmm;
 use crate::{process, serial_println};
 
 mod dispatch;
@@ -201,16 +201,16 @@ pub fn sys_mmap(
     }
 
     let strategy = AllocationStrategy::AllocateOnAccess;
-    let vmo: Box<dyn VmObject> = if map_flags.contains(MapFlags::Anon) {
-        let vmo = MemoryBackedVmObject::create(
-            format!("mmap anon (len={})", size),
-            addr,
-            size,
-            strategy,
-            flags,
-        )
-        .map_err(|_| Errno::ENOMEM)?;
-        Box::new(vmo)
+    if map_flags.contains(MapFlags::Anon) {
+        vmm()
+            .allocate_memory_backed_vmobject(
+                format!("mmap anon (len={})", size),
+                MapAt::Fixed(addr),
+                size,
+                strategy,
+                flags,
+            )
+            .map_err(|_| Errno::ENOMEM)?;
     } else {
         let process = process::current();
         let node = process
@@ -220,26 +220,24 @@ pub fn sys_mmap(
             .ok_or(Errno::EBADF)?
             .node()
             .clone();
-        let vmo = FileBackedVmObject::create(
-            format!("mmap '{}' (offset={}, len={})", node.path(), offset, size,),
-            node,
-            offset,
-            addr,
-            size,
-            flags,
-        )
-        .map_err(|_| Errno::ENOMEM)?;
-        Box::new(vmo)
+        vmm()
+            .allocate_file_backed_vm_object(
+                format!("mmap '{}' (offset={}, len={})", node.path(), offset, size),
+                node,
+                offset,
+                MapAt::Fixed(addr),
+                size,
+                flags,
+            )
+            .map_err(|_| Errno::ENOMEM)?;
     };
-    process::current().vm_objects().write().insert(addr, vmo);
 
     Ok(addr)
 }
 
 pub fn sys_munmap(addr: VirtAddr) -> Result<()> {
     serial_println!("sys_munmap({:#x})", addr);
-    let process = process::current();
-    let mut guard = process.vm_objects().write();
+    let mut guard = vmm().vm_objects().write();
     guard.remove(&addr);
     Ok(())
 }

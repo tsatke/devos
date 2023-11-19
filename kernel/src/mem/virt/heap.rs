@@ -12,7 +12,11 @@ pub const HEAP_SIZE: Size = Size::MiB(8);
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 static mut INITIALIZED: AtomicBool = AtomicBool::new(false);
 
-pub fn init(heap_start: *mut u8, heap_size: usize) {
+/// # Safety
+/// This function must be called only once.
+/// The caller must ensure that `heap_start` - `heap_start + heap_size is mapped and valid
+/// for reads and writes.
+pub unsafe fn init(heap_start: *mut u8, heap_size: usize) {
     unsafe {
         ALLOCATOR.lock().init(heap_start, heap_size);
         INITIALIZED.store(true, Relaxed);

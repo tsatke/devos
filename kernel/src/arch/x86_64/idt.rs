@@ -11,6 +11,7 @@ use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 
 use crate::apic::LAPIC;
 use crate::arch::syscall::syscall_handler_impl;
+use crate::process::vmm;
 use crate::timer::notify_timer_interrupt;
 use crate::{process, serial_println};
 
@@ -221,8 +222,7 @@ extern "x86-interrupt" fn page_fault_handler(
         );
     };
 
-    let current = process::current();
-    let vm_objects = current.vm_objects().read();
+    let vm_objects = vmm().vm_objects().read();
     let vm_object = vm_objects
         .iter()
         .find(|(_, vm_object)| vm_object.contains_addr(accessed_address))

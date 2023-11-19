@@ -4,18 +4,16 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
 use alloc::string::ToString;
 use core::panic::PanicInfo;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::structures::paging::PageTableFlags;
-use x86_64::VirtAddr;
 
-use kernel::mem::virt::AllocationStrategy;
-use kernel::mem::virt::MemoryBackedVmObject;
+use kernel::mem::virt::{AllocationStrategy, MapAt};
+use kernel::process::vmm;
 use kernel::qemu::ExitCode;
-use kernel::{bootloader_config, kernel_init, process, serial_print, serial_println};
+use kernel::{bootloader_config, kernel_init, serial_print, serial_println};
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -36,22 +34,15 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 }
 
 fn test_memory_backed(allocation_strategy: AllocationStrategy) {
-    let addr = VirtAddr::new(0x1111_1111_0000); // this address must be reusable since we drop the VmObject at the end of the function
-    let vm_object = MemoryBackedVmObject::create(
-        "test".to_string(),
-        addr,
-        8192,
-        allocation_strategy,
-        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-    )
-    .expect("unable to create VmObject");
-
-    // for the page fault handler to correctly handle page faults with the vmobjects, we need
-    // to tell the project about the vmobject
-    process::current()
-        .vm_objects()
-        .write()
-        .insert(addr, Box::new(vm_object));
+    let addr = vmm()
+        .allocate_memory_backed_vmobject(
+            "test".to_string(),
+            MapAt::Anywhere,
+            8192,
+            allocation_strategy,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        )
+        .expect("unable to create VmObject");
 
     unsafe {
         let ptr1 = addr.as_mut_ptr::<u64>();
@@ -66,7 +57,7 @@ fn test_memory_backed(allocation_strategy: AllocationStrategy) {
     }
 
     // remove the vmobject from the process so that it gets dropped
-    let _ = process::current().vm_objects().write().remove(&addr);
+    let _ = vmm().vm_objects().write().remove(&addr);
 }
 
 #[panic_handler]

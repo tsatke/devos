@@ -6,7 +6,7 @@ use derive_more::Constructor;
 use crate::io::path::Path;
 use crate::io::vfs::error::Result;
 use crate::io::vfs::FsId;
-use crate::mem::virt::{AllocationError, AllocationStrategy, PmObject};
+use crate::mem::virt::{AllocationError, AllocationStrategy_, PmObject};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct VfsHandle(u64);
@@ -72,7 +72,7 @@ pub trait FileSystem: Send + Sync {
         &mut self,
         _handle: VfsHandle,
     ) -> core::result::Result<PmObject, AllocationError> {
-        PmObject::create(0, AllocationStrategy::AllocateOnAccess)
+        PmObject::create(0, AllocationStrategy_::AllocateOnAccess)
     }
 
     fn stat_path(&mut self, p: &Path) -> Result<Stat> {

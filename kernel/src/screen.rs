@@ -1,19 +1,17 @@
-use alloc::boxed::Box;
 use alloc::string::ToString;
-use alloc::sync::Arc;
 use alloc::vec::Vec;
 
 use conquer_once::spin::OnceCell;
-use spin::{Mutex, MutexGuard, RwLock};
+use spin::{Mutex, MutexGuard};
 use x86_64::structures::paging::{PageTableFlags, PhysFrame, Size4KiB};
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::PhysAddr;
 
 use graphics::PrimitiveDrawing;
 use pci::PciStandardHeaderDevice;
 use vga::{Color, FrameBuffer, Vga1280x800};
 
-use crate::mem::virt::{AllocationStrategy, MemoryBackedVmObject, PmObject};
-use crate::process;
+use crate::mem::virt::{AllocationStrategy, MapAt};
+use crate::process::vmm;
 
 static VGA: OnceCell<Mutex<Vga1280x800>> = OnceCell::uninit();
 
@@ -44,23 +42,19 @@ pub fn init() {
             .map(PhysFrame::<Size4KiB>::containing_address)
             .collect::<Vec<_>>();
 
-        let vaddr = VirtAddr::new(0x1111_0000_0000);
-        let pmo = PmObject::new(AllocationStrategy::AllocateNow, frames);
-        let vmo = MemoryBackedVmObject::new(
-            "framebuffer".to_string(),
-            Arc::new(RwLock::new(pmo)),
-            AllocationStrategy::AllocateNow,
-            vaddr,
-            size,
-            PageTableFlags::PRESENT
-                | PageTableFlags::WRITABLE
-                | PageTableFlags::NO_EXECUTE
-                | PageTableFlags::NO_CACHE
-                | PageTableFlags::WRITE_THROUGH,
-        );
-        vmo.map_pages().unwrap();
-        let process = process::current();
-        process.vm_objects().write().insert(vaddr, Box::new(vmo));
+        let vaddr = vmm()
+            .allocate_memory_backed_vmobject(
+                "framebuffer".to_string(),
+                MapAt::Anywhere,
+                size,
+                AllocationStrategy::MapNow(frames),
+                PageTableFlags::PRESENT
+                    | PageTableFlags::WRITABLE
+                    | PageTableFlags::NO_EXECUTE
+                    | PageTableFlags::NO_CACHE
+                    | PageTableFlags::WRITE_THROUGH,
+            )
+            .unwrap();
 
         VGA.init_once(|| {
             Mutex::new(Vga1280x800::new(unsafe {
