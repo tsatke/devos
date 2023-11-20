@@ -31,9 +31,14 @@ fn main() {
     println!("cargo:rustc-env=UEFI_PATH={}", uefi_path.display());
 
     // create a disk image for each test kernel
-    for test_kernel in fs::read_dir("test_kernels")
+    for test_kernel in fs::read_dir("tests")
         .unwrap()
         .map(|entry| entry.unwrap().path())
+        .filter(|e| {
+            e.is_dir()
+                && e.file_name()
+                    .is_some_and(|f| f.to_str().unwrap().starts_with("test_kernel_"))
+        })
         .map(|e| {
             e.file_name()
                 .map(|f| f.to_str().unwrap().to_string())

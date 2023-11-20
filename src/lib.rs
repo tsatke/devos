@@ -1,6 +1,9 @@
-use OS_DISK;
+// these are set in build.rs at build time
+pub const UEFI_PATH: &str = env!("UEFI_PATH");
+pub const KERNEL_BINARY: &str = env!("KERNEL_BINARY");
+pub const OS_DISK: &str = env!("OS_DISK");
 
-fn run_test_kernel(kernel: &str, os_disk: &str) {
+pub fn run_test_kernel(kernel: &str, os_disk: &str) {
     let mut cmd = std::process::Command::new("qemu-system-x86_64");
     cmd.arg("--no-reboot");
     cmd.arg("-d").arg("guest_errors");
@@ -22,24 +25,4 @@ fn run_test_kernel(kernel: &str, os_disk: &str) {
     ); // 33=success, 35=failed
 
     println!("{}", String::from_utf8_lossy(&output.stdout));
-}
-
-#[test]
-fn test_kernel_unittests() {
-    run_test_kernel(env!("TEST_KERNEL_UNITTESTS_PATH"), OS_DISK);
-}
-
-#[test]
-fn test_kernel_multitasking() {
-    run_test_kernel(env!("TEST_KERNEL_MULTITASKING_PATH"), OS_DISK);
-}
-
-#[test]
-fn test_kernel_vfs() {
-    run_test_kernel(env!("TEST_KERNEL_VFS_PATH"), OS_DISK);
-}
-
-#[test]
-fn test_kernel_vmobject() {
-    run_test_kernel(env!("TEST_KERNEL_VMOBJECT_PATH"), OS_DISK);
 }
