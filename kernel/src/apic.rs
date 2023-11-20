@@ -8,10 +8,12 @@ use x86_64::{PhysAddr, VirtAddr};
 
 use crate::arch::idt::InterruptIndex;
 use crate::map_page;
+use crate::process::vmm;
+use crate::Result;
 
 pub static LAPIC: OnceCell<Mutex<LocalApic>> = OnceCell::uninit();
 
-pub fn init() {
+pub fn init() -> Result<()> {
     disable_8259();
 
     let apic_physical_address: u64 = unsafe { xapic_base() };
@@ -34,13 +36,14 @@ pub fn init() {
         .timer_mode(TimerMode::Periodic)
         .timer_initial(312500)
         .timer_divide(TimerDivide::Div16)
-        .build()
-        .unwrap_or_else(|err| panic!("{}", err));
+        .build()?;
 
     unsafe {
         lapic.enable();
     }
     LAPIC.init_once(move || Mutex::new(lapic));
+
+    Ok(())
 }
 
 fn disable_8259() {

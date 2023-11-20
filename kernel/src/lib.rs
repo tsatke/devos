@@ -52,7 +52,7 @@ pub fn kernel_init(boot_info: &'static mut BootInfo) -> Result<()> {
     idt::init();
     mem::init(boot_info)?;
     acpi::init(boot_info)?;
-    apic::init();
+    apic::init()?;
     vfs::init();
 
     interrupts::enable();
