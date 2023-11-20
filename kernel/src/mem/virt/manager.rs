@@ -4,9 +4,10 @@ use alloc::string::String;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
+use core::error::Error;
 use core::ops::{Deref, DerefMut};
 
-use derive_more::Constructor;
+use derive_more::{Constructor, Display};
 use spin::RwLock;
 use x86_64::structures::paging::{PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::VirtAddr;
@@ -15,7 +16,7 @@ use crate::io::vfs::VfsNode;
 use crate::mem::physical::PhysicalMemoryManager;
 use crate::mem::virt::heap::heap_initialized;
 use crate::mem::virt::{
-    AllocationStrategy_, FileBackedVmObject, MemoryBackedVmObject, PmObject, VmObject,
+    FileBackedVmObject, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject, VmObject,
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Constructor)]
@@ -34,11 +35,15 @@ impl Interval {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Display, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VmmError {
+    #[display = "requested memory is already allocated"]
     AlreadyAllocated,
+    #[display = "out of memory"]
     OutOfMemory,
 }
+
+impl Error for VmmError {}
 
 #[derive(Debug)]
 pub struct VirtualMemoryManager {
@@ -144,7 +149,7 @@ impl VirtualMemoryManager {
         let vmo = MemoryBackedVmObject::new(
             name,
             Arc::new(RwLock::new(PmObject::new(
-                AllocationStrategy_::AllocateOnAccess,
+                PhysicalAllocationStrategy::AllocateOnAccess,
                 physical_memory,
             ))),
             interval,

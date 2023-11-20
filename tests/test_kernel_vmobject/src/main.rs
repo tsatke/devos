@@ -20,7 +20,7 @@ const CONFIG: BootloaderConfig = bootloader_config();
 entry_point!(kernel_main, config = &CONFIG);
 
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
-    kernel_init(boot_info);
+    kernel_init(boot_info).expect("kernel_init failed");
 
     serial_print!("test_memory_backed_allocate_now...");
     test_memory_backed(AllocationStrategy::AllocateNow);

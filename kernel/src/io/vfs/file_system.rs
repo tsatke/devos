@@ -6,7 +6,6 @@ use derive_more::Constructor;
 use crate::io::path::Path;
 use crate::io::vfs::error::Result;
 use crate::io::vfs::FsId;
-use crate::mem::virt::{AllocationError, AllocationStrategy_, PmObject};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct VfsHandle(u64);
@@ -62,18 +61,6 @@ pub trait FileSystem: Send + Sync {
     fn truncate(&mut self, handle: VfsHandle, size: usize) -> Result<()>;
 
     fn stat(&mut self, handle: VfsHandle) -> Result<Stat>;
-
-    /// Create a PmObject that can be used for a VmObject in a memory mapped file.
-    /// The file system has the opportunity to create a PmObject that is backed by
-    /// direct physical memory (such as the framebuffer file), or to create a
-    /// PmObject that is backed by memory (and the VmObject will handle the reading
-    /// from the file).
-    fn create_pm_object_for_mmap(
-        &mut self,
-        _handle: VfsHandle,
-    ) -> core::result::Result<PmObject, AllocationError> {
-        PmObject::create(0, AllocationStrategy_::AllocateOnAccess)
-    }
 
     fn stat_path(&mut self, p: &Path) -> Result<Stat> {
         let handle = self.open(p)?;

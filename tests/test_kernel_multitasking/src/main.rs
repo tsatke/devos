@@ -19,7 +19,7 @@ entry_point!(kernel_main, config = &CONFIG);
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
-    kernel_init(boot_info);
+    kernel_init(boot_info).expect("kernel_init failed");
 
     serial_print!("test_async_counter...");
     test_counter();

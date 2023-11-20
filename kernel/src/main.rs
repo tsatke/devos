@@ -31,7 +31,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         serial_println!("got a ramdisk");
     }
 
-    kernel_init(boot_info);
+    kernel_init(boot_info).expect("kernel_init failed");
 
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
     process::spawn_task_in_current_process("hello_world", hello_world);

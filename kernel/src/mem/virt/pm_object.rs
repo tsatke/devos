@@ -9,12 +9,12 @@ use crate::mem::virt::AllocationError;
 
 #[derive(Debug, Constructor)]
 pub struct PmObject {
-    allocation_strategy: AllocationStrategy_,
+    allocation_strategy: PhysicalAllocationStrategy,
     phys_frames: Vec<PhysFrame>,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum AllocationStrategy_ {
+pub enum PhysicalAllocationStrategy {
     AllocateNow,
     AllocateOnAccess,
 }
@@ -22,11 +22,11 @@ pub enum AllocationStrategy_ {
 impl PmObject {
     pub fn create(
         size: usize,
-        allocation_strategy: AllocationStrategy_,
+        allocation_strategy: PhysicalAllocationStrategy,
     ) -> Result<Self, AllocationError> {
         let phys_frames = match allocation_strategy {
-            AllocationStrategy_::AllocateOnAccess => Vec::new(),
-            AllocationStrategy_::AllocateNow => {
+            PhysicalAllocationStrategy::AllocateOnAccess => Vec::new(),
+            PhysicalAllocationStrategy::AllocateNow => {
                 let num_frames = size.div_ceil(Size4KiB::SIZE as usize);
                 let mut res = Vec::with_capacity(num_frames);
                 let mut guard = PhysicalMemoryManager::lock();
@@ -57,7 +57,7 @@ impl PmObject {
         &self.phys_frames
     }
 
-    pub fn allocation_strategy(&self) -> AllocationStrategy_ {
+    pub fn allocation_strategy(&self) -> PhysicalAllocationStrategy {
         self.allocation_strategy
     }
 
