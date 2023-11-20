@@ -5,6 +5,7 @@
 #![feature(array_chunks)]
 #![feature(assert_matches)]
 #![feature(const_mut_refs)]
+#![feature(error_in_core)]
 #![feature(exclusive_range_pattern)]
 #![feature(iter_array_chunks)]
 #![feature(naked_functions)]
@@ -21,9 +22,12 @@ use crate::arch::{gdt, idt};
 use crate::io::vfs;
 use crate::mem::Size;
 
+pub use error::Result;
+
 pub mod acpi;
 pub mod apic;
 pub mod arch;
+mod error;
 pub mod io;
 pub mod mem;
 pub mod process;
@@ -43,7 +47,7 @@ pub const fn bootloader_config() -> BootloaderConfig {
 }
 
 #[allow(clippy::needless_pass_by_ref_mut)]
-pub fn kernel_init(boot_info: &'static mut BootInfo) {
+pub fn kernel_init(boot_info: &'static mut BootInfo) -> Result<()> {
     gdt::init();
     idt::init();
     mem::init(boot_info);
@@ -54,6 +58,8 @@ pub fn kernel_init(boot_info: &'static mut BootInfo) {
     interrupts::enable();
 
     screen::init();
+
+    Ok(())
 }
 
 #[cfg(feature = "kernel_test")]
