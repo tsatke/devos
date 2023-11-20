@@ -120,6 +120,33 @@ impl VirtualMemoryManager {
         Ok(addr)
     }
 
+    pub fn create_memory_mapping(
+        &self,
+        name: String,
+        addr: MapAt,
+        physical_frames: Vec<PhysFrame>,
+        flags: PageTableFlags,
+    ) -> Result<VirtAddr, VmmError> {
+        let size = physical_frames.len() * Size4KiB::SIZE as usize;
+        let interval = self.resolve_map_at(addr, size)?;
+
+        let vmo = MemoryBackedVmObject::new(
+            name,
+            Arc::new(RwLock::new(PmObject::new(
+                PhysicalAllocationStrategy::AllocateOnAccess,
+                physical_frames,
+            ))),
+            interval,
+            flags,
+        );
+        vmo.map_pages()?;
+
+        let addr = vmo.addr();
+        self.vm_objects.write().insert(addr, Box::new(vmo));
+
+        Ok(addr)
+    }
+
     fn create_memory_backed_vmo(
         &self,
         name: String,
@@ -128,14 +155,7 @@ impl VirtualMemoryManager {
         allocation_strategy: AllocationStrategy,
         flags: PageTableFlags,
     ) -> Result<MemoryBackedVmObject, VmmError> {
-        let interval = match addr {
-            MapAt::Fixed(addr) => {
-                let interval = Interval::new(addr, size);
-                self.mark_as_reserved(interval)?;
-                interval
-            }
-            MapAt::Anywhere => self.reserve(size)?,
-        };
+        let interval = self.resolve_map_at(addr, size)?;
 
         let (physical_memory, should_map, should_zero) = match allocation_strategy {
             AllocationStrategy::AllocateOnAccess => (vec![], false, false),
@@ -163,6 +183,18 @@ impl VirtualMemoryManager {
             unsafe { vmo.as_slice_mut().fill(0) };
         }
         Ok(vmo)
+    }
+
+    fn resolve_map_at(&self, addr: MapAt, size: usize) -> Result<Interval, VmmError> {
+        let interval = match addr {
+            MapAt::Fixed(addr) => {
+                let interval = Interval::new(addr, size);
+                self.mark_as_reserved(interval)?;
+                interval
+            }
+            MapAt::Anywhere => self.reserve(size)?,
+        };
+        Ok(interval)
     }
 
     pub fn vm_objects(&self) -> &RwLock<BTreeMap<VirtAddr, Box<dyn VmObject>>> {
