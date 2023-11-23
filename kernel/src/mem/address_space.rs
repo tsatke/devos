@@ -5,12 +5,14 @@ use x86_64::structures::paging::mapper::{
     InvalidPageTable, MapToError, MapperFlush, TranslateResult, UnmapError,
 };
 use x86_64::structures::paging::{
-    Mapper, Page, PageTable, PageTableFlags, PhysFrame, RecursivePageTable, Size4KiB, Translate,
+    Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable, Size4KiB,
+    Translate,
 };
 use x86_64::VirtAddr;
 
 use crate::mem::physical::{FrameAllocatorDelegate, PhysicalMemoryManager};
 use crate::process;
+use crate::process::vmm;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct AddressSpace {
@@ -33,7 +35,8 @@ impl !Clone for AddressSpace {}
 impl AddressSpace {
     pub fn allocate_new() -> Self {
         let pt_frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
-        let pt_vaddr = VirtAddr::new(0x3333_3333_0000); // FIXME: choose any free address instead of hard-wiring one (solvable once we have some kind of task management)
+        let pt_interval = vmm().reserve(Size4KiB::SIZE as usize).unwrap();
+        let pt_vaddr = pt_interval.start();
         let pt_page = Page::containing_address(pt_vaddr);
 
         let current_process = process::current();
@@ -61,6 +64,7 @@ impl AddressSpace {
         unsafe { ptr::write(pt_vaddr.as_mut_ptr(), pt) };
 
         current_addr_space.unmap(pt_page).unwrap().1.flush(); // the physical frame that's "leaking" here is the frame containing the new page table
+        vmm().release(pt_interval);
 
         // FIXME / TODO: map the kernel stuff into the new address space as well
 
