@@ -1,39 +1,5 @@
 use derive_more::Deref;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct PositiveOrZeroIsize(isize);
-
-impl PositiveOrZeroIsize {
-    pub const fn new(value: isize) -> Option<Self> {
-        if value < 0 {
-            None
-        } else {
-            Some(Self(value))
-        }
-    }
-
-    pub fn get(self) -> isize {
-        self.0
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-pub struct NegativeIsize(isize);
-
-impl NegativeIsize {
-    pub const fn new(value: isize) -> Option<Self> {
-        if value >= 0 {
-            None
-        } else {
-            Some(Self(value))
-        }
-    }
-
-    pub fn get(self) -> isize {
-        self.0
-    }
-}
-
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Deref)]
 pub struct Errno(isize);
 
