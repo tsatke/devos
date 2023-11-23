@@ -21,7 +21,7 @@ fn init(heap_start: *mut u8, heap_size: usize) {
 
 #[no_mangle]
 pub fn _start() -> isize {
-    let start = 0x1111_1111_0000;
+    let start = 0x3333_0000_0000;
     let len = 8 * 1024;
 
     let eno = sys_mmap(start, len, 0x1 | 0x2, 0x2 | 0x8, 0, 0);
