@@ -3,7 +3,7 @@ name = "devos"
 version = "0.1.0"
 
 [build-dependencies]
-bootloader = "0.11"
+bootloader = { git = "https://github.com/rust-osdev/bootloader", rev = "a1b2eb88fd365fa7b4b35e29495076f22932cb7f" } # make sure this is compatible with bootloader_api in [workspace.dependencies]
 fs_extra = "1.3.0"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
 hello_world = { path = "userspace/hello_world", artifact = "bin", target = "x86_64-unknown-none" }
@@ -38,7 +38,7 @@ members = [
 [workspace.dependencies]
 acpi = "5.0.0"
 bitflags = "2.4.1"
-bootloader_api = "0.11"
+bootloader_api = { git = "https://github.com/rust-osdev/bootloader", rev = "a1b2eb88fd365fa7b4b35e29495076f22932cb7f" }
 bresenham = "0.1.1"
 conquer-once = { version = "0.4.0", default-features = false }
 crossbeam-queue = { version = "0.3.8", default-features = false, features = ["alloc"] }
