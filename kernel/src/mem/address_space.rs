@@ -11,8 +11,8 @@ use x86_64::structures::paging::{
 use x86_64::VirtAddr;
 
 use crate::mem::physical::{FrameAllocatorDelegate, PhysicalMemoryManager};
-use crate::process;
 use crate::process::vmm;
+use crate::{process, KERNEL_CODE_ADDR};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct AddressSpace {
@@ -53,20 +53,39 @@ impl AddressSpace {
 
         // create new page table
         let mut pt = PageTable::new();
+
+        {
+            // copy kernel entries
+            let kernel_start_index: u16 =
+                Page::<Size4KiB>::containing_address(*KERNEL_CODE_ADDR.get().unwrap())
+                    .p4_index()
+                    .into();
+            let kernel_range = kernel_start_index..512;
+
+            let mut current_rec_pt = current_addr_space.get_recursive_page_table();
+            let current_pt = &*current_rec_pt.level_4_table();
+            for i in kernel_range {
+                let pte = &current_pt[i as usize];
+                pt[i as usize].set_addr(pte.addr(), pte.flags());
+            }
+        }
+
         let (pte_index, pte) = pt
             .iter_mut()
             .enumerate()
             .filter(|(_, e)| e.is_unused())
             .last()
             .unwrap();
+        assert_ne!(pte_index, 0, "no free entries in new page table"); // if the last unused index is 0, we have a problem, since that is the entry that we need to keep free for userspace (at least for now, since the bootloader currently maps us at 0x80_0000_0000 (yes, that low))
         pte.set_frame(pt_frame, PageTableFlags::PRESENT | PageTableFlags::WRITABLE);
 
-        unsafe { ptr::write(pt_vaddr.as_mut_ptr(), pt) };
+        unsafe {
+            // Safety: we just reserved the address and mapped it by hand, so this is safe to write to
+            pt_vaddr.as_mut_ptr().write(pt);
+        }
 
         current_addr_space.unmap(pt_page).unwrap().1.flush(); // the physical frame that's "leaking" here is the frame containing the new page table
         vmm().release(pt_interval);
-
-        // FIXME / TODO: map the kernel stuff into the new address space as well
 
         AddressSpace::new(
             pt_frame,
