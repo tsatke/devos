@@ -33,8 +33,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     kernel_init(boot_info).expect("kernel_init failed");
 
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
-    // process::spawn_task_in_current_process("hello_world", hello_world);
-    process::spawn_task_in_current_process("window_server", window_server);
+    process::spawn_task_in_current_process("hello_world", hello_world);
+
+    let window_server_proc = process::create(process::current().clone(), "window_server");
+    process::spawn_task("spawn_window_server", &window_server_proc, window_server);
 
     panic!("kernel_main returned");
 }

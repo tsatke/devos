@@ -29,6 +29,7 @@ pub fn init(root_process: Process) {
     let mut pt_guard = process_tree().write();
     pt_guard.set_root(root_process.clone());
     pt_guard.add_task(root_process.process_id(), current_task.task_id());
+    drop(pt_guard); // scheduler spawns its own tasks and needs to write to the process tree
 
     scheduler::init(current_task);
 }
@@ -62,6 +63,9 @@ pub fn spawn_task_in_current_process(name: impl Into<String>, func: extern "C" f
 
 pub fn spawn_task(name: impl Into<String>, process: &Process, func: extern "C" fn()) {
     let task = Task::<Ready>::new(process, name, func);
+    process_tree()
+        .write()
+        .add_task(process.process_id(), task.task_id());
     spawn(task)
 }
 
