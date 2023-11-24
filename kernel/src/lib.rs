@@ -16,13 +16,15 @@ extern crate alloc;
 
 use bootloader_api::config::Mapping;
 use bootloader_api::{BootInfo, BootloaderConfig};
+use conquer_once::spin::OnceCell;
 use x86_64::instructions::interrupts;
+use x86_64::VirtAddr;
+
+pub use error::Result;
 
 use crate::arch::{gdt, idt};
 use crate::io::vfs;
 use crate::mem::Size;
-
-pub use error::Result;
 
 pub mod acpi;
 pub mod apic;
@@ -38,6 +40,9 @@ pub mod timer;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(128);
 
+pub static KERNEL_CODE_ADDR: OnceCell<VirtAddr> = OnceCell::uninit();
+pub static KERNEL_CODE_LEN: OnceCell<usize> = OnceCell::uninit();
+
 pub const fn bootloader_config() -> BootloaderConfig {
     let mut config = BootloaderConfig::new_default();
     config.mappings.page_table_recursive = Some(Mapping::Dynamic);
@@ -46,14 +51,16 @@ pub const fn bootloader_config() -> BootloaderConfig {
     config
 }
 
-#[allow(clippy::needless_pass_by_ref_mut)]
-pub fn kernel_init(boot_info: &'static mut BootInfo) -> Result<()> {
+pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     gdt::init();
     idt::init();
     mem::init(boot_info)?;
     acpi::init(boot_info)?;
     apic::init()?;
     vfs::init();
+
+    KERNEL_CODE_ADDR.init_once(|| VirtAddr::new(boot_info.kernel_image_offset));
+    KERNEL_CODE_LEN.init_once(|| boot_info.kernel_len as usize);
 
     interrupts::enable();
 
