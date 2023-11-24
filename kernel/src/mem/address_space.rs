@@ -81,7 +81,7 @@ impl AddressSpace {
 
         unsafe {
             // Safety: we just reserved the address and mapped it by hand, so this is safe to write to
-            pt_vaddr.as_mut_ptr().write(pt);
+            ptr::write(pt_vaddr.as_mut_ptr(), pt);
         }
 
         current_addr_space.unmap(pt_page).unwrap().1.flush(); // the physical frame that's "leaking" here is the frame containing the new page table
