@@ -65,6 +65,9 @@ impl ProcessTree {
         if let Some(_children) = self.children.remove(process_id) {
             todo!("change parent of orphan, old parent pid={}", process_id);
         };
+        self.children.values_mut().for_each(|children| {
+            children.remove(process_id);
+        });
         self.tasks.remove(process_id);
         p
     }
