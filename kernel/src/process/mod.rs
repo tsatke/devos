@@ -12,7 +12,7 @@ pub use scheduler::*;
 pub use tree::*;
 
 use crate::io::path::Path;
-use crate::io::vfs::{vfs, VfsError, VfsNode};
+use crate::io::vfs::{vfs, DirEntry, VfsError, VfsNode};
 use crate::mem::virt::VirtualMemoryManager;
 use crate::mem::AddressSpace;
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
@@ -140,6 +140,14 @@ impl Process {
         let path = path.as_ref();
         let node = vfs().open(path)?;
         Ok(self.register_vfs_node_as_open(node))
+    }
+
+    #[inline(always)]
+    pub fn read_dir<P>(&self, path: P) -> Result<impl Iterator<Item = DirEntry>, VfsError>
+    where
+        P: AsRef<Path>,
+    {
+        vfs().read_dir(path)
     }
 
     pub fn register_vfs_node_as_open(&self, node: VfsNode) -> Fileno {

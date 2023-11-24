@@ -21,7 +21,7 @@ fn init(heap_start: *mut u8, heap_size: usize) {
 
 #[no_mangle]
 pub fn _start() -> isize {
-    let start = 0x3333_0000_0000;
+    let start = 0x1000_0000;
     let len = 8 * 1024;
 
     let eno = sys_mmap(start, len, 0x1 | 0x2, 0x2 | 0x8, 0, 0);
@@ -31,7 +31,7 @@ pub fn _start() -> isize {
 
     init(start as *mut u8, len);
 
-    do_something();
+    main();
 
     let stdout = must(sys_open("/dev/stdout", 0, 0));
     let greeting = must(sys_open("/var/data/hello.txt", 0, 0));
@@ -54,7 +54,7 @@ fn must(errno: Errno) -> usize {
     errno.as_isize() as usize
 }
 
-fn do_something() {
+fn main() {
     let mut v = Vec::new();
     for i in 0..10 {
         v.push(i);

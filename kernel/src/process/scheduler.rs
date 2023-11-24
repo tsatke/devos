@@ -141,12 +141,13 @@ impl Scheduler {
             self.ready.push_back(task);
         }
 
-        let task = match self.ready.pop_front() {
-            None => {
-                return;
-            }
-            Some(t) => t,
-        };
+        let task =
+            match self.ready.pop_front() {
+                None => {
+                    return;
+                }
+                Some(t) => t,
+            };
 
         let cr3_value = task.process().cr3_value();
 
@@ -190,14 +191,6 @@ impl Scheduler {
 }
 
 fn free_task(task: Task<Finished>) {
-    serial_println!(
-        "freeing task {} ({}) in process {} ({})",
-        task.task_id(),
-        task.name(),
-        task.process().process_id(),
-        task.process().name()
-    );
-
     // TODO: unwind
 
     // TODO: deallocate stack
@@ -208,6 +201,7 @@ fn free_task(task: Task<Finished>) {
     drop(task);
 
     if !process_tree.has_tasks(&pid) {
+        serial_println!("freeing process {}", pid);
         let process = match process_tree.remove_process(&pid) {
             None => {
                 panic!(

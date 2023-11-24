@@ -4,7 +4,6 @@
 
 extern crate alloc;
 
-use alloc::string::ToString;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -12,7 +11,6 @@ use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::arch::panic::handle_panic;
-use kernel::process::process_tree;
 use kernel::syscall::sys_execve;
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use vga::Color;
@@ -35,24 +33,18 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     kernel_init(boot_info).expect("kernel_init failed");
 
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
-    process::spawn_task_in_current_process("hello_world", hello_world);
-
-    for _ in 0..5 {
-        let new_process = process::create(process::current().clone(), "new_process".to_string());
-        process::spawn_task("greet", &new_process, greet);
-    }
-
-    process_tree().read().dump();
+    // process::spawn_task_in_current_process("hello_world", hello_world);
+    process::spawn_task_in_current_process("window_server", window_server);
 
     panic!("kernel_main returned");
 }
 
-extern "C" fn greet() {
-    serial_println!("hello from pid {}", process::current().process_id());
-}
-
 extern "C" fn hello_world() {
     sys_execve("/bin/hello_world", &[], &[]).unwrap();
+}
+
+extern "C" fn window_server() {
+    sys_execve("/bin/window_server", &[], &[]).unwrap();
 }
 
 extern "C" fn vga_stuff() {

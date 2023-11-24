@@ -7,6 +7,7 @@ bootloader = { git = "https://github.com/rust-osdev/bootloader", rev = "a1b2eb88
 fs_extra = "1.3.0"
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", default-features = false }
 hello_world = { path = "userspace/hello_world", artifact = "bin", target = "x86_64-unknown-none" }
+window_server = { path = "userspace/window_server", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_multitasking = { path = "tests/test_kernel_multitasking", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_unittests = { path = "tests/test_kernel_unittests", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_vfs = { path = "tests/test_kernel_vfs", artifact = "bin", target = "x86_64-unknown-none" }
@@ -33,6 +34,7 @@ members = [
     "tests/test_kernel_vfs",
     "tests/test_kernel_vmobject",
     "userspace/hello_world",
+    "userspace/window_server",
 ]
 
 [workspace.dependencies]
