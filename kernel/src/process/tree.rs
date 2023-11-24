@@ -5,7 +5,7 @@ use spin::RwLock;
 use x86_64::structures::paging::PageTableFlags;
 
 use crate::process::task::TaskId;
-use crate::process::{current, vmm, Process, ProcessId};
+use crate::process::{current, Process, ProcessId};
 use crate::serial_println;
 
 static PROCESS_TREE: RwLock<ProcessTree> = RwLock::new(ProcessTree::new());
@@ -120,8 +120,9 @@ impl ProcessTree {
             .children
             .get(process_id)
             .map_or(0, |children| children.len());
-        let vm_objects = vmm().vm_objects().read().len();
+        let vm_objects = process.virtual_memory_manager.vm_objects().read().len();
         let open_fds = process.open_fds().read().len();
+
         serial_println!(
             "{:indent$}{} (pid={}, tasks={}, children={}, vm_objects={}, open_fds={})",
             "",
@@ -133,7 +134,8 @@ impl ProcessTree {
             open_fds,
             indent = indent
         );
-        vmm().vm_objects().read().iter().for_each(|(_, vm_object)| {
+
+        for (_, vm_object) in process.virtual_memory_manager.vm_objects().read().iter() {
             serial_println!(
                 "{:indent$}*vm_object: {:#p}-{:#p} {:#016x} {} {}",
                 "",
@@ -144,8 +146,9 @@ impl ProcessTree {
                 vm_object.name(),
                 indent = indent + 4
             )
-        });
-        process.open_fds().read().iter().for_each(|(fileno, fd)| {
+        }
+
+        for (fileno, fd) in process.open_fds().read().iter() {
             serial_println!(
                 "{:indent$}*open_fd: {} (fileno={})",
                 "",
@@ -153,7 +156,7 @@ impl ProcessTree {
                 fileno,
                 indent = indent + 4
             )
-        });
+        }
     }
 }
 
