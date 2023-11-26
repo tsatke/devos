@@ -1,6 +1,7 @@
+use alloc::format;
 use alloc::string::ToString;
-use alloc::{format, vec};
 use core::intrinsics::transmute;
+use core::slice::from_raw_parts_mut;
 
 use bitflags::bitflags;
 use elfloader::ElfBinary;
@@ -127,14 +128,21 @@ pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Resul
     let elf_data = {
         let file = vfs().open(path).map_err(|_| Errno::ENOENT)?;
         let stat = vfs().stat(&file).map_err(|_| Errno::EIO)?;
-        let size = stat.size;
-        let mut buf = vec![0_u8; size as usize];
-        vfs().read(&file, &mut buf, 0).map_err(|_| Errno::EIO)?;
-        buf
+        let size = stat.size as usize;
+        let addr = vmm().allocate_memory_backed_vmobject(
+            format!("execve '{}' (len={})", path, size),
+            MapAt::Anywhere,
+            size,
+            AllocationStrategy::AllocateOnAccess,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        )?;
+        let mut data = unsafe { from_raw_parts_mut(addr.as_mut_ptr::<u8>(), size) };
+        vfs().read(&file, &mut data, 0).map_err(|_| Errno::EIO)?;
+        data
     };
 
     let mut loader = ElfLoader::default();
-    let elf = ElfBinary::new(&elf_data).unwrap();
+    let elf = ElfBinary::new(elf_data).unwrap();
     elf.load(&mut loader).unwrap();
     let image = loader.into_inner();
     let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
