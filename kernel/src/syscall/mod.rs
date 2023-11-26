@@ -115,7 +115,7 @@ pub fn sys_dup(fd: Fileno) -> Result<Fileno> {
         .get(&fd)
         .map(|desc| desc.node().clone())
         .ok_or(Errno::EBADF)?;
-    let new_fd = process.register_vfs_node_as_open(node);
+    let new_fd = process.get_fileno_for(node);
     Ok(new_fd)
 }
 

@@ -139,10 +139,10 @@ impl Process {
     {
         let path = path.as_ref();
         let node = vfs().open(path)?;
-        Ok(self.register_vfs_node_as_open(node))
+        Ok(self.get_fileno_for(node))
     }
 
-    pub fn register_vfs_node_as_open(&self, node: VfsNode) -> Fileno {
+    pub fn get_fileno_for(&self, node: VfsNode) -> Fileno {
         let fd = self.next_fd.next();
         self.open_fds.write().insert(fd, FileDescriptor::new(node));
         fd
