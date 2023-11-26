@@ -14,7 +14,7 @@ pub use tree::*;
 use crate::io::path::Path;
 use crate::io::vfs::{vfs, VfsError, VfsNode};
 use crate::mem::virt::VirtualMemoryManager;
-use crate::mem::AddressSpace;
+use crate::mem::{AddressSpace, Size};
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::task::{Ready, Running, Task};
 
@@ -102,7 +102,7 @@ impl Process {
             name: name.into(),
             address_space: Arc::new(RwLock::new(address_space)),
             virtual_memory_manager: Arc::new(unsafe {
-                VirtualMemoryManager::new(VirtAddr::new(0x1111_1111_0000), 0x6666_6666_0000)
+                VirtualMemoryManager::new(VirtAddr::new(0x1111_1111_0000), Size::TiB(100).bytes())
             }),
             next_fd: Arc::new(FilenoAllocator::new()),
             open_fds: Arc::new(RwLock::new(BTreeMap::new())),
