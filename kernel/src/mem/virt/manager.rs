@@ -19,6 +19,33 @@ use crate::mem::virt::{
     FileBackedVmObject, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject, VmObject,
 };
 
+#[derive(Debug)]
+pub struct OwnedInterval<'a> {
+    interval: Interval,
+    vmm: &'a VirtualMemoryManager,
+}
+
+impl OwnedInterval<'_> {
+    pub fn leak(self) -> Interval {
+        core::mem::ManuallyDrop::new(self).interval
+    }
+}
+
+impl Deref for OwnedInterval<'_> {
+    type Target = Interval;
+
+    fn deref(&self) -> &Self::Target {
+        &self.interval
+    }
+}
+
+impl Drop for OwnedInterval<'_> {
+    fn drop(&mut self) {
+        let interval = self.interval;
+        assert!(self.vmm.release(interval));
+    }
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Constructor)]
 pub struct Interval {
     start: VirtAddr,
@@ -81,7 +108,7 @@ impl VirtualMemoryManager {
     }
 
     pub fn allocate_memory_backed_vmobject(
-        &self,
+        &'static self,
         name: String,
         addr: MapAt,
         size: usize,
@@ -97,7 +124,7 @@ impl VirtualMemoryManager {
     }
 
     pub fn allocate_file_backed_vm_object(
-        &self,
+        &'static self,
         name: String,
         node: VfsNode,
         offset: usize,
@@ -121,7 +148,7 @@ impl VirtualMemoryManager {
     }
 
     pub fn create_memory_mapping(
-        &self,
+        &'static self,
         name: String,
         addr: MapAt,
         physical_frames: Vec<PhysFrame>,
@@ -148,7 +175,7 @@ impl VirtualMemoryManager {
     }
 
     fn create_memory_backed_vmo(
-        &self,
+        &'static self,
         name: String,
         addr: MapAt,
         size: usize,
@@ -185,23 +212,21 @@ impl VirtualMemoryManager {
         Ok(vmo)
     }
 
-    fn resolve_map_at(&self, addr: MapAt, size: usize) -> Result<Interval, VmmError> {
-        let interval = match addr {
+    fn resolve_map_at(&self, addr: MapAt, size: usize) -> Result<OwnedInterval, VmmError> {
+        Ok(match addr {
             MapAt::Fixed(addr) => {
                 let interval = Interval::new(addr, size);
-                self.mark_as_reserved(interval)?;
-                interval
+                self.mark_as_reserved(interval)?
             }
             MapAt::Anywhere => self.reserve(size)?,
-        };
-        Ok(interval)
+        })
     }
 
     pub fn vm_objects(&self) -> &RwLock<BTreeMap<VirtAddr, Box<dyn VmObject>>> {
         &self.vm_objects
     }
 
-    pub fn reserve(&self, size: usize) -> Result<Interval, VmmError> {
+    pub fn reserve(&self, size: usize) -> Result<OwnedInterval, VmmError> {
         let mut interval = Interval::new(self.mem_start, size);
         let mut guard = self.inner.write();
         while let Some(existing) = guard.find_overlapping_element(interval.start, interval.size) {
@@ -213,15 +238,19 @@ impl VirtualMemoryManager {
 
         guard.insert(interval);
 
-        Ok(interval)
+        let owned = OwnedInterval {
+            interval,
+            vmm: self,
+        };
+        Ok(owned)
     }
 
-    pub fn release(&self, interval: Interval) {
+    pub fn release(&self, interval: Interval) -> bool {
         let mut guard = self.inner.write();
-        assert!(guard.remove(&interval));
+        guard.remove(&interval)
     }
 
-    pub fn mark_as_reserved(&self, interval: Interval) -> Result<(), VmmError> {
+    pub fn mark_as_reserved(&self, interval: Interval) -> Result<OwnedInterval, VmmError> {
         let mut guard = self.inner.write();
         if guard
             .find_overlapping_element(interval.start, interval.size)
@@ -230,7 +259,12 @@ impl VirtualMemoryManager {
             return Err(VmmError::AlreadyAllocated);
         }
         guard.insert(interval);
-        Ok(())
+
+        let owned = OwnedInterval {
+            interval,
+            vmm: self,
+        };
+        Ok(owned)
     }
 }
 
@@ -308,20 +342,30 @@ mod tests {
     #[kernel_test]
     fn test_would_overlap_with_existing() {
         let vmm = unsafe { VirtualMemoryManager::new(VirtAddr::new(0x0), 0x10000) };
-        vmm.mark_as_reserved(Interval::new(VirtAddr::new(0x2000), 0x1000))
+        let owned = vmm
+            .mark_as_reserved(Interval::new(VirtAddr::new(0x2000), 0x1000))
             .unwrap();
-        let guard = vmm.inner.read();
-        assert!(guard
-            .find_overlapping_element(VirtAddr::new(0x1000), 0x1000)
-            .is_none());
-        assert!(guard
-            .find_overlapping_element(VirtAddr::new(0x1000), 0x1001)
-            .is_some());
-        assert!(guard
-            .find_overlapping_element(VirtAddr::new(0x1000), 0x3000)
-            .is_some());
-        assert!(guard
-            .find_overlapping_element(VirtAddr::new(0x2a00), 0x2f00)
-            .is_some());
+        {
+            let guard = vmm.inner.read();
+            assert!(guard
+                .find_overlapping_element(VirtAddr::new(0x1000), 0x1000)
+                .is_none());
+            assert!(guard
+                .find_overlapping_element(VirtAddr::new(0x1000), 0x1001)
+                .is_some());
+            assert!(guard
+                .find_overlapping_element(VirtAddr::new(0x1000), 0x3000)
+                .is_some());
+            assert!(guard
+                .find_overlapping_element(VirtAddr::new(0x2a00), 0x2f00)
+                .is_some());
+        }
+        drop(owned);
+        {
+            let guard = vmm.inner.read();
+            assert!(guard
+                .find_overlapping_element(VirtAddr::new(0x0), 0x10000)
+                .is_none());
+        }
     }
 }

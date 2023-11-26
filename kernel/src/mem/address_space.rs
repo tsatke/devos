@@ -35,7 +35,11 @@ impl !Clone for AddressSpace {}
 impl AddressSpace {
     pub fn allocate_new() -> Self {
         let pt_frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
-        let pt_interval = vmm().reserve(Size4KiB::SIZE as usize).unwrap();
+        let pt_interval = vmm()
+            .reserve(Size4KiB::SIZE as usize)
+            .unwrap()
+            // the address space lives as long as this interval is reserved, so we can leak it
+            .leak();
         let pt_vaddr = pt_interval.start();
         let pt_page = Page::containing_address(pt_vaddr);
 
@@ -85,7 +89,6 @@ impl AddressSpace {
         }
 
         current_addr_space.unmap(pt_page).unwrap().1.flush(); // the physical frame that's "leaking" here is the frame containing the new page table
-        vmm().release(pt_interval);
 
         AddressSpace::new(
             pt_frame,

@@ -10,15 +10,14 @@ use x86_64::structures::paging::{Page, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 use crate::mem::physical::PhysicalMemoryManager;
-use crate::mem::virt::{AllocationError, Interval, PmObject, VmObject, VmmError};
-use crate::process::vmm;
+use crate::mem::virt::{AllocationError, OwnedInterval, PmObject, VmObject, VmmError};
 use crate::{map_page, process, unmap_page};
 
 #[derive(Constructor, Debug)]
 pub struct MemoryBackedVmObject {
     name: String,
     underlying: Arc<RwLock<PmObject>>,
-    interval: Interval,
+    interval: OwnedInterval<'static>,
     flags: PageTableFlags,
 }
 
@@ -120,7 +119,6 @@ impl Drop for MemoryBackedVmObject {
             "interrupts must be enabled when dropping a vmobject"
         );
         deallocate(self);
-        vmm().release(self.interval);
     }
 }
 

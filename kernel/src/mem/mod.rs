@@ -90,21 +90,20 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
     let kheap_start_addr = VirtAddr::new(HEAP_START as u64);
     let kheap_size = HEAP_SIZE.bytes();
     let interval = Interval::new(kheap_start_addr, kheap_size);
+
+    process::init(root_process);
+
+    let vmm = vmm();
+    let interval = vmm.mark_as_reserved(interval)?;
     let kheap_vm_object = MemoryBackedVmObject::new(
         "kernel_heap".to_string(),
         Arc::new(RwLock::new(kheap_pm_object)),
         interval,
         flags,
     );
-
-    process::init(root_process);
-
-    let vmm = vmm();
     vmm.vm_objects()
         .write()
         .insert(kheap_start_addr, Box::new(kheap_vm_object)); // this needs to happen after we've initialized the heap
-
-    vmm.mark_as_reserved(interval)?;
 
     Ok(())
 }

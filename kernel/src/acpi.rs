@@ -12,7 +12,7 @@ use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::map_page;
-use crate::mem::virt::Interval;
+use crate::mem::virt::OwnedInterval;
 use crate::mem::Size;
 use crate::process::vmm;
 use crate::Result;
@@ -38,7 +38,7 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
 #[derive(Clone, Debug)]
 pub struct KernelAcpi {
     addr: Rc<Mutex<u64>>,
-    reserved_memory_interval: Interval,
+    reserved_memory_interval: Rc<OwnedInterval<'static>>,
 }
 
 impl KernelAcpi {
@@ -48,7 +48,7 @@ impl KernelAcpi {
             .expect("failed to reserve memory for acpi");
         KernelAcpi {
             addr: Rc::new(Mutex::new(interval.start().as_u64())),
-            reserved_memory_interval: interval,
+            reserved_memory_interval: Rc::new(interval),
         }
     }
 }
