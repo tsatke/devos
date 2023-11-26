@@ -12,6 +12,8 @@ use spin::RwLock;
 use x86_64::structures::paging::{PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::VirtAddr;
 
+use kernel_api::syscall::Errno;
+
 use crate::io::vfs::VfsNode;
 use crate::mem::physical::PhysicalMemoryManager;
 use crate::mem::virt::heap::heap_initialized;
@@ -72,6 +74,14 @@ pub enum VmmError {
 
 impl Error for VmmError {}
 
+impl From<VmmError> for Errno {
+    fn from(value: VmmError) -> Self {
+        match value {
+            VmmError::AlreadyAllocated | VmmError::OutOfMemory => Errno::ENOMEM,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct VirtualMemoryManager {
     mem_start: VirtAddr,
@@ -97,7 +107,9 @@ impl VirtualMemoryManager {
     /// # Safety
     /// The caller must ensure that the memory from `mem_start` to `mem_start + mem_size` is
     /// unused, unmapped and is effectively owned by this `VirtualMemoryManager`.
+    /// `mem_start` must be page aligned.
     pub unsafe fn new(mem_start: VirtAddr, mem_size: usize) -> Self {
+        assert!(mem_start.is_aligned(Size4KiB::SIZE));
         assert!(heap_initialized());
         Self {
             mem_start,
@@ -227,6 +239,7 @@ impl VirtualMemoryManager {
     }
 
     pub fn reserve(&self, size: usize) -> Result<OwnedInterval, VmmError> {
+        let size = align_up_to::<Size4KiB>(size);
         let mut interval = Interval::new(self.mem_start, size);
         let mut guard = self.inner.write();
         while let Some(existing) = guard.find_overlapping_element(interval.start, interval.size) {
@@ -312,6 +325,16 @@ impl Intervals {
             })
             .cloned()
     }
+}
+
+fn align_up_to<P: PageSize>(v: usize) -> usize {
+    let v = v as u64;
+    let align_mask = P::SIZE - 1;
+    (if v & align_mask == 0 {
+        v // already aligned
+    } else {
+        (v | align_mask).checked_add(1).unwrap()
+    }) as usize
 }
 
 #[cfg(feature = "kernel_test")]
