@@ -6,7 +6,7 @@ use kernel_api::syscall::{Errno, Syscall};
 
 use crate::process::fd::Fileno;
 use crate::syscall::{
-    sys_access, sys_close, sys_exit, sys_mmap, sys_munmap, sys_read, sys_write, MapFlags, Prot,
+    sys_access, sys_close, sys_exit, sys_mmap, sys_read, sys_write, MapFlags, Prot,
 };
 use crate::syscall::{sys_open, AMode};
 
@@ -33,7 +33,6 @@ pub fn dispatch_syscall(
             Syscall::Close => dispatch_sys_close(arg1),
             Syscall::Exit => dispatch_sys_exit(arg1),
             Syscall::Mmap => dispatch_sys_mmap(arg1, arg2, arg3, arg4, arg5, arg6),
-            Syscall::Munmap => dispatch_sys_munmap(arg1),
             Syscall::Open => dispatch_sys_open(arg1, arg2, arg3),
             Syscall::Read => dispatch_sys_read(arg1, arg2, arg3),
             Syscall::Write => dispatch_sys_write(arg1, arg2, arg3),
@@ -82,10 +81,6 @@ fn dispatch_sys_mmap(
     sys_mmap(addr, len, prot, flags, fd, offset)
         .map(|addr| addr.as_u64() as usize)
         .into()
-}
-
-fn dispatch_sys_munmap(arg1: usize) -> Errno {
-    sys_munmap(VirtAddr::new(arg1 as u64)).into()
 }
 
 unsafe fn dispatch_sys_read(arg1: usize, arg2: usize, arg3: usize) -> Errno {

@@ -243,13 +243,6 @@ pub fn sys_mmap(
     Ok(addr)
 }
 
-pub fn sys_munmap(addr: VirtAddr) -> Result<()> {
-    serial_println!("sys_munmap({:#x})", addr);
-    let mut guard = vmm().vm_objects().write();
-    guard.remove(&addr);
-    Ok(())
-}
-
 pub fn sys_mount(
     _source: impl AsRef<Path>,
     _target: impl AsRef<Path>,
