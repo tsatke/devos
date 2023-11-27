@@ -63,7 +63,7 @@ extern "C" fn count() {
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!(
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
-        kernel::process::current().process_id(),
+        kernel::process::current().pid(),
         kernel::process::current().name(),
         kernel::process::current_task().task_id(),
         kernel::process::current_task().name(),

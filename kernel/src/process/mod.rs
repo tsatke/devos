@@ -1,10 +1,10 @@
 use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::sync::Arc;
+use core::ops::Deref;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
-use derive_more::Display;
 use spin::RwLock;
 use x86_64::VirtAddr;
 
@@ -15,9 +15,11 @@ use crate::io::path::Path;
 use crate::io::vfs::{vfs, VfsError, VfsNode};
 use crate::mem::virt::VirtualMemoryManager;
 use crate::mem::{AddressSpace, Size};
+use crate::process::attributes::{Attributes, ProcessId};
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::task::{Ready, Running, Task};
 
+mod attributes;
 pub mod elf;
 pub mod fd;
 mod scheduler;
@@ -28,7 +30,7 @@ pub fn init(root_process: Process) {
     let current_task = unsafe { Task::kernel_task(root_process.clone()) };
     let mut pt_guard = process_tree().write();
     pt_guard.set_root(root_process.clone());
-    pt_guard.add_task(root_process.process_id(), current_task.task_id());
+    pt_guard.add_task(root_process.pid(), current_task.task_id());
 
     scheduler::init(current_task);
 }
@@ -69,48 +71,61 @@ pub fn exit() -> ! {
     unsafe { exit_current_task() }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Display)]
-pub struct ProcessId(u64);
-
-impl !Default for ProcessId {}
-
-impl ProcessId {
-    pub fn new() -> Self {
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-        ProcessId(COUNTER.fetch_add(1, Relaxed))
-    }
-}
-
 /// A process is a ref counted rwlock over [`ProcessData`], which is the actual data
 /// of the process.
 #[derive(Clone, Debug)]
 pub struct Process {
-    id: ProcessId,
     cr3_value: usize, // TODO: remove this, read it from the address space (maybe use an atomic to circumvent the locking?)
     name: String,
     address_space: Arc<RwLock<AddressSpace>>,
     virtual_memory_manager: Arc<VirtualMemoryManager>,
-    next_fd: Arc<FilenoAllocator>,
-    open_fds: Arc<RwLock<BTreeMap<Fileno, FileDescriptor>>>,
+    attributes: Arc<Attributes>,
+}
+
+impl Deref for Process {
+    type Target = Attributes;
+
+    fn deref(&self) -> &Self::Target {
+        &self.attributes
+    }
 }
 
 impl Process {
     pub fn new(name: impl Into<String>, address_space: AddressSpace) -> Self {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let pid = COUNTER.fetch_add(1, Relaxed).into();
+
         Self {
-            id: ProcessId::new(),
             cr3_value: address_space.cr3_value(),
             name: name.into(),
             address_space: Arc::new(RwLock::new(address_space)),
             virtual_memory_manager: Arc::new(unsafe {
                 VirtualMemoryManager::new(VirtAddr::new(0x1111_1111_0000), Size::TiB(100).bytes())
             }),
-            next_fd: Arc::new(FilenoAllocator::new()),
-            open_fds: Arc::new(RwLock::new(BTreeMap::new())),
+            attributes: Arc::new({
+                let mut builder = Attributes::builder();
+                // TODO: set attributes correctly
+                builder
+                    .pid(pid)
+                    .euid(0.into())
+                    .egid(0.into())
+                    .uid(0.into())
+                    .gid(0.into())
+                    .suid(0.into())
+                    .sgid(0.into())
+                    .next_fd(FilenoAllocator::new())
+                    .open_fds(Default::default());
+                builder.build()
+            }),
         }
     }
 
-    pub fn process_id(&self) -> &ProcessId {
-        &self.id
+    pub fn pid(&self) -> &ProcessId {
+        &self.pid
+    }
+
+    pub fn open_fds(&self) -> &RwLock<BTreeMap<Fileno, FileDescriptor>> {
+        &self.open_fds
     }
 
     pub fn name(&self) -> &str {
@@ -129,10 +144,6 @@ impl Process {
         &self.virtual_memory_manager
     }
 
-    pub fn open_fds(&self) -> &RwLock<BTreeMap<Fileno, FileDescriptor>> {
-        &self.open_fds
-    }
-
     pub fn open_file<P>(&self, path: P) -> Result<Fileno, VfsError>
     where
         P: AsRef<Path>,
@@ -144,12 +155,14 @@ impl Process {
 
     pub fn get_fileno_for(&self, node: VfsNode) -> Fileno {
         let fd = self.next_fd.next();
-        self.open_fds.write().insert(fd, FileDescriptor::new(node));
+        self.open_fds()
+            .write()
+            .insert(fd, FileDescriptor::new(node));
         fd
     }
 
     pub fn read(&self, fileno: Fileno, buf: &mut [u8]) -> Result<usize, VfsError> {
-        let mut guard = self.open_fds.write();
+        let mut guard = self.open_fds().write();
         let fd = match guard.get_mut(&fileno) {
             Some(fd) => fd,
             None => return Err(VfsError::HandleClosed),
@@ -163,7 +176,7 @@ impl Process {
         buf: &mut [u8],
         offset: usize,
     ) -> Result<usize, VfsError> {
-        let mut guard = self.open_fds.write();
+        let mut guard = self.open_fds().write();
         let fd = match guard.get_mut(&fileno) {
             Some(fd) => fd,
             None => return Err(VfsError::HandleClosed),
@@ -172,7 +185,7 @@ impl Process {
     }
 
     pub fn write(&self, fileno: Fileno, buf: &[u8]) -> Result<usize, VfsError> {
-        let mut guard = self.open_fds.write();
+        let mut guard = self.open_fds().write();
         let fd = match guard.get_mut(&fileno) {
             Some(fd) => fd,
             None => return Err(VfsError::HandleClosed),
@@ -181,7 +194,7 @@ impl Process {
     }
 
     pub fn close_fd(&self, fd: Fileno) -> Result<(), VfsError> {
-        let descriptor = match self.open_fds.write().remove(&fd) {
+        let descriptor = match self.open_fds().write().remove(&fd) {
             Some(fd) => fd,
             None => return Err(VfsError::HandleClosed),
         };

@@ -8,8 +8,9 @@ use crossbeam_queue::SegQueue;
 use x86_64::instructions::{hlt, interrupts};
 
 use crate::arch::switch::switch;
+use crate::process::attributes::ProcessId;
 use crate::process::task::{Finished, Ready, Running, Task};
-use crate::process::{process_tree, spawn_task_in_current_process, Process, ProcessId};
+use crate::process::{process_tree, spawn_task_in_current_process, Process};
 use crate::serial_println;
 
 static mut SCHEDULER: Option<Scheduler> = None;
@@ -105,7 +106,7 @@ impl Scheduler {
     }
 
     pub fn current_pid(&self) -> &ProcessId {
-        self.current_process().process_id()
+        self.current_process().pid()
     }
 
     pub fn current_process(&self) -> &Process {
@@ -194,7 +195,7 @@ fn free_task(task: Task<Finished>) {
         "freeing task {} ({}) in process {} ({})",
         task.task_id(),
         task.name(),
-        task.process().process_id(),
+        task.process().pid(),
         task.process().name()
     );
 
@@ -203,7 +204,7 @@ fn free_task(task: Task<Finished>) {
     // TODO: deallocate stack
 
     let mut process_tree = process_tree().write();
-    let pid = *task.process().process_id();
+    let pid = *task.process().pid();
     process_tree.remove_task(&pid, task.task_id());
     drop(task);
 

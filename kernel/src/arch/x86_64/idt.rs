@@ -188,7 +188,7 @@ table[index]: {}[{}]
 }
 
 extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {
-    let current_pid = *process::current().process_id();
+    let current_pid = *process::current().pid();
     let current_tid = process::current_task().task_id();
     panic!(
         "EXCEPTION: INVALID OPCODE\ncurrent pid={},tid={}\n{:#?}",

@@ -4,8 +4,9 @@ use alloc::string::String;
 use spin::RwLock;
 use x86_64::structures::paging::PageTableFlags;
 
+use crate::process::attributes::ProcessId;
 use crate::process::task::TaskId;
-use crate::process::{current, Process, ProcessId};
+use crate::process::{current, Process};
 use crate::serial_println;
 
 static PROCESS_TREE: RwLock<ProcessTree> = RwLock::new(ProcessTree::new());
@@ -42,14 +43,14 @@ impl ProcessTree {
             panic!("root process already set");
         }
 
-        let process_id = *process.process_id();
+        let process_id = *process.pid();
         self.root_pid = Some(process_id);
         self.processes_by_id.insert(process_id, process);
     }
 
     pub fn insert_process(&mut self, parent: Process, process: Process) {
-        let parent_process_id = *parent.process_id();
-        let child_process_id = *process.process_id();
+        let parent_process_id = *parent.pid();
+        let child_process_id = *process.pid();
         self.processes_by_id
             .insert(child_process_id, process.clone());
         self.children
@@ -97,7 +98,7 @@ impl ProcessTree {
 
     pub fn dump_current(&self) {
         serial_println!("=== start process dump");
-        self.dump_process_no_children(current().process_id(), 4);
+        self.dump_process_no_children(current().pid(), 4);
         serial_println!("=== end process dump");
     }
 
@@ -114,7 +115,7 @@ impl ProcessTree {
     fn dump_process_no_children(&self, process_id: &ProcessId, indent: usize) {
         let process = self.processes_by_id.get(process_id).unwrap();
         let process_name = process.name();
-        let process_id = process.process_id();
+        let process_id = process.pid();
         let tasks = self.tasks(process_id).map_or(0, |tasks| tasks.count());
         let children = self
             .children

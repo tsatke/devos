@@ -48,7 +48,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 }
 
 extern "C" fn greet() {
-    serial_println!("hello from pid {}", process::current().process_id());
+    serial_println!("hello from pid {}", process::current().pid());
 }
 
 extern "C" fn hello_world() {
@@ -114,7 +114,7 @@ extern "C" fn vga_stuff() {
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!(
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
-        process::current().process_id(),
+        process::current().pid(),
         process::current().name(),
         process::current_task().task_id(),
         process::current_task().name(),
