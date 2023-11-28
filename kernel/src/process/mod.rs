@@ -5,6 +5,7 @@ pub use scheduler::*;
 pub use tree::*;
 
 use crate::mem::virt::VirtualMemoryManager;
+use crate::mem::AddressSpace;
 use crate::process::task::{Ready, Running, Task};
 
 pub mod attributes;
@@ -15,10 +16,10 @@ mod scheduler;
 mod task;
 mod tree;
 
-pub fn init(root_process: Process) {
+pub fn init(address_space: AddressSpace) {
+    let root_process = Process::create_kernel(address_space);
     let current_task = unsafe { Task::kernel_task(root_process.clone()) };
     let mut pt_guard = process_tree().write();
-    pt_guard.set_root(root_process.clone());
     pt_guard.add_task(root_process.pid(), current_task.task_id());
 
     scheduler::init(current_task);

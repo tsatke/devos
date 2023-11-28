@@ -16,7 +16,7 @@ use virt::heap::{HEAP_SIZE, HEAP_START};
 use crate::mem::virt::{
     heap, Interval, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject,
 };
-use crate::process::{vmm, Process};
+use crate::process::vmm;
 use crate::Result;
 use crate::{process, serial_println};
 
@@ -83,15 +83,13 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
         heap::size() / 1024 / 1024,
     );
 
-    let root_process = Process::create_kernel_process(address_space);
-
     // this pm_object shouldn't allocate anything, and it also shouldn't try to free anything on drop
     let kheap_pm_object = PmObject::create(0, PhysicalAllocationStrategy::AllocateOnAccess)?;
     let kheap_start_addr = VirtAddr::new(HEAP_START as u64);
     let kheap_size = HEAP_SIZE.bytes();
     let interval = Interval::new(kheap_start_addr, kheap_size);
 
-    process::init(root_process);
+    process::init(address_space);
 
     let vmm = vmm();
     let interval = vmm.mark_as_reserved(interval)?;

@@ -11,8 +11,9 @@ use crate::io::path::Path;
 use crate::io::vfs::{vfs, VfsError, VfsNode};
 use crate::mem::virt::VirtualMemoryManager;
 use crate::mem::{AddressSpace, Size};
-use crate::process::attributes::{Attributes, ProcessId};
+use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId};
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
+use crate::process::process_tree;
 
 /// A process is a ref counted rwlock over [`ProcessData`], which is the actual data
 /// of the process.
@@ -30,7 +31,7 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn create_kernel_process(address_space: AddressSpace) -> Self {
+    pub fn create_kernel(address_space: AddressSpace) -> Self {
         static ALREADY_CALLED: AtomicBool = AtomicBool::new(false);
         if ALREADY_CALLED.swap(true, Relaxed) {
             panic!("kernel process already created");
@@ -56,7 +57,7 @@ impl Process {
             sgid: 0.into(),
         }));
 
-        Self {
+        let res = Self {
             cr3_value,
             address_space,
             virtual_memory_manager,
@@ -65,7 +66,47 @@ impl Process {
             next_fd,
             open_fds,
             attributes,
-        }
+        };
+        process_tree().write().set_root(res.clone());
+        res
+    }
+
+    pub fn create_user(
+        parent: Process,
+        name: impl Into<String>,
+        uid: RealUserId,
+        gid: RealGroupId,
+    ) -> Self {
+        let address_space = AddressSpace::allocate_new();
+        let cr3_value = address_space.cr3_value();
+        let vmm = unsafe {
+            VirtualMemoryManager::new(VirtAddr::new(0x1111_1111_0000), Size::TiB(100).bytes())
+        };
+
+        let name = name.into();
+        let pid = ProcessId::new();
+        let attributes = Arc::new(RwLock::new(Attributes {
+            pgid: 0.into(), // TODO: process group ids
+            euid: <RealUserId as Into<u32>>::into(uid).into(),
+            egid: <RealGroupId as Into<u32>>::into(gid).into(),
+            uid,
+            gid,
+            suid: <RealUserId as Into<u32>>::into(uid).into(),
+            sgid: <RealGroupId as Into<u32>>::into(gid).into(),
+        }));
+
+        let res = Self {
+            cr3_value,
+            address_space: Arc::new(RwLock::new(address_space)),
+            virtual_memory_manager: Arc::new(vmm),
+            name,
+            pid,
+            next_fd: Arc::new(Default::default()),
+            open_fds: Arc::new(Default::default()),
+            attributes,
+        };
+        process_tree().write().insert_process(parent, res.clone());
+        res
     }
 
     pub fn pid(&self) -> &ProcessId {

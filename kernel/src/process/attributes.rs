@@ -14,6 +14,12 @@ macro_rules! int_type {
             }
         }
 
+        impl From<$name> for $underlying {
+            fn from(value: $name) -> Self {
+                value.0
+            }
+        }
+
         impl ::core::ops::Deref for $name {
             type Target = $underlying;
 
