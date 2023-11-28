@@ -2,8 +2,6 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::sync::Arc;
 use core::ops::Deref;
-use core::sync::atomic::AtomicU64;
-use core::sync::atomic::Ordering::Relaxed;
 
 use spin::RwLock;
 use x86_64::VirtAddr;
@@ -16,10 +14,10 @@ use crate::io::vfs::{vfs, VfsError, VfsNode};
 use crate::mem::virt::VirtualMemoryManager;
 use crate::mem::{AddressSpace, Size};
 use crate::process::attributes::{Attributes, ProcessId};
-use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
+use crate::process::fd::{FileDescriptor, Fileno};
 use crate::process::task::{Ready, Running, Task};
 
-mod attributes;
+pub mod attributes;
 pub mod elf;
 pub mod fd;
 mod scheduler;
@@ -35,9 +33,9 @@ pub fn init(root_process: Process) {
     scheduler::init(current_task);
 }
 
-pub fn create(parent: Process, name: impl Into<String>) -> Process {
+pub fn create(parent: Process, name: impl Into<String>, attributes: Attributes) -> Process {
     let address_space = AddressSpace::allocate_new();
-    let process = Process::new(name, address_space);
+    let process = Process::new(name, address_space, attributes);
 
     process_tree()
         .write()
@@ -91,10 +89,11 @@ impl Deref for Process {
 }
 
 impl Process {
-    pub fn new(name: impl Into<String>, address_space: AddressSpace) -> Self {
-        static COUNTER: AtomicU64 = AtomicU64::new(0);
-        let pid = COUNTER.fetch_add(1, Relaxed).into();
-
+    pub fn new(
+        name: impl Into<String>,
+        address_space: AddressSpace,
+        attributes: Attributes,
+    ) -> Self {
         Self {
             cr3_value: address_space.cr3_value(),
             name: name.into(),
@@ -102,21 +101,7 @@ impl Process {
             virtual_memory_manager: Arc::new(unsafe {
                 VirtualMemoryManager::new(VirtAddr::new(0x1111_1111_0000), Size::TiB(100).bytes())
             }),
-            attributes: Arc::new({
-                let mut builder = Attributes::builder();
-                // TODO: set attributes correctly
-                builder
-                    .pid(pid)
-                    .euid(0.into())
-                    .egid(0.into())
-                    .uid(0.into())
-                    .gid(0.into())
-                    .suid(0.into())
-                    .sgid(0.into())
-                    .next_fd(FilenoAllocator::new())
-                    .open_fds(Default::default());
-                builder.build()
-            }),
+            attributes: Arc::new(attributes),
         }
     }
 

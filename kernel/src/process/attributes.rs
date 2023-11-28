@@ -1,5 +1,7 @@
 use alloc::collections::BTreeMap;
 use core::ops::{Deref, DerefMut};
+use core::sync::atomic::AtomicU64;
+use core::sync::atomic::Ordering::Relaxed;
 
 use spin::RwLock;
 
@@ -37,6 +39,13 @@ int_type!(ProcessId, u64);
 
 impl !Default for ProcessId {}
 
+impl ProcessId {
+    pub fn new() -> Self {
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        COUNTER.fetch_add(1, Relaxed).into()
+    }
+}
+
 int_type!(ProcessGroupId, u64);
 int_type!(EffectiveUserId, u32);
 int_type!(EffectiveGroupId, u32);
@@ -72,8 +81,8 @@ macro_rules! attributes {
             }
 
             $(
-                pub fn $name(&mut self, $name: $typ) -> &mut Self {
-                    self.$name = Some($name);
+                pub fn $name<I: ::core::convert::Into<$typ>>(&mut self, $name: I) -> &mut Self {
+                    self.$name = Some(::core::convert::Into::<$typ>::into($name));
                     self
                 }
             )*
@@ -96,4 +105,15 @@ attributes! {
     open_fds: RwLock<BTreeMap<Fileno, FileDescriptor>>,
     // TODO: session membership
     // TODO: supplementary group ids
+}
+
+impl Attributes {
+    pub fn create<F>(f: F) -> Self
+    where
+        F: FnOnce(&mut AttributeBuilder) -> &mut AttributeBuilder,
+    {
+        let mut builder = AttributeBuilder::default();
+        f(&mut builder);
+        builder.build()
+    }
 }
