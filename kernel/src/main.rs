@@ -4,7 +4,6 @@
 
 extern crate alloc;
 
-use alloc::string::ToString;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -37,10 +36,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     process::spawn_task_in_current_process("vga_stuff", vga_stuff);
     process::spawn_task_in_current_process("hello_world", hello_world);
 
-    for _ in 0..5 {
-        let new_process = process::create(process::current().clone(), "new_process".to_string());
-        process::spawn_task("greet", &new_process, greet);
-    }
+    // for _ in 0..5 {
+    //     let new_process = process::create(process::current().clone(), "new_process".to_string());
+    //     process::spawn_task("greet", &new_process, greet);
+    // }
 
     process_tree().read().dump();
 

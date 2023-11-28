@@ -121,7 +121,7 @@ impl ProcessTree {
             .children
             .get(process_id)
             .map_or(0, |children| children.len());
-        let vm_objects = process.virtual_memory_manager.vm_objects().read().len();
+        let vm_objects = process.vmm().vm_objects().read().len();
         let open_fds = process.open_fds().read().len();
 
         serial_println!(
@@ -136,7 +136,7 @@ impl ProcessTree {
             indent = indent
         );
 
-        for (_, vm_object) in process.virtual_memory_manager.vm_objects().read().iter() {
+        for (_, vm_object) in process.vmm().vm_objects().read().iter() {
             serial_println!(
                 "{:indent$}*vm_object: {:#p}-{:#p} {:#016x} {} {}",
                 "",

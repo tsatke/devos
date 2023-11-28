@@ -16,8 +16,6 @@ use virt::heap::{HEAP_SIZE, HEAP_START};
 use crate::mem::virt::{
     heap, Interval, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject,
 };
-use crate::process::attributes::{Attributes, ProcessId};
-use crate::process::fd::FilenoAllocator;
 use crate::process::{vmm, Process};
 use crate::Result;
 use crate::{process, serial_println};
@@ -85,21 +83,7 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
         heap::size() / 1024 / 1024,
     );
 
-    let root_process = Process::new(
-        "root",
-        address_space,
-        Attributes::create(|b| {
-            b.pid(ProcessId::new())
-                .euid(0)
-                .egid(0)
-                .uid(0)
-                .gid(0)
-                .suid(0)
-                .sgid(0)
-                .next_fd(FilenoAllocator::default())
-                .open_fds(RwLock::default())
-        }),
-    );
+    let root_process = Process::create_kernel_process(address_space);
 
     // this pm_object shouldn't allocate anything, and it also shouldn't try to free anything on drop
     let kheap_pm_object = PmObject::create(0, PhysicalAllocationStrategy::AllocateOnAccess)?;
