@@ -159,33 +159,6 @@ impl VirtualMemoryManager {
         Ok(addr)
     }
 
-    pub fn create_memory_mapping(
-        &'static self,
-        name: String,
-        addr: MapAt,
-        physical_frames: Vec<PhysFrame>,
-        flags: PageTableFlags,
-    ) -> Result<VirtAddr, VmmError> {
-        let size = physical_frames.len() * Size4KiB::SIZE as usize;
-        let interval = self.resolve_map_at(addr, size)?;
-
-        let vmo = MemoryBackedVmObject::new(
-            name,
-            Arc::new(RwLock::new(PmObject::new(
-                PhysicalAllocationStrategy::AllocateOnAccess,
-                physical_frames,
-            ))),
-            interval,
-            flags,
-        );
-        vmo.map_pages()?;
-
-        let addr = vmo.addr();
-        self.vm_objects.write().insert(addr, Box::new(vmo));
-
-        Ok(addr)
-    }
-
     fn create_memory_backed_vmo(
         &'static self,
         name: String,

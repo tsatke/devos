@@ -5,11 +5,11 @@ use conquer_once::spin::OnceCell;
 use spin::Mutex;
 use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 use x86_64::instructions::port::Port;
-use x86_64::structures::paging::{PageTableFlags, PhysFrame};
+use x86_64::structures::paging::{PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::arch::idt::InterruptIndex;
-use crate::mem::virt::MapAt;
+use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::process::vmm;
 use crate::Result;
 
@@ -19,13 +19,14 @@ pub fn init() -> Result<()> {
     disable_8259();
 
     let apic_physical_address: u64 = unsafe { xapic_base() };
-    let apic_virtual_address: VirtAddr = vmm().create_memory_mapping(
+    let apic_virtual_address: VirtAddr = vmm().allocate_memory_backed_vmobject(
         "apic".to_string(),
         MapAt::Anywhere,
-        vec![PhysFrame::containing_address(
+        Size4KiB::SIZE as usize,
+        AllocationStrategy::MapNow(vec![PhysFrame::containing_address(
             PhysAddr::try_new(apic_physical_address)
                 .map_err(|e| format!("physical address {:#p} is not valid", e.0 as *const ()))?,
-        )],
+        )]),
         PageTableFlags::PRESENT
             | PageTableFlags::WRITABLE
             | PageTableFlags::NO_CACHE
