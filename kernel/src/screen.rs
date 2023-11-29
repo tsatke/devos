@@ -7,7 +7,7 @@ use x86_64::structures::paging::{PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
 use graphics::PrimitiveDrawing;
-use pci::PciStandardHeaderDevice;
+use pci::{BaseAddressRegister, PciStandardHeaderDevice};
 use vga::{Color, FrameBuffer, Vga1280x800};
 
 use crate::mem::virt::{AllocationStrategy, MapAt};
@@ -28,12 +28,12 @@ pub fn init() {
         .map(|device| PciStandardHeaderDevice::new(device.clone()).unwrap())
     {
         let bar0 = ctrl.bar0();
-        let (addr, size) = if let Some(bar) = bar0.memory_space_32() {
-            (bar.addr as u64, bar.size)
-        } else if let Some(bar) = bar0.memory_space_64() {
-            (bar.addr, bar.size)
-        } else {
-            panic!("VGA controller has no memory space BAR")
+        let (addr, size) = match bar0 {
+            BaseAddressRegister::MemorySpace32(bar) => (bar.addr as u64, bar.size),
+            BaseAddressRegister::MemorySpace64(bar) => (bar.addr, bar.size),
+            _ => {
+                panic!("VGA controller has no memory space BAR")
+            }
         };
 
         let frames = (addr..addr + size as u64)
