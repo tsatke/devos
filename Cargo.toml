@@ -1,6 +1,7 @@
 [package]
 name = "devos"
 version = "0.1.0"
+edition = "2021"
 
 [build-dependencies]
 bootloader = { git = "https://github.com/rust-osdev/bootloader", rev = "a1b2eb88fd365fa7b4b35e29495076f22932cb7f" } # make sure this is compatible with bootloader_api in [workspace.dependencies]
