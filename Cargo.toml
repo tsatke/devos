@@ -29,10 +29,6 @@ members = [
     "kernel/driver/vga",
     "kernel_test_framework",
     "kernel_test_framework/derive",
-    "tests/test_kernel_multitasking",
-    "tests/test_kernel_unittests",
-    "tests/test_kernel_vfs",
-    "tests/test_kernel_vmobject",
     "userspace/hello_world",
 ]
 
