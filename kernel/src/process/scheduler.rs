@@ -9,25 +9,25 @@ use x86_64::instructions::{hlt, interrupts};
 
 use crate::arch::switch::switch;
 use crate::process::attributes::ProcessId;
-use crate::process::task::{Finished, Ready, Running, Task};
+use crate::process::thread::{Finished, Ready, Running, Thread};
 use crate::process::{process_tree, spawn_task_in_current_process, Process};
 use crate::serial_println;
 
 static mut SCHEDULER: Option<Scheduler> = None;
-static FINISHED_TASKS: OnceCell<SegQueue<Task<Finished>>> = OnceCell::uninit();
-static NEW_TASKS: OnceCell<SegQueue<Task<Ready>>> = OnceCell::uninit();
+static FINISHED_TASKS: OnceCell<SegQueue<Thread<Finished>>> = OnceCell::uninit();
+static NEW_TASKS: OnceCell<SegQueue<Thread<Ready>>> = OnceCell::uninit();
 
-fn finished_tasks() -> &'static SegQueue<Task<Finished>> {
+fn finished_tasks() -> &'static SegQueue<Thread<Finished>> {
     FINISHED_TASKS
         .try_get()
         .expect("finished task queue not initialized")
 }
 
-fn new_tasks() -> &'static SegQueue<Task<Ready>> {
+fn new_tasks() -> &'static SegQueue<Thread<Ready>> {
     NEW_TASKS.try_get().expect("new task queue not initialized")
 }
 
-pub fn init(kernel_task: Task<Running>) {
+pub fn init(kernel_task: Thread<Running>) {
     unsafe { SCHEDULER = Some(Scheduler::new(kernel_task)) };
     FINISHED_TASKS.init_once(SegQueue::new);
     NEW_TASKS.init_once(SegQueue::new);
@@ -36,7 +36,7 @@ pub fn init(kernel_task: Task<Running>) {
     spawn_task_in_current_process("cleanup_finished_tasks", cleanup_finished_tasks);
 }
 
-pub(crate) fn spawn(task: Task<Ready>) {
+pub(crate) fn spawn(task: Thread<Ready>) {
     new_tasks().push(task)
 }
 
@@ -73,9 +73,9 @@ pub(crate) unsafe fn exit_current_task() -> ! {
 }
 
 pub struct Scheduler {
-    current_task: Task<Running>,
+    current_task: Thread<Running>,
     current_task_should_exit: AtomicBool,
-    ready: VecDeque<Task<Ready>>,
+    ready: VecDeque<Thread<Ready>>,
     _dummy_last_stack_ptr: usize,
 }
 
@@ -85,7 +85,7 @@ impl Scheduler {
     /// # Safety
     /// Calling this more than once may result in UB due to aliasing
     /// of memory areas, tasks and processes.
-    unsafe fn new(kernel_task: Task<Running>) -> Self {
+    unsafe fn new(kernel_task: Thread<Running>) -> Self {
         Self {
             current_task: kernel_task,
             current_task_should_exit: AtomicBool::new(false),
@@ -101,7 +101,7 @@ impl Scheduler {
         }
     }
 
-    pub fn current_task(&self) -> &Task<Running> {
+    pub fn current_task(&self) -> &Thread<Running> {
         &self.current_task
     }
 
@@ -190,7 +190,7 @@ impl Scheduler {
     }
 }
 
-fn free_task(task: Task<Finished>) {
+fn free_task(task: Thread<Finished>) {
     serial_println!(
         "freeing task {} ({}) in process {} ({})",
         task.task_id(),

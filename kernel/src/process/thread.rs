@@ -17,9 +17,9 @@ use crate::process::Process;
 const STACK_SIZE: usize = Size::KiB(32).bytes();
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Display)]
-pub struct TaskId(u64);
+pub struct ThreadId(u64);
 
-impl<T> PartialEq<T> for TaskId
+impl<T> PartialEq<T> for ThreadId
 where
     T: Into<u64> + Copy,
 {
@@ -28,12 +28,12 @@ where
     }
 }
 
-impl !Default for TaskId {}
+impl !Default for ThreadId {}
 
-impl TaskId {
+impl ThreadId {
     pub fn new() -> Self {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
-        TaskId(COUNTER.fetch_add(1, Relaxed))
+        ThreadId(COUNTER.fetch_add(1, Relaxed))
     }
 }
 
@@ -51,9 +51,9 @@ macro_rules! state {
 
 macro_rules! state_transition {
     ($from:ident, $to:ident) => {
-        impl From<Task<$from>> for Task<$to> {
-            fn from(value: Task<$from>) -> Self {
-                Task {
+        impl From<Thread<$from>> for Thread<$to> {
+            fn from(value: Thread<$from>) -> Self {
+                Thread {
                     id: value.id,
                     name: value.name,
                     process: value.process,
@@ -72,11 +72,11 @@ state_transition!(Running, Finished);
 state_transition!(Running, Ready);
 
 #[derive(Debug)]
-pub struct Task<S>
+pub struct Thread<S>
 where
     S: State + 'static,
 {
-    id: TaskId,
+    id: ThreadId,
     name: String,
     process: Process,
     last_stack_ptr: usize,
@@ -84,7 +84,7 @@ where
     _state: PhantomData<S>,
 }
 
-impl<S> PartialEq<Self> for Task<S>
+impl<S> PartialEq<Self> for Thread<S>
 where
     S: 'static + State,
 {
@@ -93,13 +93,13 @@ where
     }
 }
 
-impl<S> Eq for Task<S> where S: State + 'static {}
+impl<S> Eq for Thread<S> where S: State + 'static {}
 
-impl<S> Task<S>
+impl<S> Thread<S>
 where
     S: State + 'static,
 {
-    pub fn task_id(&self) -> &TaskId {
+    pub fn task_id(&self) -> &ThreadId {
         &self.id
     }
 
@@ -154,14 +154,14 @@ impl<'a> StackWriter<'a> {
     }
 }
 
-impl Task<Ready> {
+impl Thread<Ready> {
     pub fn new(
         process: &Process,
         name: impl Into<String>,
         entry_point: extern "C" fn(),
-    ) -> Task<Ready> {
+    ) -> Thread<Ready> {
         let mut task = Self {
-            id: TaskId::new(),
+            id: ThreadId::new(),
             name: name.into(),
             process: process.clone(),
             last_stack_ptr: 0, // will be set correctly in [`setup_stack`]
@@ -204,7 +204,7 @@ impl Task<Ready> {
         self.last_stack_ptr = rsp as usize;
     }
 
-    pub fn into_running(self) -> Task<Running> {
+    pub fn into_running(self) -> Thread<Running> {
         self.into()
     }
 }
@@ -236,10 +236,10 @@ extern "C" fn leave_task() -> ! {
     unsafe { process::exit_current_task() }
 }
 
-impl Task<Running> {
+impl Thread<Running> {
     pub unsafe fn kernel_task(kernel_process: Process) -> Self {
         Self {
-            id: TaskId::new(),
+            id: ThreadId::new(),
             name: "kernel".to_string(),
             process: kernel_process,
             last_stack_ptr: 0, // will be set correctly during the next `reschedule`
@@ -248,11 +248,11 @@ impl Task<Running> {
         }
     }
 
-    pub fn into_finished(self) -> Task<Finished> {
+    pub fn into_finished(self) -> Thread<Finished> {
         self.into()
     }
 
-    pub fn into_ready(self) -> Task<Ready> {
+    pub fn into_ready(self) -> Thread<Ready> {
         self.into()
     }
 }

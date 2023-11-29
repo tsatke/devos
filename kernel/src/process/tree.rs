@@ -5,7 +5,7 @@ use spin::RwLock;
 use x86_64::structures::paging::PageTableFlags;
 
 use crate::process::attributes::ProcessId;
-use crate::process::task::TaskId;
+use crate::process::thread::ThreadId;
 use crate::process::{current, Process};
 use crate::serial_println;
 
@@ -20,7 +20,7 @@ pub struct ProcessTree {
     processes_by_id: BTreeMap<ProcessId, Process>,
     parents: BTreeMap<ProcessId, ProcessId>,
     children: BTreeMap<ProcessId, BTreeSet<ProcessId>>,
-    tasks: BTreeMap<ProcessId, BTreeSet<TaskId>>,
+    tasks: BTreeMap<ProcessId, BTreeSet<ThreadId>>,
 }
 
 impl ProcessTree {
@@ -73,15 +73,15 @@ impl ProcessTree {
         p
     }
 
-    pub fn add_task(&mut self, process_id: &ProcessId, task_id: &TaskId) {
+    pub fn add_task(&mut self, process_id: &ProcessId, task_id: &ThreadId) {
         self.tasks.entry(*process_id).or_default().insert(*task_id);
     }
 
-    pub fn remove_task(&mut self, process_id: &ProcessId, task_id: &TaskId) {
+    pub fn remove_task(&mut self, process_id: &ProcessId, task_id: &ThreadId) {
         self.tasks.entry(*process_id).or_default().remove(task_id);
     }
 
-    pub fn tasks(&self, process_id: &ProcessId) -> Option<impl Iterator<Item = &TaskId>> {
+    pub fn tasks(&self, process_id: &ProcessId) -> Option<impl Iterator<Item = &ThreadId>> {
         self.tasks.get(process_id).map(|tasks| tasks.iter())
     }
 
