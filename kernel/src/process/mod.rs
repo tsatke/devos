@@ -8,14 +8,14 @@ use x86_64::VirtAddr;
 
 use crate::io::path::Path;
 use crate::io::vfs::{vfs, VfsError, VfsNode};
-pub use scheduler::*;
-pub use tree::*;
-
 use crate::mem::virt::VirtualMemoryManager;
 use crate::mem::{AddressSpace, Size};
 use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId};
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::task::{Ready, Running, Task};
+
+pub use scheduler::*;
+pub use tree::*;
 
 pub mod attributes;
 pub mod elf;
@@ -32,17 +32,6 @@ pub fn init(address_space: AddressSpace) {
 
     scheduler::init(current_task);
 }
-
-// pub fn create(parent: Process, name: impl Into<String>, attributes: Attributes) -> Process {
-//     let address_space = AddressSpace::allocate_new();
-//     let process = Process::new(name, address_space, attributes);
-//
-//     process_tree()
-//         .write()
-//         .insert_process(parent, process.clone());
-//
-//     process
-// }
 
 pub fn current() -> &'static Process {
     current_task().process()
@@ -71,7 +60,8 @@ pub fn exit() -> ! {
 
 #[derive(Clone, Debug)]
 pub struct Process {
-    cr3_value: usize, // TODO: remove this, read it from the address space (maybe use an atomic to circumvent the locking?)
+    cr3_value: usize,
+    // TODO: remove this, read it from the address space (maybe use an atomic to circumvent the locking?)
     address_space: Arc<RwLock<AddressSpace>>,
     virtual_memory_manager: Arc<VirtualMemoryManager>,
 
