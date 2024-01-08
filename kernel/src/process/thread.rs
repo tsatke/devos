@@ -1,9 +1,11 @@
+use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::mem::size_of;
+use core::pin::Pin;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
@@ -79,7 +81,7 @@ where
     id: ThreadId,
     name: String,
     process: Process,
-    last_stack_ptr: usize,
+    last_stack_ptr: Pin<Box<usize>>,
     stack: Option<Vec<u8>>,
     _state: PhantomData<S>,
 }
@@ -107,16 +109,16 @@ where
         &self.name
     }
 
-    pub fn last_stack_ptr(&self) -> &usize {
+    pub fn last_stack_ptr(&self) -> &Pin<Box<usize>> {
         &self.last_stack_ptr
+    }
+
+    pub fn last_stack_ptr_mut(&mut self) -> &mut Pin<Box<usize>> {
+        &mut self.last_stack_ptr
     }
 
     pub fn process(&self) -> &Process {
         &self.process
-    }
-
-    pub fn last_stack_ptr_mut(&mut self) -> &mut usize {
-        &mut self.last_stack_ptr
     }
 }
 
@@ -165,7 +167,7 @@ impl Thread<Ready> {
             id: ThreadId::new(),
             name: name.into(),
             process: process.clone(),
-            last_stack_ptr: 0, // will be set correctly in [`setup_stack`]
+            last_stack_ptr: Box::pin(0), // will be set correctly in [`setup_stack`]
             stack: Some(vec![0; STACK_SIZE]),
             _state: Default::default(),
         };
@@ -202,7 +204,7 @@ impl Thread<Ready> {
             ..Default::default()
         });
 
-        self.last_stack_ptr = rsp as usize;
+        self.last_stack_ptr = Box::pin(rsp as usize);
     }
 
     pub fn into_running(self) -> Thread<Running> {
@@ -243,7 +245,7 @@ impl Thread<Running> {
             id: ThreadId::new(),
             name: "kernel".to_string(),
             process: kernel_process,
-            last_stack_ptr: 0, // will be set correctly during the next `reschedule`
+            last_stack_ptr: Box::pin(0), // will be set correctly during the next `reschedule`
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)
             _state: Default::default(),
         }

@@ -164,29 +164,22 @@ impl Scheduler {
         swap(&mut self.current_thread, &mut thread);
 
         let should_exit = self.current_thread_should_exit.swap(false, Relaxed);
-        let old_stack_ptr_ref = if should_exit {
+        let old_stack_ptr = if should_exit {
             let thread = thread.into_finished();
             finished_threads().push(thread);
-            &mut self._dummy_last_stack_ptr
+            &mut self._dummy_last_stack_ptr as *mut usize
         } else {
             let thread = thread.into_ready();
             self.ready.push_back(thread);
-            self.ready.back_mut().unwrap().last_stack_ptr_mut()
+            self.ready
+                .back_mut()
+                .unwrap()
+                .last_stack_ptr_mut()
+                .as_mut()
+                .get_mut() as *mut usize
         };
 
-        // hope that this works
-        let old_stack_ptr = {
-            // Safety: this is not really safe and may break at any time.
-            // Feel free to find a better (safe) way.
-            // TODO: Can we maybe use [`Pin`] here?
-            //
-            // We get the pointer to the `last_stack_ptr` field of the last element in the ready
-            // queue - which we just pushed - and pass that into the switch, so that the assembly
-            // in there can write the most recent stack pointer to that location.
-            old_stack_ptr_ref as *mut usize
-        };
-
-        let new_stack_ptr = *self.current_thread.last_stack_ptr() as *const u8;
+        let new_stack_ptr = *self.current_thread.last_stack_ptr().as_ref() as *const u8;
 
         unsafe { switch(old_stack_ptr, new_stack_ptr, cr3_value) }
     }
