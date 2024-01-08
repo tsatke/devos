@@ -156,7 +156,7 @@ pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Resul
 
 pub fn sys_exit(status: usize) -> ! {
     serial_println!("sys_exit({})", status);
-    process::exit();
+    process::exit_thread();
 }
 
 bitflags! {

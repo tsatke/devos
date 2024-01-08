@@ -1,6 +1,8 @@
-use crate::process;
 use core::panic::PanicInfo;
+
 use x86_64::instructions::hlt;
+
+use crate::process;
 
 pub fn handle_panic(_info: &PanicInfo) -> ! {
     if process::current_thread().id() == &0_u64 {
@@ -10,6 +12,6 @@ pub fn handle_panic(_info: &PanicInfo) -> ! {
             hlt();
         }
     } else {
-        process::exit();
+        process::exit_thread();
     }
 }

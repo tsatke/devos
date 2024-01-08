@@ -3,8 +3,12 @@ use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
+
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::VirtAddr;
+
+pub use scheduler::*;
+pub use tree::*;
 
 use crate::io::path::Path;
 use crate::io::vfs::{vfs, VfsError, VfsNode};
@@ -13,9 +17,6 @@ use crate::mem::{AddressSpace, Size};
 use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId};
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::thread::{Ready, Running, Thread};
-
-pub use scheduler::*;
-pub use tree::*;
 
 pub mod attributes;
 pub mod elf;
@@ -54,7 +55,7 @@ pub fn spawn_thread(name: impl Into<String>, process: &Process, func: extern "C"
     spawn(thread)
 }
 
-pub fn exit() -> ! {
+pub fn exit_thread() -> ! {
     unsafe { exit_current_thread() }
 }
 
