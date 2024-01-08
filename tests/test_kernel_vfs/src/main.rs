@@ -34,8 +34,8 @@ fn panic_handler(info: &PanicInfo) -> ! {
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
         kernel::process::current().pid(),
         kernel::process::current().name(),
-        kernel::process::current_task().task_id(),
-        kernel::process::current_task().name(),
+        kernel::process::current_thread().id(),
+        kernel::process::current_thread().name(),
         info.message().unwrap()
     );
     if let Some(location) = info.location() {

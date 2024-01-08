@@ -189,7 +189,7 @@ table[index]: {}[{}]
 
 extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {
     let current_pid = *process::current().pid();
-    let current_tid = process::current_task().task_id();
+    let current_tid = process::current_thread().id();
     panic!(
         "EXCEPTION: INVALID OPCODE\ncurrent pid={},tid={}\n{:#?}",
         current_pid, current_tid, stack_frame
@@ -201,7 +201,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
         end_of_interrupt();
     }
 
-    // after the interrupt is handled, because we'll switch to another task
+    // after the interrupt is handled, because we'll switch to another thread
     notify_timer_interrupt();
 }
 

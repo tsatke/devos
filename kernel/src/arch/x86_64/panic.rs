@@ -3,8 +3,9 @@ use core::panic::PanicInfo;
 use x86_64::instructions::hlt;
 
 pub fn handle_panic(_info: &PanicInfo) -> ! {
-    if process::current_task().task_id() == &0_u64 {
-        // we can't exit the kernel task, so we just hlt forever
+    if process::current_thread().id() == &0_u64 {
+        // FIXME: only for the kernel process, so pid=0?
+        // we can't exit the kernel thread, so we just hlt forever
         loop {
             hlt();
         }

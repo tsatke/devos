@@ -33,14 +33,14 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info).expect("kernel_init failed");
 
-    process::spawn_task_in_current_process("vga_stuff", vga_stuff);
-    process::spawn_task_in_current_process("hello_world", hello_world);
+    process::spawn_thread_in_current_process("vga_stuff", vga_stuff);
+    process::spawn_thread_in_current_process("hello_world", hello_world);
 
     let current_process = process::current();
     for _ in 0..5 {
         let new_process =
             Process::create_user(current_process.clone(), "greet", 0.into(), 0.into());
-        process::spawn_task("greet", &new_process, greet);
+        process::spawn_thread("greet", &new_process, greet);
     }
 
     process_tree().read().dump();
@@ -117,8 +117,8 @@ fn panic_handler(info: &PanicInfo) -> ! {
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
         process::current().pid(),
         process::current().name(),
-        process::current_task().task_id(),
-        process::current_task().name(),
+        process::current_thread().id(),
+        process::current_thread().name(),
         info.message().unwrap()
     );
     if let Some(location) = info.location() {

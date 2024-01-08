@@ -20,7 +20,7 @@ pub struct ProcessTree {
     processes_by_id: BTreeMap<ProcessId, Process>,
     parents: BTreeMap<ProcessId, ProcessId>,
     children: BTreeMap<ProcessId, BTreeSet<ProcessId>>,
-    tasks: BTreeMap<ProcessId, BTreeSet<ThreadId>>,
+    threads: BTreeMap<ProcessId, BTreeSet<ThreadId>>,
 }
 
 impl ProcessTree {
@@ -30,7 +30,7 @@ impl ProcessTree {
             processes_by_id: BTreeMap::new(),
             parents: BTreeMap::new(),
             children: BTreeMap::new(),
-            tasks: BTreeMap::new(),
+            threads: BTreeMap::new(),
         }
     }
 
@@ -69,25 +69,31 @@ impl ProcessTree {
         self.children.values_mut().for_each(|children| {
             children.remove(process_id);
         });
-        self.tasks.remove(process_id);
+        self.threads.remove(process_id);
         p
     }
 
-    pub fn add_task(&mut self, process_id: &ProcessId, task_id: &ThreadId) {
-        self.tasks.entry(*process_id).or_default().insert(*task_id);
+    pub fn add_thread(&mut self, process_id: &ProcessId, thread_id: &ThreadId) {
+        self.threads
+            .entry(*process_id)
+            .or_default()
+            .insert(*thread_id);
     }
 
-    pub fn remove_task(&mut self, process_id: &ProcessId, task_id: &ThreadId) {
-        self.tasks.entry(*process_id).or_default().remove(task_id);
+    pub fn remove_thread(&mut self, process_id: &ProcessId, thread_id: &ThreadId) {
+        self.threads
+            .entry(*process_id)
+            .or_default()
+            .remove(thread_id);
     }
 
-    pub fn tasks(&self, process_id: &ProcessId) -> Option<impl Iterator<Item = &ThreadId>> {
-        self.tasks.get(process_id).map(|tasks| tasks.iter())
+    pub fn threads(&self, process_id: &ProcessId) -> Option<impl Iterator<Item = &ThreadId>> {
+        self.threads.get(process_id).map(|threads| threads.iter())
     }
 
-    pub fn has_tasks(&self, process_id: &ProcessId) -> bool {
-        self.tasks(process_id)
-            .map_or(false, |tasks| tasks.count() > 0)
+    pub fn has_threads(&self, process_id: &ProcessId) -> bool {
+        self.threads(process_id)
+            .map_or(false, |threads| threads.count() > 0)
     }
 
     pub fn dump(&self) {
@@ -116,7 +122,9 @@ impl ProcessTree {
         let process = self.processes_by_id.get(process_id).unwrap();
         let process_name = process.name();
         let process_id = process.pid();
-        let tasks = self.tasks(process_id).map_or(0, |tasks| tasks.count());
+        let threads = self
+            .threads(process_id)
+            .map_or(0, |threads| threads.count());
         let children = self
             .children
             .get(process_id)
@@ -125,11 +133,11 @@ impl ProcessTree {
         let open_fds = process.open_fds().read().len();
 
         serial_println!(
-            "{:indent$}{} (pid={}, tasks={}, children={}, vm_objects={}, open_fds={})",
+            "{:indent$}{} (pid={}, threads={}, children={}, vm_objects={}, open_fds={})",
             "",
             process_name,
             process_id,
-            tasks,
+            threads,
             children,
             vm_objects,
             open_fds,

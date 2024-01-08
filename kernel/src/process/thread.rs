@@ -99,7 +99,7 @@ impl<S> Thread<S>
 where
     S: State + 'static,
 {
-    pub fn task_id(&self) -> &ThreadId {
+    pub fn id(&self) -> &ThreadId {
         &self.id
     }
 
@@ -139,8 +139,9 @@ impl<'a> StackWriter<'a> {
         self.data[self.i..self.i + len].copy_from_slice(&data[..]);
     }
 
-    fn write_task_state(&mut self, val: TaskState) {
-        let data = unsafe { core::mem::transmute::<TaskState, [u8; size_of::<TaskState>()]>(val) };
+    fn write_thread_state(&mut self, val: ThreadState) {
+        let data =
+            unsafe { core::mem::transmute::<ThreadState, [u8; size_of::<ThreadState>()]>(val) };
         let len = data.len();
         self.data[self.i..self.i + len].copy_from_slice(&data[..]);
     }
@@ -160,7 +161,7 @@ impl Thread<Ready> {
         name: impl Into<String>,
         entry_point: extern "C" fn(),
     ) -> Thread<Ready> {
-        let mut task = Self {
+        let mut thread = Self {
             id: ThreadId::new(),
             name: name.into(),
             process: process.clone(),
@@ -168,8 +169,8 @@ impl Thread<Ready> {
             stack: Some(vec![0; STACK_SIZE]),
             _state: Default::default(),
         };
-        task.setup_stack(entry_point);
-        task
+        thread.setup_stack(entry_point);
+        thread
     }
 
     fn setup_stack(&mut self, entry_point: extern "C" fn()) {
@@ -177,7 +178,7 @@ impl Thread<Ready> {
         let stack = self
             .stack
             .as_mut()
-            .expect("can't initialize a task without stack");
+            .expect("can't initialize a thread without stack");
         stack.fill(0xCD); // fill the stack with 0xCD
 
         let mut writer = StackWriter::new(stack.as_mut_slice());
@@ -187,12 +188,12 @@ impl Thread<Ready> {
         // TODO: add arguments for the function
 
         writer.back_qword();
-        writer.write_u64(leave_task as *const () as u64); // put return address on the stack
+        writer.write_u64(leave_thread as *const () as u64); // put return address on the stack
 
-        writer.back_n(size_of::<TaskState>());
+        writer.back_n(size_of::<ThreadState>());
         // remember where we are right now
-        let rsp = writer.data.as_ptr() as u64 + writer.i as u64; // the stack starts before the task state struct in memory (stack grows backwards)
-        writer.write_task_state(TaskState {
+        let rsp = writer.data.as_ptr() as u64 + writer.i as u64; // the stack starts before the thread state struct in memory (stack grows backwards)
+        writer.write_thread_state(ThreadState {
             rsp, // stack pointer points to the state (stack grows backwards)
             // rbp: rsp + size_of::<u64>() as u64, // base pointer points to the stack pointer
             rbp: rsp,                // base pointer points to the stack pointer
@@ -211,7 +212,7 @@ impl Thread<Ready> {
 
 #[repr(C, packed)]
 #[derive(Default, Debug)]
-pub struct TaskState {
+pub struct ThreadState {
     r15: u64,
     r14: u64,
     r13: u64,
@@ -232,12 +233,12 @@ pub struct TaskState {
     rip: u64,
 }
 
-extern "C" fn leave_task() -> ! {
-    unsafe { process::exit_current_task() }
+extern "C" fn leave_thread() -> ! {
+    unsafe { process::exit_current_thread() }
 }
 
 impl Thread<Running> {
-    pub unsafe fn kernel_task(kernel_process: Process) -> Self {
+    pub unsafe fn kernel_thread(kernel_process: Process) -> Self {
         Self {
             id: ThreadId::new(),
             name: "kernel".to_string(),

@@ -85,7 +85,7 @@ macro_rules! set_task_switched {
 /// some other code without any drop or safety guarantees
 /// about the caller of this method. The caller must ensure
 /// that _old_stack and _new_stack are valid pointers to
-/// a task stack.
+/// a thread stack.
 #[naked]
 pub unsafe extern "C" fn switch(
     _old_stack: *mut usize,

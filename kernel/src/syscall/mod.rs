@@ -148,10 +148,10 @@ pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Resul
     let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
     let entry_fn = unsafe { transmute(entry) };
 
-    // execute the executable in the new task...
-    process::spawn_task_in_current_process(path.to_string(), entry_fn);
-    // ...and stop the current task
-    unsafe { process::exit_current_task() }
+    // execute the executable in the new thread...
+    process::spawn_thread_in_current_process(path.to_string(), entry_fn);
+    // ...and stop the current thread
+    unsafe { process::exit_current_thread() }
 }
 
 pub fn sys_exit(status: usize) -> ! {

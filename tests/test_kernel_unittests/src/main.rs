@@ -29,8 +29,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]");
     serial_println!(
-        "task '{}' panicked at {}:\n{}",
-        kernel::process::current_task().name(),
+        "thread '{}' panicked at {}:\n{}",
+        kernel::process::current_thread().name(),
         info.location().unwrap(),
         info.message().unwrap()
     );

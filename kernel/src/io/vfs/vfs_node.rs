@@ -82,7 +82,7 @@ impl Drop for Inner {
         If you read this while debugging a deadlock a deadlock in the
         scheduler, you might want to check whether you're dropping VfsNodes (maybe through
         open file descriptors) while interrupts are disabled. If so, make sure that you free
-        the tasks before you disable interrupts.
+        the threads before you disable interrupts.
 
         Let's hope that this doesn't happen to you.
          */

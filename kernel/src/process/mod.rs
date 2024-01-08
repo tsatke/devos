@@ -26,36 +26,36 @@ mod tree;
 
 pub fn init(address_space: AddressSpace) {
     let root_process = Process::create_kernel(address_space);
-    let current_task = unsafe { Thread::kernel_task(root_process.clone()) };
+    let current_thread = unsafe { Thread::kernel_thread(root_process.clone()) };
     let mut pt_guard = process_tree().write();
-    pt_guard.add_task(root_process.pid(), current_task.task_id());
+    pt_guard.add_thread(root_process.pid(), current_thread.id());
 
-    scheduler::init(current_task);
+    scheduler::init(current_thread);
 }
 
 pub fn current() -> &'static Process {
-    current_task().process()
+    current_thread().process()
 }
 
 pub fn vmm() -> &'static VirtualMemoryManager {
     current().vmm()
 }
 
-pub fn current_task() -> &'static Thread<Running> {
-    unsafe { scheduler() }.current_task()
+pub fn current_thread() -> &'static Thread<Running> {
+    unsafe { scheduler() }.current_thread()
 }
 
-pub fn spawn_task_in_current_process(name: impl Into<String>, func: extern "C" fn()) {
-    spawn_task(name, current(), func)
+pub fn spawn_thread_in_current_process(name: impl Into<String>, func: extern "C" fn()) {
+    spawn_thread(name, current(), func)
 }
 
-pub fn spawn_task(name: impl Into<String>, process: &Process, func: extern "C" fn()) {
-    let task = Thread::<Ready>::new(process, name, func);
-    spawn(task)
+pub fn spawn_thread(name: impl Into<String>, process: &Process, func: extern "C" fn()) {
+    let thread = Thread::<Ready>::new(process, name, func);
+    spawn(thread)
 }
 
 pub fn exit() -> ! {
-    unsafe { exit_current_task() }
+    unsafe { exit_current_thread() }
 }
 
 #[derive(Clone, Debug)]

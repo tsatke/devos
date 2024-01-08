@@ -35,9 +35,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 fn test_counter() {
     assert_eq!(0, COUNTER.load(Relaxed));
 
-    process::spawn_task_in_current_process("count1", count);
-    process::spawn_task_in_current_process("count2", count);
-    process::spawn_task_in_current_process("count3", count);
+    process::spawn_thread_in_current_process("count1", count);
+    process::spawn_thread_in_current_process("count2", count);
+    process::spawn_thread_in_current_process("count3", count);
 
     for _ in 0..20 {
         hlt(); // should be enough to get the functions scheduled 5 times each
@@ -65,8 +65,8 @@ fn panic_handler(info: &PanicInfo) -> ! {
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
         kernel::process::current().pid(),
         kernel::process::current().name(),
-        kernel::process::current_task().task_id(),
-        kernel::process::current_task().name(),
+        kernel::process::current_thread().id(),
+        kernel::process::current_thread().name(),
         info.message().unwrap()
     );
     if let Some(location) = info.location() {

@@ -10,41 +10,43 @@ use x86_64::instructions::{hlt, interrupts};
 use crate::arch::switch::switch;
 use crate::process::attributes::ProcessId;
 use crate::process::thread::{Finished, Ready, Running, Thread};
-use crate::process::{process_tree, spawn_task_in_current_process, Process};
+use crate::process::{process_tree, spawn_thread_in_current_process, Process};
 use crate::serial_println;
 
 static mut SCHEDULER: Option<Scheduler> = None;
-static FINISHED_TASKS: OnceCell<SegQueue<Thread<Finished>>> = OnceCell::uninit();
-static NEW_TASKS: OnceCell<SegQueue<Thread<Ready>>> = OnceCell::uninit();
+static FINISHED_THREADS: OnceCell<SegQueue<Thread<Finished>>> = OnceCell::uninit();
+static NEW_THREADS: OnceCell<SegQueue<Thread<Ready>>> = OnceCell::uninit();
 
-fn finished_tasks() -> &'static SegQueue<Thread<Finished>> {
-    FINISHED_TASKS
+fn finished_threads() -> &'static SegQueue<Thread<Finished>> {
+    FINISHED_THREADS
         .try_get()
-        .expect("finished task queue not initialized")
+        .expect("finished thread queue not initialized")
 }
 
-fn new_tasks() -> &'static SegQueue<Thread<Ready>> {
-    NEW_TASKS.try_get().expect("new task queue not initialized")
+fn new_threads() -> &'static SegQueue<Thread<Ready>> {
+    NEW_THREADS
+        .try_get()
+        .expect("new thread queue not initialized")
 }
 
-pub fn init(kernel_task: Thread<Running>) {
-    unsafe { SCHEDULER = Some(Scheduler::new(kernel_task)) };
-    FINISHED_TASKS.init_once(SegQueue::new);
-    NEW_TASKS.init_once(SegQueue::new);
+pub fn init(kernel_thread: Thread<Running>) {
+    unsafe { SCHEDULER = Some(Scheduler::new(kernel_thread)) };
+    FINISHED_THREADS.init_once(SegQueue::new);
+    NEW_THREADS.init_once(SegQueue::new);
 
-    // now that the finish queue is initialized, we can spawn the cleanup task
-    spawn_task_in_current_process("cleanup_finished_tasks", cleanup_finished_tasks);
+    // now that the finish queue is initialized, we can spawn the cleanup thread
+    spawn_thread_in_current_process("cleanup_finished_threads", cleanup_finished_threads);
 }
 
-pub(crate) fn spawn(task: Thread<Ready>) {
-    new_tasks().push(task)
+pub(crate) fn spawn(thread: Thread<Ready>) {
+    new_threads().push(thread)
 }
 
-extern "C" fn cleanup_finished_tasks() {
-    let queue = finished_tasks();
+extern "C" fn cleanup_finished_threads() {
+    let queue = finished_threads();
     loop {
         match queue.pop() {
-            Some(task) => free_task(task),
+            Some(thread) => free_thread(thread),
             None => {
                 hlt();
                 continue;
@@ -68,13 +70,13 @@ pub(crate) unsafe fn reschedule() {
     unsafe { scheduler_mut().reschedule() }
 }
 
-pub(crate) unsafe fn exit_current_task() -> ! {
-    unsafe { scheduler().exit_current_task() }
+pub(crate) unsafe fn exit_current_thread() -> ! {
+    unsafe { scheduler().exit_current_thread() }
 }
 
 pub struct Scheduler {
-    current_task: Thread<Running>,
-    current_task_should_exit: AtomicBool,
+    current_thread: Thread<Running>,
+    current_thread_should_exit: AtomicBool,
     ready: VecDeque<Thread<Ready>>,
     _dummy_last_stack_ptr: usize,
 }
@@ -84,25 +86,25 @@ impl Scheduler {
     ///
     /// # Safety
     /// Calling this more than once may result in UB due to aliasing
-    /// of memory areas, tasks and processes.
-    unsafe fn new(kernel_task: Thread<Running>) -> Self {
+    /// of memory areas, threads and processes.
+    unsafe fn new(kernel_thread: Thread<Running>) -> Self {
         Self {
-            current_task: kernel_task,
-            current_task_should_exit: AtomicBool::new(false),
+            current_thread: kernel_thread,
+            current_thread_should_exit: AtomicBool::new(false),
             ready: VecDeque::new(),
             _dummy_last_stack_ptr: 0,
         }
     }
 
-    pub fn exit_current_task(&self) -> ! {
-        self.current_task_should_exit.store(true, Relaxed);
+    pub fn exit_current_thread(&self) -> ! {
+        self.current_thread_should_exit.store(true, Relaxed);
         loop {
             hlt();
         }
     }
 
-    pub fn current_task(&self) -> &Thread<Running> {
-        &self.current_task
+    pub fn current_thread(&self) -> &Thread<Running> {
+        &self.current_thread
     }
 
     pub fn current_pid(&self) -> &ProcessId {
@@ -110,10 +112,10 @@ impl Scheduler {
     }
 
     pub fn current_process(&self) -> &Process {
-        self.current_task.process()
+        self.current_thread.process()
     }
 
-    /// Reschedules to another task.
+    /// Reschedules to another thread.
     ///
     /// This may or may not return.
     ///
@@ -132,24 +134,24 @@ impl Scheduler {
         WE CAN NOT ACQUIRE ANY LOCKS!!!
         This will cause deadlocks and/or instability!
 
-        Imagine the lock being held by the current task, so we are unable
+        Imagine the lock being held by the current thread, so we are unable
         to acquire the lock in here. This means, we won't be able to switch
-        to another task, and the current task will never release the lock.
+        to another thread, and the current thread will never release the lock.
         */
 
-        // move new tasks to the ready queue
-        while let Some(task) = new_tasks().pop() {
-            self.ready.push_back(task);
+        // move new threads to the ready queue
+        while let Some(thread) = new_threads().pop() {
+            self.ready.push_back(thread);
         }
 
-        let task = match self.ready.pop_front() {
+        let thread = match self.ready.pop_front() {
             None => {
                 return;
             }
             Some(t) => t,
         };
 
-        let cr3_value = task.process().cr3_value();
+        let cr3_value = thread.process().cr3_value();
 
         /*
         @dev please note that from here on, you have to enable interrupts manually if you wish to exit early
@@ -157,18 +159,18 @@ impl Scheduler {
         */
         interrupts::disable(); // will be enabled again during task switch (in assembly)
 
-        // swap out the task from the queue and the current task
-        let mut task = task.into_running();
-        swap(&mut self.current_task, &mut task);
+        // swap out the thread from the queue and the current thread
+        let mut thread = thread.into_running();
+        swap(&mut self.current_thread, &mut thread);
 
-        let should_exit = self.current_task_should_exit.swap(false, Relaxed);
+        let should_exit = self.current_thread_should_exit.swap(false, Relaxed);
         let old_stack_ptr_ref = if should_exit {
-            let task = task.into_finished();
-            finished_tasks().push(task);
+            let thread = thread.into_finished();
+            finished_threads().push(thread);
             &mut self._dummy_last_stack_ptr
         } else {
-            let task = task.into_ready();
-            self.ready.push_back(task);
+            let thread = thread.into_ready();
+            self.ready.push_back(thread);
             self.ready.back_mut().unwrap().last_stack_ptr_mut()
         };
 
@@ -184,19 +186,19 @@ impl Scheduler {
             old_stack_ptr_ref as *mut usize
         };
 
-        let new_stack_ptr = *self.current_task.last_stack_ptr() as *const u8;
+        let new_stack_ptr = *self.current_thread.last_stack_ptr() as *const u8;
 
         unsafe { switch(old_stack_ptr, new_stack_ptr, cr3_value) }
     }
 }
 
-fn free_task(task: Thread<Finished>) {
+fn free_thread(thread: Thread<Finished>) {
     serial_println!(
-        "freeing task {} ({}) in process {} ({})",
-        task.task_id(),
-        task.name(),
-        task.process().pid(),
-        task.process().name()
+        "freeing thread {} ({}) in process {} ({})",
+        thread.id(),
+        thread.name(),
+        thread.process().pid(),
+        thread.process().name()
     );
 
     // TODO: unwind
@@ -204,11 +206,11 @@ fn free_task(task: Thread<Finished>) {
     // TODO: deallocate stack
 
     let mut process_tree = process_tree().write();
-    let pid = *task.process().pid();
-    process_tree.remove_task(&pid, task.task_id());
-    drop(task);
+    let pid = *thread.process().pid();
+    process_tree.remove_thread(&pid, thread.id());
+    drop(thread);
 
-    if !process_tree.has_tasks(&pid) {
+    if !process_tree.has_threads(&pid) {
         let process = match process_tree.remove_process(&pid) {
             None => {
                 panic!(
