@@ -204,8 +204,9 @@ dependencies = [
 
 [[package]]
 name = "bootloader"
-version = "0.11.4"
-source = "git+https://github.com/rust-osdev/bootloader?rev=a1b2eb88fd365fa7b4b35e29495076f22932cb7f#a1b2eb88fd365fa7b4b35e29495076f22932cb7f"
+version = "0.11.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "80006b1b91523db2339c10ec07ef0deabe098488d02e4763c9459e001b96e98c"
 dependencies = [
  "anyhow",
  "async-process",
@@ -222,16 +223,18 @@ dependencies = [
 
 [[package]]
 name = "bootloader-boot-config"
-version = "0.11.4"
-source = "git+https://github.com/rust-osdev/bootloader?rev=a1b2eb88fd365fa7b4b35e29495076f22932cb7f#a1b2eb88fd365fa7b4b35e29495076f22932cb7f"
+version = "0.11.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "63dcfafa400652958ccd9fa047149b09dc7b89df5d2666f66041bfeb81c574d1"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "bootloader_api"
-version = "0.11.4"
-source = "git+https://github.com/rust-osdev/bootloader?rev=a1b2eb88fd365fa7b4b35e29495076f22932cb7f#a1b2eb88fd365fa7b4b35e29495076f22932cb7f"
+version = "0.11.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f11d1b6f220515550211f3c3b70b2ac027e56f2bee96d341494a76f162d4209"
 
 [[package]]
 name = "bresenham"
