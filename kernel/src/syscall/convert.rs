@@ -24,7 +24,7 @@ impl TryFrom<usize> for UserspaceAddress {
     type Error = NotInUserspace;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        if value >= 0x80_0000_0000 {
+        if value >= 0x8000_0000_0000 {
             // TODO: check whether this address is correct
             return Err(NotInUserspace);
         }
