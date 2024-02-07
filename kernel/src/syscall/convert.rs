@@ -1,3 +1,4 @@
+use core::fmt::Pointer;
 use core::ops::Deref;
 use core::slice::from_raw_parts;
 
@@ -12,6 +13,12 @@ pub struct NotInUserspace;
 impl core::error::Error for NotInUserspace {}
 
 pub struct UserspaceAddress(VirtAddr);
+
+impl Pointer for UserspaceAddress {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:p}", self.0.as_ptr::<()>())
+    }
+}
 
 impl TryFrom<usize> for UserspaceAddress {
     type Error = NotInUserspace;
