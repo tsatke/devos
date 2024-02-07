@@ -13,7 +13,7 @@ pub use error::*;
 use kernel_api::syscall::Errno;
 
 use crate::io::path::Path;
-use crate::io::vfs::{vfs, Stat};
+use crate::io::vfs::vfs;
 use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::process::elf::ElfLoader;
 use crate::process::fd::Fileno;
@@ -91,13 +91,13 @@ pub enum FsType {
     Ext2,
 }
 
-pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Result<Stat> {
+pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Result<()> {
     if amode != AMode::F_OK {
         // TODO: support permissions
         return Err(Errno::ENOSYS);
     }
 
-    vfs().stat_path(path).map_err(Into::into)
+    vfs().stat_path(path).map_err(Into::into).map(|_| ())
 }
 
 pub fn sys_close(fd: Fileno) -> Result<()> {
