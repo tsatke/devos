@@ -20,6 +20,7 @@ use crate::process::fd::Fileno;
 use crate::process::vmm;
 use crate::{process, serial_println};
 
+mod convert;
 mod dispatch;
 mod error;
 
