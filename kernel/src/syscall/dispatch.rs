@@ -1,9 +1,9 @@
-use core::slice::{from_raw_parts, from_raw_parts_mut};
-
 use kernel_api::syscall::{Errno, Syscall};
 
 use crate::process::fd::Fileno;
-use crate::syscall::convert::{TryFromUserspaceAddress, UserspaceAddress};
+use crate::syscall::convert::{
+    TryFromUserspaceAddress, TryFromUserspaceRange, UserspaceAddress, UserspaceRange,
+};
 use crate::syscall::error::Result;
 use crate::syscall::{
     sys_access, sys_close, sys_exit, sys_mmap, sys_read, sys_write, MapFlags, Prot,
@@ -12,7 +12,7 @@ use crate::syscall::{sys_open, AMode};
 
 /// Dispatches syscalls. Inputs are the raw register values, the return value
 /// is the result of the syscall that is identified by the [`syscall`] argument.
-// not unsafe because the caller can't do much about the argument validity anyways
+// not unsafe because the caller can't do much about the argument validity anyway
 pub fn dispatch_syscall(
     syscall: usize,
     arg1: usize,
@@ -68,12 +68,18 @@ fn dispatch_sys_mmap(
 }
 
 fn dispatch_sys_read(arg1: usize, arg2: usize, arg3: usize) -> Result<usize> {
-    let buf = unsafe { from_raw_parts_mut(arg2 as *mut u8, arg3) };
+    let ptr = UserspaceAddress::try_from(arg2).map_err(|_| Errno::EINVAL)?;
+    let range = UserspaceRange::try_from(ptr, arg3).map_err(|_| Errno::EINVAL)?;
+    let buf = <&mut [u8] as TryFromUserspaceRange>::try_from_userspace_range(range)?;
+
     sys_read(Fileno::new(arg1), buf)
 }
 
 fn dispatch_sys_write(arg1: usize, arg2: usize, arg3: usize) -> Result<usize> {
-    let buf = unsafe { from_raw_parts(arg2 as *const u8, arg3) };
+    let ptr = UserspaceAddress::try_from(arg2).map_err(|_| Errno::EINVAL)?;
+    let range = UserspaceRange::try_from(ptr, arg3).map_err(|_| Errno::EINVAL)?;
+    let buf = <&[u8] as TryFromUserspaceRange>::try_from_userspace_range(range)?;
+
     sys_write(Fileno::new(arg1), buf)
 }
 
