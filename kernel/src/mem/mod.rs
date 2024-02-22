@@ -17,8 +17,8 @@ use crate::mem::virt::{
     heap, Interval, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject,
 };
 use crate::process::vmm;
-use crate::Result;
-use crate::{process, serial_println};
+use crate::{process, serial_println, KERNEL_CODE_LEN};
+use crate::{Result, KERNEL_CODE_ADDR};
 
 mod address_space;
 mod physical;
@@ -84,7 +84,10 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
     );
 
     // this pm_object shouldn't allocate anything, and it also shouldn't try to free anything on drop
-    let kheap_pm_object = PmObject::create(0, PhysicalAllocationStrategy::AllocateOnAccess)?;
+    let zero_pmo = Arc::new(RwLock::new(PmObject::create(
+        0,
+        PhysicalAllocationStrategy::AllocateOnAccess,
+    )?));
     let kheap_start_addr = VirtAddr::new(HEAP_START as u64);
     let kheap_size = HEAP_SIZE.bytes();
     let interval = Interval::new(kheap_start_addr, kheap_size);
@@ -93,15 +96,25 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
 
     let vmm = vmm();
     let interval = vmm.mark_as_reserved(interval)?;
-    let kheap_vm_object = MemoryBackedVmObject::new(
-        "kernel_heap".to_string(),
-        Arc::new(RwLock::new(kheap_pm_object)),
-        interval,
-        flags,
-    );
+    let kheap_vm_object =
+        MemoryBackedVmObject::new("kernel_heap".to_string(), zero_pmo.clone(), interval, flags);
     vmm.vm_objects()
         .write()
         .insert(kheap_start_addr, Box::new(kheap_vm_object)); // this needs to happen after we've initialized the heap
+
+    let kernel_code_addr = *KERNEL_CODE_ADDR
+        .get()
+        .expect("kernel code address not initialized");
+    let kernel_code_len = *KERNEL_CODE_LEN
+        .get()
+        .expect("kernel code length not initialized");
+    let interval = Interval::new(kernel_code_addr, kernel_code_len);
+    let interval = vmm.mark_as_reserved(interval)?;
+    let kcode_vm_object =
+        MemoryBackedVmObject::new("kernel_code".to_string(), zero_pmo.clone(), interval, flags);
+    vmm.vm_objects()
+        .write()
+        .insert(kernel_code_addr, Box::new(kcode_vm_object));
 
     Ok(())
 }

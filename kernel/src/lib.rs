@@ -52,15 +52,15 @@ pub const fn bootloader_config() -> BootloaderConfig {
 }
 
 pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
+    KERNEL_CODE_ADDR.init_once(|| VirtAddr::new(boot_info.kernel_image_offset));
+    KERNEL_CODE_LEN.init_once(|| boot_info.kernel_len as usize);
+
     gdt::init();
     idt::init();
     mem::init(boot_info)?;
     acpi::init(boot_info)?;
     apic::init()?;
     vfs::init();
-
-    KERNEL_CODE_ADDR.init_once(|| VirtAddr::new(boot_info.kernel_image_offset));
-    KERNEL_CODE_LEN.init_once(|| boot_info.kernel_len as usize);
 
     interrupts::enable();
 
