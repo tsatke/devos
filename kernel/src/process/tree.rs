@@ -23,6 +23,12 @@ pub struct ProcessTree {
     threads: BTreeMap<ProcessId, BTreeSet<ThreadId>>,
 }
 
+impl Default for ProcessTree {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ProcessTree {
     pub const fn new() -> Self {
         Self {
