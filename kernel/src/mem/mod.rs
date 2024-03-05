@@ -11,14 +11,13 @@ use x86_64::{PhysAddr, VirtAddr};
 
 pub use address_space::*;
 pub use size::*;
-use virt::heap::{HEAP_SIZE, HEAP_START};
 
+use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 use crate::mem::virt::{
     heap, Interval, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject,
 };
 use crate::process::vmm;
-use crate::{process, serial_println, KERNEL_CODE_LEN};
-use crate::{Result, KERNEL_CODE_ADDR};
+use crate::{process, serial_println, Result, KERNEL_CODE_ADDR, KERNEL_CODE_LEN};
 
 mod address_space;
 mod physical;
@@ -55,7 +54,11 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
         .map(|addr| PhysFrame::containing_address(PhysAddr::new(addr)));
 
     let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-    (HEAP_START..=HEAP_START + HEAP_SIZE.bytes())
+    let heap_start = KERNEL_HEAP_ADDR
+        .get()
+        .expect("kernel heap address not initialized")
+        .as_u64() as usize;
+    (heap_start..=heap_start + KERNEL_HEAP_LEN.bytes())
         .step_by(Size4KiB::SIZE as usize)
         .map(|v| VirtAddr::new(v as u64))
         .map(Page::<Size4KiB>::containing_address)
@@ -66,13 +69,13 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
 
     serial_println!(
         "mapped {} kernel heap from {:#p} to {:#p}",
-        HEAP_SIZE,
-        HEAP_START as *mut (),
-        (HEAP_START + HEAP_SIZE.bytes()) as *mut ()
+        KERNEL_HEAP_LEN,
+        heap_start as *mut (),
+        (heap_start + KERNEL_HEAP_LEN.bytes()) as *mut ()
     );
 
     // after the full heap memory has been mapped, we can init
-    unsafe { heap::init(HEAP_START as *mut u8, HEAP_SIZE.bytes()) };
+    unsafe { heap::init(heap_start as *mut u8, KERNEL_HEAP_LEN.bytes()) };
 
     // after we have heap, we can now switch to the stage 2 physical memory manager
     physical::init_stage2(boot_info);
@@ -88,8 +91,8 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
         0,
         PhysicalAllocationStrategy::AllocateOnAccess,
     )?));
-    let kheap_start_addr = VirtAddr::new(HEAP_START as u64);
-    let kheap_size = HEAP_SIZE.bytes();
+    let kheap_start_addr = VirtAddr::new(heap_start as u64);
+    let kheap_size = KERNEL_HEAP_LEN.bytes();
     let interval = Interval::new(kheap_start_addr, kheap_size);
 
     process::init(address_space);

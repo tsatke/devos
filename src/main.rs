@@ -39,7 +39,7 @@ fn main() {
         // create an lldb debug file to make debugging easy
         let content = format!(
             r#"target create {KERNEL_BINARY}
-target modules load --file {KERNEL_BINARY} --slide 0x8000000000
+target modules load --file {KERNEL_BINARY} --slide 0xffff800000000000
 gdb-remote localhost:1234
 b _start
 b rust_begin_unwind

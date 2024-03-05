@@ -5,10 +5,10 @@ use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
 use x86_64::structures::paging::{FrameAllocator, Page, PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
-use crate::mem::virt::heap::HEAP_SIZE;
+use crate::mem::virt::heap::KERNEL_HEAP_LEN;
 
 pub static mut STAGE1_ALLOCATED_FRAMES: AtomicUsize =
-    AtomicUsize::new(HEAP_SIZE.bytes() / Size4KiB::SIZE as usize);
+    AtomicUsize::new(KERNEL_HEAP_LEN.bytes() / Size4KiB::SIZE as usize);
 
 pub struct TrivialPhysicalFrameAllocator {
     regions: &'static MemoryRegions,
@@ -19,7 +19,7 @@ impl TrivialPhysicalFrameAllocator {
     pub fn from(regions: &'static MemoryRegions) -> Self {
         Self {
             regions,
-            next: HEAP_SIZE.bytes() / Size4KiB::SIZE as usize,
+            next: KERNEL_HEAP_LEN.bytes() / Size4KiB::SIZE as usize,
         }
     }
 

@@ -10,10 +10,14 @@ use x86_64::{PhysAddr, VirtAddr};
 
 use crate::arch::idt::InterruptIndex;
 use crate::mem::virt::{AllocationStrategy, MapAt};
+use crate::mem::Size;
 use crate::process::vmm;
-use crate::Result;
+use crate::{serial_println, Result};
 
 pub static LAPIC: OnceCell<Mutex<LocalApic>> = OnceCell::uninit();
+
+pub static KERNEL_APIC_ADDR: OnceCell<VirtAddr> = OnceCell::uninit();
+pub static KERNEL_APIC_LEN: Size = Size::KiB(4); // 1 page
 
 pub fn init() -> Result<()> {
     disable_8259();
@@ -21,7 +25,11 @@ pub fn init() -> Result<()> {
     let apic_physical_address: u64 = unsafe { xapic_base() };
     let apic_virtual_address: VirtAddr = vmm().allocate_memory_backed_vmobject(
         "apic".to_string(),
-        MapAt::Anywhere,
+        MapAt::Fixed(
+            *KERNEL_APIC_ADDR
+                .get()
+                .expect("KERNEL_APIC_ADDR not initialized"),
+        ),
         Size4KiB::SIZE as usize,
         AllocationStrategy::MapNow(vec![PhysFrame::containing_address(
             PhysAddr::try_new(apic_physical_address)
@@ -32,6 +40,7 @@ pub fn init() -> Result<()> {
             | PageTableFlags::NO_CACHE
             | PageTableFlags::NO_EXECUTE,
     )?;
+    serial_println!("apic_virtual_address: {:#p}", apic_virtual_address);
 
     let mut lapic = LocalApicBuilder::new()
         .timer_vector(InterruptIndex::Timer.into())

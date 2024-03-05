@@ -12,12 +12,13 @@ use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::map_page;
-use crate::mem::virt::OwnedInterval;
 use crate::mem::Size;
-use crate::process::vmm;
 use crate::Result;
 
 pub static INTERRUPT_MODEL: OnceCell<InterruptModel<Global>> = OnceCell::uninit();
+
+pub static KERNEL_ACPI_ADDR: OnceCell<VirtAddr> = OnceCell::uninit();
+pub static KERNEL_ACPI_LEN: Size = Size::MiB(1);
 
 pub fn init(boot_info: &'static BootInfo) -> Result<()> {
     let rsdp = boot_info.rsdp_addr.into_option().ok_or("no rsdp found")?;
@@ -37,18 +38,20 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
 
 #[derive(Clone, Debug)]
 pub struct KernelAcpi {
-    addr: Rc<Mutex<u64>>,
-    reserved_memory_interval: Rc<OwnedInterval<'static>>,
+    start_addr: Rc<Mutex<u64>>,
+    end_addr: u64,
 }
 
 impl KernelAcpi {
     pub fn new() -> Self {
-        let interval = vmm()
-            .reserve(Size::MiB(1).bytes())
-            .expect("failed to reserve memory for acpi");
+        let start_addr = KERNEL_ACPI_ADDR
+            .get()
+            .expect("kernel acpi address not initialized")
+            .as_u64();
+        let end_addr = start_addr + KERNEL_ACPI_LEN.bytes() as u64;
         KernelAcpi {
-            addr: Rc::new(Mutex::new(interval.start().as_u64())),
-            reserved_memory_interval: Rc::new(interval),
+            start_addr: Rc::new(Mutex::new(start_addr)),
+            end_addr,
         }
     }
 }
@@ -62,11 +65,8 @@ impl AcpiHandler for KernelAcpi {
         size: usize,
     ) -> PhysicalMapping<Self, T> {
         let page = {
-            let mut guard = self.addr.lock();
-            if *guard
-                > (self.reserved_memory_interval.start() + self.reserved_memory_interval.size())
-                    .as_u64()
-            {
+            let mut guard = self.start_addr.lock();
+            if *guard + Page::<Size4KiB>::SIZE > self.end_addr {
                 panic!("acpi memory exhausted");
             }
 

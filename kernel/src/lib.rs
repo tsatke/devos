@@ -14,17 +14,21 @@
 
 extern crate alloc;
 
-use bootloader_api::config::Mapping;
 use bootloader_api::{BootInfo, BootloaderConfig};
+use bootloader_api::config::Mapping;
 use conquer_once::spin::OnceCell;
 use x86_64::instructions::interrupts;
+use x86_64::structures::paging::{Page, Size4KiB};
 use x86_64::VirtAddr;
 
 pub use error::Result;
 
+use crate::acpi::{KERNEL_ACPI_ADDR, KERNEL_ACPI_LEN};
+use crate::apic::{KERNEL_APIC_ADDR, KERNEL_APIC_LEN};
 use crate::arch::{gdt, idt};
 use crate::io::vfs;
 use crate::mem::Size;
+use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 
 pub mod acpi;
 pub mod apic;
@@ -48,12 +52,30 @@ pub const fn bootloader_config() -> BootloaderConfig {
     config.mappings.page_table_recursive = Some(Mapping::Dynamic);
     config.mappings.framebuffer = Mapping::Dynamic; // TODO: we don't need a frame buffer at all, since we get the frame buffer memory from the pci device tree
     config.kernel_stack_size = KERNEL_STACK_SIZE.bytes() as u64;
+    config.mappings.dynamic_range_start = Some(0xffff_8000_0000_0000);
+    config.mappings.dynamic_range_end = Some(0xffff_ffff_ffff_ffff);
     config
 }
 
 pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
-    KERNEL_CODE_ADDR.init_once(|| VirtAddr::new(boot_info.kernel_image_offset));
-    KERNEL_CODE_LEN.init_once(|| boot_info.kernel_len as usize);
+    // TODO: probably map guard pages in between the different sections, just in case
+    let kernel_code_addr = VirtAddr::new(boot_info.kernel_image_offset);
+    let kernel_code_len = boot_info.kernel_len as usize;
+    let kernel_heap_addr =
+        (kernel_code_addr + kernel_code_len + Page::<Size4KiB>::SIZE).align_up(0x1000_u64);
+    let kernel_heap_len = KERNEL_HEAP_LEN.bytes();
+    let kernel_acpi_addr =
+        (kernel_heap_addr + kernel_heap_len + Page::<Size4KiB>::SIZE).align_up(0x1000_u64);
+    let kernel_acpi_len = KERNEL_ACPI_LEN.bytes();
+    let kernel_apic_addr =
+        (kernel_acpi_addr + kernel_acpi_len + Page::<Size4KiB>::SIZE).align_up(0x1000_u64);
+    let _kernel_apic_len = KERNEL_APIC_LEN.bytes();
+
+    KERNEL_CODE_ADDR.init_once(|| kernel_code_addr);
+    KERNEL_CODE_LEN.init_once(|| kernel_code_len);
+    KERNEL_HEAP_ADDR.init_once(|| kernel_heap_addr);
+    KERNEL_ACPI_ADDR.init_once(|| kernel_acpi_addr);
+    KERNEL_APIC_ADDR.init_once(|| kernel_apic_addr);
 
     gdt::init();
     idt::init();

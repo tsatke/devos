@@ -7,7 +7,7 @@ use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PageSize, Phy
 use x86_64::PhysAddr;
 
 use crate::mem::physical::STAGE1_ALLOCATED_FRAMES;
-use crate::mem::virt::heap::{heap_initialized, HEAP_SIZE};
+use crate::mem::virt::heap::{heap_initialized, KERNEL_HEAP_LEN};
 use crate::serial_println;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -41,7 +41,7 @@ impl MemoryMapPhysicalFrameAllocator {
         serial_println!(
             "memory manager stage 1 allocated {} physical frames, {} of which belong to the kernel heap",
             unsafe { STAGE1_ALLOCATED_FRAMES.load(Relaxed) },
-            HEAP_SIZE.bytes() / Size4KiB::SIZE as usize
+            KERNEL_HEAP_LEN.bytes() / Size4KiB::SIZE as usize
         );
 
         // mark the usable frames as 'free'

@@ -1,12 +1,14 @@
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
+use conquer_once::spin::OnceCell;
 use linked_list_allocator::LockedHeap;
+use x86_64::VirtAddr;
 
 use crate::mem::Size;
 
-pub const HEAP_START: usize = 0x4444_4444_0000;
-pub const HEAP_SIZE: Size = Size::MiB(8);
+pub static KERNEL_HEAP_ADDR: OnceCell<VirtAddr> = OnceCell::uninit();
+pub static KERNEL_HEAP_LEN: Size = Size::MiB(8);
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
