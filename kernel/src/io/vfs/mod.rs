@@ -196,7 +196,7 @@ impl Vfs {
                 return Ok((fs.clone(), OwnedPath::from(new_path)));
             }
             if let Some(parent) = path.parent() {
-                path = parent.to_owned();
+                parent.clone_into(&mut path);
             } else {
                 return Err(VfsError::NoSuchFileSystem);
             }
