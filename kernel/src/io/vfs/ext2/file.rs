@@ -11,6 +11,7 @@ use spin::RwLock;
 
 use crate::io::vfs::error::{Result, VfsError};
 use crate::io::vfs::Stat;
+use crate::serial_println;
 
 #[derive(Constructor)]
 pub struct Ext2Inode<T> {
@@ -20,8 +21,8 @@ pub struct Ext2Inode<T> {
 }
 
 impl<T> Ext2Inode<T>
-where
-    T: BlockDevice,
+    where
+        T: BlockDevice,
 {
     pub fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize> {
         let block_size = self.fs.read().superblock().block_size();
@@ -54,8 +55,8 @@ where
 }
 
 impl<T> Ext2Inode<T>
-where
-    T: BlockDevice,
+    where
+        T: BlockDevice,
 {
     fn read_blocks(&self, start_block: usize, end_block: usize, buf: &mut [u8]) -> Result<()> {
         let block_size = self.fs.read().superblock().block_size() as usize;
@@ -108,30 +109,33 @@ where
                     2 => self.inner.double_indirect_ptr(),
                     3 => self.inner.triple_indirect_ptr(),
                     _ => panic!("invalid indirect path"),
-                }
-                .expect("indirect pointer block not allocated"); // FIXME: this can probably happen for sparse file systems
+                };
+
+
                 for indirect_path_segment in indirect_path {
-                    let pointer_data =
-                        pointer_block_cache.entry(block_pointer).or_insert_with(|| {
-                            let mut data = vec![0_u8; block_size];
-                            self.fs
-                                .read()
-                                .read_block(block_pointer, &mut data)
-                                .expect("failed to read single indirect pointer block");
-                            data
-                        });
-                    const SZ: usize = size_of::<BlockAddress>();
-                    block_pointer = pointer_data
-                        .iter()
-                        .copied()
-                        .array_chunks::<SZ>()
-                        .map(u32::from_le_bytes)
-                        .map(BlockAddress::new)
-                        .nth(indirect_path_segment)
-                        .unwrap()
-                        .expect("failed to get indirect pointer") // FIXME: this can probably happen for sparse file systems
+                    block_pointer = block_pointer.and_then(|block_pointer| {
+                        let pointer_data =
+                            pointer_block_cache.entry(block_pointer).or_insert_with(|| {
+                                serial_println!("caching indirect pointer block {:?}", block_pointer);
+                                let mut data = vec![0_u8; block_size];
+                                self.fs
+                                    .read()
+                                    .read_block(block_pointer, &mut data)
+                                    .expect("failed to read single indirect pointer block");
+                                data
+                            });
+                        const SZ: usize = size_of::<BlockAddress>();
+                        pointer_data
+                            .iter()
+                            .copied()
+                            .array_chunks::<SZ>()
+                            .map(u32::from_le_bytes)
+                            .map(BlockAddress::new)
+                            .nth(indirect_path_segment)
+                            .unwrap()
+                    });
                 }
-                Some(block_pointer)
+                block_pointer
             };
 
             if let Some(block_pointer) = block_pointer {
