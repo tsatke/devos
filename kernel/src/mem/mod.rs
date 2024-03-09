@@ -58,7 +58,7 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
         .get()
         .expect("kernel heap address not initialized")
         .as_u64() as usize;
-    (heap_start..=heap_start + KERNEL_HEAP_LEN.bytes())
+    (heap_start..heap_start + KERNEL_HEAP_LEN.bytes())
         .step_by(Size4KiB::SIZE as usize)
         .map(|v| VirtAddr::new(v as u64))
         .map(Page::<Size4KiB>::containing_address)

@@ -39,7 +39,7 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
 #[derive(Clone, Debug)]
 pub struct KernelAcpi {
     start_addr: Rc<Mutex<u64>>,
-    end_addr: u64,
+    end_addr_exclusive: u64,
 }
 
 impl KernelAcpi {
@@ -48,10 +48,10 @@ impl KernelAcpi {
             .get()
             .expect("kernel acpi address not initialized")
             .as_u64();
-        let end_addr = start_addr + KERNEL_ACPI_LEN.bytes() as u64;
+        let end_addr_exclusive = start_addr + KERNEL_ACPI_LEN.bytes() as u64 - 1;
         KernelAcpi {
             start_addr: Rc::new(Mutex::new(start_addr)),
-            end_addr,
+            end_addr_exclusive: end_addr_exclusive,
         }
     }
 }
@@ -66,7 +66,7 @@ impl AcpiHandler for KernelAcpi {
     ) -> PhysicalMapping<Self, T> {
         let page = {
             let mut guard = self.start_addr.lock();
-            if *guard + Page::<Size4KiB>::SIZE > self.end_addr {
+            if *guard + Page::<Size4KiB>::SIZE >= self.end_addr_exclusive {
                 panic!("acpi memory exhausted");
             }
 

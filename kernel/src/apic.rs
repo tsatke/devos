@@ -5,7 +5,7 @@ use conquer_once::spin::OnceCell;
 use spin::Mutex;
 use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
 use x86_64::instructions::port::Port;
-use x86_64::structures::paging::{PageSize, PageTableFlags, PhysFrame, Size4KiB};
+use x86_64::structures::paging::{PageTableFlags, PhysFrame};
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::arch::idt::InterruptIndex;
@@ -30,7 +30,7 @@ pub fn init() -> Result<()> {
                 .get()
                 .expect("KERNEL_APIC_ADDR not initialized"),
         ),
-        Size4KiB::SIZE as usize,
+        KERNEL_APIC_LEN.bytes(),
         AllocationStrategy::MapNow(vec![PhysFrame::containing_address(
             PhysAddr::try_new(apic_physical_address)
                 .map_err(|e| format!("physical address {:#p} is not valid", e.0 as *const ()))?,
