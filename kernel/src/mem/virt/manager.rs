@@ -21,6 +21,13 @@ use crate::mem::virt::{
     FileBackedVmObject, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject, VmObject,
 };
 
+/// Represents a memory range in a given address space with ownership. Dropping an instance
+/// makes the represented memory range available for reallocation. The `OwnedInterval`
+/// is used to manage memory ranges that, when dropped, should be returned to the available
+/// pool of memory by the virtual memory manager this interval was obtained by.
+///
+/// Note that the `OwnedInterval` always refers to the virtual memory manager that it was
+/// obtained from.
 #[derive(Debug)]
 pub struct OwnedInterval<'a> {
     interval: Interval,
@@ -28,6 +35,11 @@ pub struct OwnedInterval<'a> {
 }
 
 impl OwnedInterval<'_> {
+    /// Prevents the automatic deallocation of the memory range represented by this struct
+    /// upon dropping. The memory range remains allocated indefinitely. This method is
+    /// intended for cases where the memory should not be returned to the pool for reallocation,
+    /// such as with structures that are managed outside the kernel, such as the level-4 page table
+    /// that is effectively owned by the `CR3` register.
     pub fn leak(self) -> Interval {
         core::mem::ManuallyDrop::new(self).interval
     }
