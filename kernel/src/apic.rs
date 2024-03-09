@@ -1,5 +1,5 @@
+use alloc::format;
 use alloc::string::ToString;
-use alloc::{format, vec};
 
 use conquer_once::spin::OnceCell;
 use spin::Mutex;
@@ -22,7 +22,10 @@ pub static KERNEL_APIC_LEN: Size = Size::KiB(4); // 1 page
 pub fn init() -> Result<()> {
     disable_8259();
 
-    let apic_physical_address: u64 = unsafe { xapic_base() };
+    let apic_phys_addr = PhysAddr::try_new(unsafe { xapic_base() })
+        .map_err(|e| format!("physical address {:#p} is not valid", e.0 as *const ()))?;
+    let apic_phys_frame = PhysFrame::containing_address(apic_phys_addr);
+
     let apic_virtual_address: VirtAddr = vmm().allocate_memory_backed_vmobject(
         "apic".to_string(),
         MapAt::Fixed(
@@ -31,10 +34,7 @@ pub fn init() -> Result<()> {
                 .expect("KERNEL_APIC_ADDR not initialized"),
         ),
         KERNEL_APIC_LEN.bytes(),
-        AllocationStrategy::MapNow(vec![PhysFrame::containing_address(
-            PhysAddr::try_new(apic_physical_address)
-                .map_err(|e| format!("physical address {:#p} is not valid", e.0 as *const ()))?,
-        )]),
+        AllocationStrategy::MapNow(&[apic_phys_frame]),
         PageTableFlags::PRESENT
             | PageTableFlags::WRITABLE
             | PageTableFlags::NO_CACHE

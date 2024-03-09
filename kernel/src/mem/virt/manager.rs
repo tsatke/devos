@@ -97,10 +97,10 @@ pub enum MapAt {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum AllocationStrategy {
+pub enum AllocationStrategy<'a> {
     AllocateOnAccess,
     AllocateNow,
-    MapNow(Vec<PhysFrame>),
+    MapNow(&'a [PhysFrame]),
 }
 
 impl VirtualMemoryManager {
@@ -175,7 +175,7 @@ impl VirtualMemoryManager {
                 let num_frames = size.div_ceil(Size4KiB::SIZE as usize);
                 (allocate_phys_frames(num_frames)?, true, true)
             }
-            AllocationStrategy::MapNow(frames) => (frames, true, false),
+            AllocationStrategy::MapNow(frames) => (frames.to_vec(), true, false),
         };
 
         let vmo = MemoryBackedVmObject::new(

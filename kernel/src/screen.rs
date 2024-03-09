@@ -47,7 +47,7 @@ pub fn init() {
                 "framebuffer".to_string(),
                 MapAt::Anywhere,
                 size,
-                AllocationStrategy::MapNow(frames),
+                AllocationStrategy::MapNow(&frames),
                 PageTableFlags::PRESENT
                     | PageTableFlags::WRITABLE
                     | PageTableFlags::NO_EXECUTE
