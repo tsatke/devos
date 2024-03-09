@@ -51,7 +51,7 @@ impl KernelAcpi {
         let end_addr_exclusive = start_addr + KERNEL_ACPI_LEN.bytes() as u64 - 1;
         KernelAcpi {
             start_addr: Rc::new(Mutex::new(start_addr)),
-            end_addr_exclusive: end_addr_exclusive,
+            end_addr_exclusive,
         }
     }
 }
