@@ -1,18 +1,18 @@
 use core::ptr;
 
 use x86_64::registers::control::{Cr3, Cr3Flags};
-use x86_64::structures::paging::mapper::{
-    InvalidPageTable, MapToError, MapperFlush, TranslateResult, UnmapError,
-};
 use x86_64::structures::paging::{
     Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable, Size4KiB,
     Translate,
 };
+use x86_64::structures::paging::mapper::{
+    InvalidPageTable, MapperFlush, MapToError, TranslateResult, UnmapError,
+};
 use x86_64::VirtAddr;
 
+use crate::{KERNEL_CODE_ADDR, process};
 use crate::mem::physical::{FrameAllocatorDelegate, PhysicalMemoryManager};
 use crate::process::vmm;
-use crate::{process, KERNEL_CODE_ADDR};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct AddressSpace {
@@ -30,19 +30,22 @@ pub struct AddressSpace {
 
 // @dev AddressSpace must not be copy or clone, because it is essentially a pointer into
 // memory, so copying or cloning an address space is aliasing.
-impl !Clone for AddressSpace {}
+impl ! Clone for AddressSpace {}
 
 impl AddressSpace {
     pub fn allocate_new() -> Self {
+        // allocate a new physical frame - this is valid for the entire machine
         let pt_frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
+        // reserve a page in the current process, as we need to create a new page table,
+        // but we'll free the interval later, after we're done with the page table setup
         let pt_interval = vmm()
             .reserve(Size4KiB::SIZE as usize)
-            .unwrap()
-            // the address space lives as long as this interval is reserved, so we can leak it
-            .leak();
+            .unwrap();
         let pt_vaddr = pt_interval.start();
         let pt_page = Page::containing_address(pt_vaddr);
 
+        // we map the page in the current process, so that we can modify the page table
+        // for the new address space
         let current_process = process::current();
         let mut current_addr_space = current_process.address_space().write();
         unsafe {
@@ -52,14 +55,14 @@ impl AddressSpace {
                 PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
             )
         }
-        .unwrap()
-        .flush();
+            .unwrap()
+            .flush();
 
         // create new page table
         let mut pt = PageTable::new();
 
         {
-            // copy kernel entries
+            // copy the kernel page table entries
             let kernel_start_index: u16 =
                 Page::<Size4KiB>::containing_address(*KERNEL_CODE_ADDR.get().unwrap())
                     .p4_index()
@@ -80,15 +83,17 @@ impl AddressSpace {
             .filter(|(_, e)| e.is_unused())
             .last()
             .unwrap();
-        assert_ne!(pte_index, 0, "no free entries in new page table"); // if the last unused index is 0, we have a problem, since that is the entry that we need to keep free for userspace (at least for now, since the bootloader currently maps us at 0x80_0000_0000 (yes, that low))
+        assert_ne!(pte_index, 0, "no free entries in new page table"); // if the last unused index is 0, we have a problem, since that is the entry that we need to keep free for userspace
         pte.set_frame(pt_frame, PageTableFlags::PRESENT | PageTableFlags::WRITABLE);
 
+        // write the page table into the reserved page
         unsafe {
             // Safety: we just reserved the address and mapped it by hand, so this is safe to write to
             ptr::write(pt_vaddr.as_mut_ptr(), pt);
         }
 
         current_addr_space.unmap(pt_page).unwrap().1.flush(); // the physical frame that's "leaking" here is the frame containing the new page table
+        drop(pt_interval); // keep the interval valid until after we've unmapped the page
 
         AddressSpace::new(
             pt_frame,
@@ -166,7 +171,7 @@ impl AddressSpace {
             // Safety: we checked that the address is valid when this address space was created
             as_recursive_page_table(self.level4_table_virtual_addr)
         }
-        .expect("invalid page table vaddr")
+            .expect("invalid page table vaddr")
     }
 }
 
