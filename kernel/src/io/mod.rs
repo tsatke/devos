@@ -1,2 +1,2 @@
 pub mod path;
-pub(crate) mod vfs;
+pub mod vfs;

@@ -12,13 +12,13 @@ pub use dispatch::*;
 pub use error::*;
 use kernel_api::syscall::Errno;
 
+use crate::{process, serial_println};
 use crate::io::path::Path;
 use crate::io::vfs::vfs;
 use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::process::elf::ElfLoader;
 use crate::process::fd::Fileno;
 use crate::process::vmm;
-use crate::{process, serial_println};
 
 mod convert;
 mod dispatch;
@@ -147,7 +147,7 @@ pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Resul
     elf.load(&mut loader).unwrap();
     let image = loader.into_inner();
     let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
-    let entry_fn = unsafe { transmute(entry) };
+    let entry_fn = unsafe { transmute::<*const u8, extern "C" fn()>(entry) };
 
     // execute the executable in the new thread...
     process::spawn_thread_in_current_process(path.to_string(), entry_fn);

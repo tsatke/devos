@@ -3,17 +3,17 @@ use core::mem::transmute;
 
 use conquer_once::spin::Lazy;
 use num_enum::IntoPrimitive;
+use x86_64::PrivilegeLevel;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::structures::paging::PageTableFlags;
-use x86_64::PrivilegeLevel;
 
 use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 
+use crate::{process, serial_println};
 use crate::apic::LAPIC;
 use crate::arch::syscall::syscall_handler_impl;
 use crate::process::vmm;
 use crate::timer::notify_timer_interrupt;
-use crate::{process, serial_println};
 
 static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     let mut idt = InterruptDescriptorTable::new();
@@ -33,14 +33,14 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
             .set_handler_fn(double_fault_handler)
             .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
         idt[InterruptIndex::Syscall.into()]
-            .set_handler_fn(transmute(syscall_handler as *mut fn()))
+            .set_handler_fn(transmute::<*mut fn(), extern "x86-interrupt" fn(InterruptStackFrame)>(syscall_handler as *mut fn()))
             .set_privilege_level(PrivilegeLevel::Ring3)
             /*
             TODO: verify
             Now I might be completely wrong here, but since we use Rust, we should be safe
             with interrupts enabled during syscalls - as long as our preemptive multitasking
             works correctly. Everything that might be accessed falls under Rust's guarantees.
-            As long as we have a separate stack for each syscalls - even if we get preempted
+            As long as we have a separate stack for each syscall - even if we get preempted
             during one - we should be fine.
             */
             .disable_interrupts(false);
@@ -59,15 +59,23 @@ pub fn init() {
 #[derive(Debug, Clone, Copy, IntoPrimitive)]
 #[repr(usize)]
 pub enum InterruptIndex {
-    Timer = 0x20,     // 32
-    Keyboard = 0x21,  // 33
-    LapicErr = 0x31,  // 49
-    IpiWake = 0x40,   // 64
-    IpiTlb = 0x41,    // 65
-    IpiSwitch = 0x42, // 66
-    IpiPit = 0x43,    // 67
+    /// 32
+    Timer = 0x20,
+    /// 33
+    Keyboard = 0x21,
+    /// 49
+    LapicErr = 0x31,
+    /// 64
+    IpiWake = 0x40,
+    /// 65
+    IpiTlb = 0x41,
+    /// 66
+    IpiSwitch = 0x42,
+    /// 67
+    IpiPit = 0x43,
     Syscall = SYSCALL_INTERRUPT_INDEX,
-    Spurious = 0xff, // 255
+    /// 255
+    Spurious = 0xff,
 }
 
 macro_rules! wrap {

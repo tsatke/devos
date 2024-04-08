@@ -12,6 +12,7 @@ test_kernel_multitasking = { path = "tests/test_kernel_multitasking", artifact =
 test_kernel_unittests = { path = "tests/test_kernel_unittests", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_vfs = { path = "tests/test_kernel_vfs", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_vmobject = { path = "tests/test_kernel_vmobject", artifact = "bin", target = "x86_64-unknown-none" }
+test_kernel_file_vmobject = { path = "tests/test_kernel_file_vmobject", artifact = "bin", target = "x86_64-unknown-none" }
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

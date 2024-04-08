@@ -5,13 +5,13 @@ use core::slice;
 use derive_more::Constructor;
 use spin::RwLock;
 use x86_64::instructions::interrupts;
-use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::{Page, PageTableFlags, Size4KiB};
+use x86_64::structures::paging::mapper::MapToError;
 use x86_64::VirtAddr;
 
-use crate::mem::physical::PhysicalMemoryManager;
-use crate::mem::virt::{AllocationError, OwnedInterval, PmObject, VmObject, VmmError};
 use crate::{map_page, process, unmap_page};
+use crate::mem::physical::PhysicalMemoryManager;
+use crate::mem::virt::{AllocationError, OwnedInterval, PmObject, VmmError, VmObject};
 
 #[derive(Constructor, Debug)]
 pub struct MemoryBackedVmObject {
@@ -104,7 +104,7 @@ impl VmObject for MemoryBackedVmObject {
                     page.size() as usize,
                 )
             }
-            .fill(0);
+                .fill(0);
             Ok(())
         };
 

@@ -1,6 +1,6 @@
 extern crate devos;
 
-use devos::{run_test_kernel, OS_DISK};
+use devos::{OS_DISK, run_test_kernel};
 
 #[test]
 fn test_kernel_unittests() {
@@ -20,4 +20,9 @@ fn test_kernel_vfs() {
 #[test]
 fn test_kernel_vmobject() {
     run_test_kernel(env!("TEST_KERNEL_VMOBJECT_PATH"), OS_DISK);
+}
+
+#[test]
+fn test_kernel_file_vmobject() {
+    run_test_kernel(env!("TEST_KERNEL_FILE_VMOBJECT_PATH"), OS_DISK);
 }

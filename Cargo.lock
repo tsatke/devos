@@ -403,6 +403,7 @@ dependencies = [
  "hello_world",
  "kernel",
  "ovmf-prebuilt",
+ "test_kernel_file_vmobject",
  "test_kernel_multitasking",
  "test_kernel_unittests",
  "test_kernel_vfs",
@@ -1167,6 +1168,15 @@ dependencies = [
  "redox_syscall",
  "rustix",
  "windows-sys 0.45.0",
+]
+
+[[package]]
+name = "test_kernel_file_vmobject"
+version = "0.1.0"
+dependencies = [
+ "bootloader_api",
+ "kernel",
+ "x86_64",
 ]
 
 [[package]]
