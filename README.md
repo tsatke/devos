@@ -2,6 +2,7 @@
 
 # DevOS
 
+[![project chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://chat.zulip.org)
 [![build](https://github.com/tsatke/devos/actions/workflows/build.yml/badge.svg)](https://github.com/tsatke/devos/actions/workflows/build.yml)
 
 An operating system and kernel developed with the Rust programming language, with an emphasis on usability for developers who use it.
