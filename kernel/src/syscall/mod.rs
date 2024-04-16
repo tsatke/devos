@@ -1,7 +1,7 @@
 use alloc::format;
 use alloc::string::ToString;
 use core::intrinsics::transmute;
-use core::slice::from_raw_parts_mut;
+use core::slice::from_raw_parts;
 
 use bitflags::bitflags;
 use elfloader::ElfBinary;
@@ -130,16 +130,15 @@ pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Resul
         let file = vfs().open(path).map_err(|_| Errno::ENOENT)?;
         let stat = vfs().stat(&file).map_err(|_| Errno::EIO)?;
         let size = stat.size as usize;
-        let addr = vmm().allocate_memory_backed_vmobject(
+        let addr = vmm().allocate_file_backed_vm_object(
             format!("execve '{}' (len={})", path, size),
+            file,
+            0,
             MapAt::Anywhere,
             size,
-            AllocationStrategy::AllocateOnAccess,
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         )?;
-        let mut data = unsafe { from_raw_parts_mut(addr.as_mut_ptr::<u8>(), size) };
-        vfs().read(&file, &mut data, 0).map_err(|_| Errno::EIO)?;
-        data
+        unsafe { from_raw_parts(addr.as_ptr::<u8>(), size) }
     };
 
     let mut loader = ElfLoader::default();

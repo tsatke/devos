@@ -3,6 +3,7 @@ use core::mem::transmute;
 
 use conquer_once::spin::Lazy;
 use num_enum::IntoPrimitive;
+use x86_64::instructions::interrupts;
 use x86_64::PrivilegeLevel;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::structures::paging::PageTableFlags;
@@ -230,6 +231,13 @@ extern "x86-interrupt" fn page_fault_handler(
         );
     };
 
+    interrupts::enable();
+    unsafe {
+        end_of_interrupt();
+    }
+
+    // IMPORTANT: From here, we need to be 100% thread safe!
+
     let vm_objects = vmm().vm_objects().read();
     let vm_object = vm_objects
         .iter()
@@ -249,10 +257,6 @@ extern "x86-interrupt" fn page_fault_handler(
 
     let offset = (accessed_address.as_u64() - vm_object.addr().as_u64()) as usize;
     vm_object.prepare_for_access(offset).unwrap();
-
-    unsafe {
-        end_of_interrupt();
-    }
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
