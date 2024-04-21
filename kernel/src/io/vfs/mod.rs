@@ -12,9 +12,11 @@ pub use file_system::*;
 pub use vfs_node::*;
 
 use crate::io::path::{OwnedPath, Path};
+use crate::io::vfs::cache::CachingBlockDevice;
 use crate::io::vfs::devfs::VirtualDevFs;
 use crate::io::vfs::ext2::VirtualExt2Fs;
 
+pub mod cache;
 pub mod devfs;
 mod error;
 pub mod ext2;
@@ -32,10 +34,14 @@ pub fn init() {
         .nth(1)
         .expect("we need at least one additional IDE drive for now")
         .clone();
+    let root_drive_cache = CachingBlockDevice::new(
+        root_drive,
+        204_800, // 100 MB
+    );
 
     let ext2fs = VirtualExt2Fs::new(
         FsId::new(),
-        ::ext2::Ext2Fs::try_new(root_drive).expect("root drive must be ext2 for now"),
+        ::ext2::Ext2Fs::try_new(root_drive_cache).expect("root drive must be ext2 for now"),
     );
     vfs().mount("/", ext2fs).expect("failed to mount root fs");
 
@@ -60,9 +66,9 @@ pub struct Vfs {
 
 impl Vfs {
     pub fn mount<P, F>(&self, mount_point: P, fs: F) -> Result<()>
-    where
-        P: AsRef<Path>,
-        F: FileSystem + 'static,
+        where
+            P: AsRef<Path>,
+            F: FileSystem + 'static,
     {
         let fs = Arc::new(RwLock::new(fs));
         self.mounts.write().insert(mount_point.into(), fs);
@@ -71,8 +77,8 @@ impl Vfs {
 
     #[allow(dead_code)]
     pub fn unmount<P>(&self, mount_point: P) -> Result<()>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let mut guard = self.mounts.write();
         guard.remove::<OwnedPath>(&mount_point.into());
@@ -81,8 +87,8 @@ impl Vfs {
 
     #[allow(dead_code)]
     pub fn exists<P>(&self, path: P) -> Result<bool>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let path = path.as_ref();
         let (fs, relative_path) = self.find_fs_and_relativize(path)?;
@@ -91,8 +97,8 @@ impl Vfs {
     }
 
     pub fn open<P>(&self, path: P) -> Result<VfsNode>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let path = path.as_ref();
         let (fs, relative_path) = self.find_fs_and_relativize(path)?;
@@ -101,9 +107,9 @@ impl Vfs {
     }
 
     #[allow(dead_code)]
-    pub fn read_dir<P>(&self, path: P) -> Result<impl Iterator<Item = DirEntry>>
-    where
-        P: AsRef<Path>,
+    pub fn read_dir<P>(&self, path: P) -> Result<impl Iterator<Item=DirEntry>>
+        where
+            P: AsRef<Path>,
     {
         let path = path.as_ref();
         let (fs, _) = self.find_fs_and_relativize(path)?;
@@ -112,8 +118,8 @@ impl Vfs {
     }
 
     pub fn read<B>(&self, node: &VfsNode, mut buf: B, offset: usize) -> Result<usize>
-    where
-        B: AsMut<[u8]>,
+        where
+            B: AsMut<[u8]>,
     {
         let buf = buf.as_mut();
         let mut guard = node.fs().write();
@@ -121,8 +127,8 @@ impl Vfs {
     }
 
     pub fn write<B>(&self, node: &VfsNode, buf: B, offset: usize) -> Result<usize>
-    where
-        B: AsRef<[u8]>,
+        where
+            B: AsRef<[u8]>,
     {
         let buf = buf.as_ref();
         let mut guard = node.fs().write();
@@ -141,8 +147,8 @@ impl Vfs {
     }
 
     pub fn stat_path<P>(&self, p: P) -> Result<Stat>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let path = p.as_ref();
         let (fs, path) = self.find_fs_and_relativize(path)?;
@@ -152,8 +158,8 @@ impl Vfs {
 
     #[allow(dead_code)]
     pub fn create<P>(&self, path: P, ftype: FileType) -> Result<()>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let path = path.as_ref();
         let (fs, path) = self.find_fs_and_relativize(path)?;
@@ -163,8 +169,8 @@ impl Vfs {
 
     #[allow(dead_code)]
     pub fn remove<P>(&self, path: P) -> Result<()>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let path = path.as_ref();
         let (fs, path) = self.find_fs_and_relativize(path)?;
@@ -184,8 +190,8 @@ impl Vfs {
     /// relative to the mount point of the found fs.
     /// The returned path can be passed into the file system's methods.
     fn find_fs_and_relativize<P>(&self, path: P) -> Result<(Arc<RwLock<dyn FileSystem>>, OwnedPath)>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let guard = self.mounts.read();
         let original_path = path.as_ref().to_owned().to_string();

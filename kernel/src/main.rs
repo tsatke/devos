@@ -7,13 +7,13 @@ extern crate alloc;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
-use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 
 use graphics::{PrimitiveDrawing, Vec2};
-use kernel::arch::panic::handle_panic;
-use kernel::process::{process_tree, Process};
-use kernel::syscall::sys_execve;
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
+use kernel::arch::panic::handle_panic;
+use kernel::process::{Process, process_tree};
+use kernel::syscall::sys_execve;
 use vga::Color;
 
 const CONFIG: BootloaderConfig = bootloader_config();

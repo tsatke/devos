@@ -1,4 +1,3 @@
-use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -11,7 +10,6 @@ use spin::RwLock;
 
 use crate::io::vfs::error::{Result, VfsError};
 use crate::io::vfs::Stat;
-use crate::serial_println;
 
 #[derive(Constructor)]
 pub struct Ext2Inode<T> {
@@ -71,8 +69,6 @@ impl<T> Ext2Inode<T>
         let double_count = double_end - double_start;
         let triple_start = double_end;
 
-        let mut pointer_block_cache = BTreeMap::<BlockAddress, Vec<u8>>::new(); // FIXME: this can grow quite large e.g. a lot of triple indirect pointers are used
-
         for (i, block) in (start_block..=end_block).enumerate() {
             let block_data = &mut buf[i * block_size..(i + 1) * block_size];
             let block_pointer = if block < 12 {
@@ -114,16 +110,14 @@ impl<T> Ext2Inode<T>
 
                 for indirect_path_segment in indirect_path {
                     block_pointer = block_pointer.and_then(|block_pointer| {
-                        let pointer_data =
-                            pointer_block_cache.entry(block_pointer).or_insert_with(|| {
-                                serial_println!("caching indirect pointer block {:?}", block_pointer);
-                                let mut data = vec![0_u8; block_size];
-                                self.fs
-                                    .read()
-                                    .read_block(block_pointer, &mut data)
-                                    .expect("failed to read single indirect pointer block");
-                                data
-                            });
+                        let pointer_data = {
+                            let mut data = vec![0_u8; block_size];
+                            self.fs
+                                .read()
+                                .read_block(block_pointer, &mut data)
+                                .expect("failed to read single indirect pointer block");
+                            data
+                        };
                         const SZ: usize = size_of::<BlockAddress>();
                         pointer_data
                             .iter()
