@@ -1,4 +1,5 @@
 use alloc::collections::{BTreeMap, VecDeque};
+use alloc::collections::btree_map::Entry::Vacant;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -65,16 +66,7 @@ impl<T> BlockDevice for CachingBlockDevice<T>
     fn read_sector(&self, sector_index: usize, buf: &mut [u8]) -> Result<usize, Self::Error> {
         let mut inner = self.inner.write();
 
-        if inner.cached_sectors.contains_key(&sector_index) {
-            self.cache_hits.fetch_add(1, Ordering::Relaxed);
-
-            // we already have the sector in cache, now move it to the front of the accessed list
-            inner.accessed_sectors.retain(|&x| x != sector_index);
-            inner.accessed_sectors.push_front(sector_index);
-            // then read it into the read buffer
-            let sector = inner.cached_sectors.get_mut(&sector_index).unwrap();
-            buf.copy_from_slice(&sector.data);
-        } else {
+        if let Vacant(e) = inner.cached_sectors.entry(sector_index) {
             self.cache_misses.fetch_add(1, Ordering::Relaxed);
 
             // we don't have the sector in cache, so we need to load it from the device
@@ -88,7 +80,7 @@ impl<T> BlockDevice for CachingBlockDevice<T>
 
             buf.copy_from_slice(&sector.data);
 
-            inner.cached_sectors.insert(sector_index, sector);
+            e.insert(sector);
             inner.accessed_sectors.push_front(sector_index);
 
             while inner.accessed_sectors.len() > self.max_sector_count {
@@ -98,6 +90,15 @@ impl<T> BlockDevice for CachingBlockDevice<T>
                     todo!("write back to device");
                 }
             }
+        } else {
+            self.cache_hits.fetch_add(1, Ordering::Relaxed);
+
+            // we already have the sector in cache, now move it to the front of the accessed list
+            inner.accessed_sectors.retain(|&x| x != sector_index);
+            inner.accessed_sectors.push_front(sector_index);
+            // then read it into the read buffer
+            let sector = inner.cached_sectors.get(&sector_index).unwrap();
+            buf.copy_from_slice(&sector.data);
         }
 
         Ok(buf.len())
