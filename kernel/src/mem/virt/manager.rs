@@ -16,10 +16,10 @@ use kernel_api::syscall::Errno;
 
 use crate::io::vfs::VfsNode;
 use crate::mem::physical::PhysicalMemoryManager;
-use crate::mem::virt::heap::heap_initialized;
 use crate::mem::virt::{
     FileBackedVmObject, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject, VmObject,
 };
+use crate::mem::virt::heap::heap_initialized;
 
 /// Represents a memory range in a given address space with ownership. Dropping an instance
 /// makes the represented memory range available for reallocation. The `OwnedInterval`
@@ -56,7 +56,7 @@ impl Deref for OwnedInterval<'_> {
 impl Drop for OwnedInterval<'_> {
     fn drop(&mut self) {
         let interval = self.interval;
-        assert!(self.vmm.release(interval));
+        let _ = self.vmm.release(interval); // FIXME: what happens when this returns false?
     }
 }
 

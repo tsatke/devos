@@ -1,10 +1,6 @@
 use alloc::format;
-use alloc::string::ToString;
-use core::intrinsics::transmute;
-use core::slice::from_raw_parts;
 
 use bitflags::bitflags;
-use elfloader::ElfBinary;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
@@ -16,9 +12,8 @@ use crate::{process, serial_println};
 use crate::io::path::Path;
 use crate::io::vfs::vfs;
 use crate::mem::virt::{AllocationStrategy, MapAt};
-use crate::process::elf::ElfLoader;
+use crate::process::{process_tree, vmm};
 use crate::process::fd::Fileno;
-use crate::process::vmm;
 
 mod convert;
 mod dispatch;
@@ -124,34 +119,7 @@ pub fn sys_dup(fd: Fileno) -> Result<Fileno> {
 pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Result<!> {
     serial_println!("sys_execve({:?}, {:?}, {:?})", path.as_ref(), argv, envp);
 
-    let path = path.as_ref();
-
-    let elf_data = {
-        let file = vfs().open(path).map_err(|_| Errno::ENOENT)?;
-        let stat = vfs().stat(&file).map_err(|_| Errno::EIO)?;
-        let size = stat.size as usize;
-        let addr = vmm().allocate_file_backed_vm_object(
-            format!("execve '{}' (len={})", path, size),
-            file,
-            0,
-            MapAt::Anywhere,
-            size,
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-        )?;
-        unsafe { from_raw_parts(addr.as_ptr::<u8>(), size) }
-    };
-
-    let mut loader = ElfLoader::default();
-    let elf = ElfBinary::new(elf_data).unwrap();
-    elf.load(&mut loader).unwrap();
-    let image = loader.into_inner();
-    let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
-    let entry_fn = unsafe { transmute::<*const u8, extern "C" fn()>(entry) };
-
-    // execute the executable in the new thread...
-    process::spawn_thread_in_current_process(path.to_string(), entry_fn);
-    // ...and stop the current thread
-    unsafe { process::exit_current_thread() }
+    unimplemented!("sys_execve")
 }
 
 pub fn sys_exit(status: usize) -> ! {
@@ -273,6 +241,8 @@ pub fn sys_read(fd: Fileno, buf: &mut [u8]) -> Result<usize> {
 
 pub fn sys_write(fd: Fileno, buf: &[u8]) -> Result<usize> {
     serial_println!("sys_write({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
+    process_tree().read().dump();
+
     let process = process::current();
     process.write(fd, buf).map_err(Into::into)
 }

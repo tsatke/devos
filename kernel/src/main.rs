@@ -12,8 +12,7 @@ use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 use graphics::{PrimitiveDrawing, Vec2};
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use kernel::arch::panic::handle_panic;
-use kernel::process::{Process, process_tree};
-use kernel::syscall::sys_execve;
+use kernel::process::Process;
 use vga::Color;
 
 const CONFIG: BootloaderConfig = bootloader_config();
@@ -34,26 +33,26 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     kernel_init(boot_info).expect("kernel_init failed");
 
     process::spawn_thread_in_current_process("vga_stuff", vga_stuff);
-    process::spawn_thread_in_current_process("hello_world", hello_world);
+
+    let _ = Process::spawn_from_executable(
+        process::current(),
+        "/bin/hello_world",
+        0.into(),
+        0.into(),
+    );
 
     let current_process = process::current();
     for _ in 0..5 {
         let new_process =
-            Process::create_user(current_process.clone(), "greet", 0.into(), 0.into());
+            Process::create_user(current_process, None, "greet", 0.into(), 0.into());
         process::spawn_thread("greet", &new_process, greet);
     }
-
-    process_tree().read().dump();
 
     panic!("kernel_main returned");
 }
 
 extern "C" fn greet() {
     serial_println!("hello from pid {}", process::current().pid());
-}
-
-extern "C" fn hello_world() {
-    sys_execve("/bin/hello_world", &[], &[]).unwrap();
 }
 
 extern "C" fn vga_stuff() {

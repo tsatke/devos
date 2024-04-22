@@ -1,20 +1,27 @@
+use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
+use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
+use core::intrinsics::transmute;
+use core::slice::from_raw_parts;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
+use elfloader::ElfBinary;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
 pub use scheduler::*;
 pub use tree::*;
 
-use crate::io::path::Path;
+use crate::io::path::{OwnedPath, Path};
 use crate::io::vfs::{vfs, VfsError, VfsNode};
-use crate::mem::virt::VirtualMemoryManager;
 use crate::mem::{AddressSpace, Size};
+use crate::mem::virt::{MapAt, VirtualMemoryManager};
 use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId};
+use crate::process::elf::ElfLoader;
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::thread::{Ready, Running, Thread};
 
@@ -71,9 +78,57 @@ pub struct Process {
     next_fd: Arc<FilenoAllocator>,
     open_fds: Arc<RwLock<BTreeMap<Fileno, FileDescriptor>>>,
     attributes: Arc<RwLock<Attributes>>,
+
+    executable_file: Option<OwnedPath>,
+}
+
+extern "C" fn trampoline() {
+    let proc = current();
+    if proc.executable_file.is_none() {
+        panic!("trampoline called for a process without an executable file");
+    }
+    let executable_file = proc.executable_file.as_ref().unwrap().as_path();
+
+    let elf_data = {
+        let file = vfs().open(executable_file).expect("failed to open executable file");
+        let stat = vfs().stat(&file).expect("failed to stat executable file");
+        let size = stat.size as usize;
+        let addr = vmm().allocate_file_backed_vm_object(
+            format!("executable '{}' (len={})", executable_file, size),
+            file,
+            0,
+            MapAt::Anywhere,
+            size,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        ).expect("failed to create file-backed vm object for executable");
+        unsafe { from_raw_parts(addr.as_ptr::<u8>(), size) }
+    };
+
+    let mut loader = ElfLoader::default();
+    let elf = ElfBinary::new(elf_data).unwrap();
+    elf.load(&mut loader).unwrap();
+    let image = loader.into_inner();
+    let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
+    let entry_fn = unsafe { transmute::<*const u8, extern "C" fn()>(entry) };
+
+    entry_fn();
 }
 
 impl Process {
+    pub fn spawn_from_executable(
+        parent: &Process,
+        path: impl AsRef<Path>,
+        uid: RealUserId,
+        gid: RealGroupId,
+    ) -> Self {
+        let path = path.as_ref();
+
+        let proc = Self::create_user(parent, Some(path.to_owned()), path.to_string(), uid, gid);
+        spawn_thread("main", &proc, trampoline);
+
+        proc
+    }
+
     pub fn create_kernel(address_space: AddressSpace) -> Self {
         static ALREADY_CALLED: AtomicBool = AtomicBool::new(false);
         if ALREADY_CALLED.swap(true, Relaxed) {
@@ -109,13 +164,15 @@ impl Process {
             next_fd,
             open_fds,
             attributes,
+            executable_file: None,
         };
         process_tree().write().set_root(res.clone());
         res
     }
 
     pub fn create_user(
-        parent: Process,
+        parent: &Process,
+        executable_file: Option<OwnedPath>,
         name: impl Into<String>,
         uid: RealUserId,
         gid: RealGroupId,
@@ -147,8 +204,9 @@ impl Process {
             next_fd: Arc::new(Default::default()),
             open_fds: Arc::new(Default::default()),
             attributes,
+            executable_file,
         };
-        process_tree().write().insert_process(parent, res.clone());
+        process_tree().write().insert_process(parent.clone(), res.clone());
         res
     }
 
@@ -185,8 +243,8 @@ impl Process {
     }
 
     pub fn open_file<P>(&self, path: P) -> Result<Fileno, VfsError>
-    where
-        P: AsRef<Path>,
+        where
+            P: AsRef<Path>,
     {
         let path = path.as_ref();
         let node = vfs().open(path)?;
