@@ -14,7 +14,7 @@ use x86_64::registers::rflags::RFlags;
 
 use crate::mem::Size;
 use crate::process;
-use crate::process::Process;
+use crate::process::{Process, process_tree};
 
 const STACK_SIZE: usize = Size::KiB(32).bytes();
 
@@ -22,15 +22,15 @@ const STACK_SIZE: usize = Size::KiB(32).bytes();
 pub struct ThreadId(u64);
 
 impl<T> PartialEq<T> for ThreadId
-where
-    T: Into<u64> + Copy,
+    where
+        T: Into<u64> + Copy,
 {
     fn eq(&self, other: &T) -> bool {
         self.0 == (*other).into()
     }
 }
 
-impl !Default for ThreadId {}
+impl ! Default for ThreadId {}
 
 impl ThreadId {
     pub fn new() -> Self {
@@ -75,8 +75,8 @@ state_transition!(Running, Ready);
 
 #[derive(Debug)]
 pub struct Thread<S>
-where
-    S: State + 'static,
+    where
+        S: State + 'static,
 {
     id: ThreadId,
     name: String,
@@ -87,8 +87,8 @@ where
 }
 
 impl<S> PartialEq<Self> for Thread<S>
-where
-    S: 'static + State,
+    where
+        S: 'static + State,
 {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id && self.last_stack_ptr == other.last_stack_ptr
@@ -98,8 +98,8 @@ where
 impl<S> Eq for Thread<S> where S: State + 'static {}
 
 impl<S> Thread<S>
-where
-    S: State + 'static,
+    where
+        S: State + 'static,
 {
     pub fn id(&self) -> &ThreadId {
         &self.id
@@ -172,6 +172,7 @@ impl Thread<Ready> {
             _state: Default::default(),
         };
         thread.setup_stack(entry_point);
+        process_tree().write().add_thread(process.pid(), thread.id());
         thread
     }
 

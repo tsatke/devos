@@ -8,9 +8,9 @@ use crossbeam_queue::SegQueue;
 use x86_64::instructions::{hlt, interrupts};
 
 use crate::arch::switch::switch;
+use crate::process::{Process, process_tree, spawn_thread_in_current_process};
 use crate::process::attributes::ProcessId;
 use crate::process::thread::{Finished, Ready, Running, Thread};
-use crate::process::{process_tree, spawn_thread_in_current_process, Process};
 use crate::serial_println;
 
 static mut SCHEDULER: Option<Scheduler> = None;
@@ -46,7 +46,10 @@ extern "C" fn cleanup_finished_threads() {
     let queue = finished_threads();
     loop {
         match queue.pop() {
-            Some(thread) => free_thread(thread),
+            Some(thread) => {
+                process_tree().write().remove_thread(thread.process().pid(), thread.id());
+                free_thread(thread);
+            }
             None => {
                 hlt();
                 continue;
@@ -213,6 +216,8 @@ fn free_thread(thread: Thread<Finished>) {
             }
             Some(p) => p,
         };
+
+        serial_println!("freeing process {} ({}) because it has no more threads", process.pid(), process.name());
 
         // TODO: deallocate address space
 

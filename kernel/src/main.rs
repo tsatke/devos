@@ -41,18 +41,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         0.into(),
     );
 
-    let current_process = process::current();
-    for _ in 0..5 {
-        let new_process =
-            Process::create_user(current_process, None, "greet", 0.into(), 0.into());
-        process::spawn_thread("greet", &new_process, greet);
-    }
-
     panic!("kernel_main returned");
-}
-
-extern "C" fn greet() {
-    serial_println!("hello from pid {}", process::current().pid());
 }
 
 extern "C" fn vga_stuff() {

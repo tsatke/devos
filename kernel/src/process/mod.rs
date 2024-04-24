@@ -35,8 +35,7 @@ mod tree;
 pub fn init(address_space: AddressSpace) {
     let root_process = Process::create_kernel(address_space);
     let current_thread = unsafe { Thread::kernel_thread(root_process.clone()) };
-    let mut pt_guard = process_tree().write();
-    pt_guard.add_thread(root_process.pid(), current_thread.id());
+    process_tree().write().add_thread(root_process.pid(), current_thread.id());
 
     scheduler::init(current_thread);
 }
