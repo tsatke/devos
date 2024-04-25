@@ -147,12 +147,7 @@ impl Scheduler {
             self.ready.push_back(thread);
         }
 
-        let thread = match self.ready.pop_front() {
-            None => {
-                return;
-            }
-            Some(t) => t,
-        };
+        let thread = self.ready.pop_front().expect("no threads to schedule"); // this should never happen, as we should have at least the kernel thread that is in a hlt-loop (or still busy with booting)
 
         let cr3_value = thread.process().cr3_value();
 

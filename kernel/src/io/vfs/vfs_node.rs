@@ -32,7 +32,7 @@ pub struct Inner {
     fs: Arc<RwLock<dyn FileSystem>>,
 }
 
-impl !Clone for Inner {}
+impl ! Clone for Inner {}
 
 impl Debug for VfsNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -79,7 +79,7 @@ impl Drop for Inner {
 
         /*
         In all seriousness, the close function acquires locks.
-        If you read this while debugging a deadlock a deadlock in the
+        If you read this while debugging a deadlock in the
         scheduler, you might want to check whether you're dropping VfsNodes (maybe through
         open file descriptors) while interrupts are disabled. If so, make sure that you free
         the threads before you disable interrupts.

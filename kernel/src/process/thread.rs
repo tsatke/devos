@@ -52,7 +52,7 @@ macro_rules! state {
 }
 
 macro_rules! state_transition {
-    ($from:ident, $to:ident) => {
+    ($from:ident, $conv:ident, $to:ident) => {
         impl From<Thread<$from>> for Thread<$to> {
             fn from(value: Thread<$from>) -> Self {
                 Thread {
@@ -65,13 +65,21 @@ macro_rules! state_transition {
                 }
             }
         }
+
+        impl Thread<$from> {
+            pub fn $conv(self) -> Thread<$to> {
+                self.into()
+            }
+        }
     };
 }
 
-state!(Ready, Running, Finished);
-state_transition!(Ready, Running);
-state_transition!(Running, Finished);
-state_transition!(Running, Ready);
+state!(Ready, Running, Blocked, Finished);
+state_transition!(Ready, into_running, Running);
+state_transition!(Running, into_finished, Finished);
+state_transition!(Running, into_blocked, Blocked);
+state_transition!(Running, into_ready, Ready);
+state_transition!(Blocked, into_ready, Ready);
 
 #[derive(Debug)]
 pub struct Thread<S>
@@ -207,10 +215,6 @@ impl Thread<Ready> {
 
         self.last_stack_ptr = Box::pin(rsp as usize);
     }
-
-    pub fn into_running(self) -> Thread<Running> {
-        self.into()
-    }
 }
 
 #[repr(C, packed)]
@@ -250,13 +254,5 @@ impl Thread<Running> {
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)
             _state: Default::default(),
         }
-    }
-
-    pub fn into_finished(self) -> Thread<Finished> {
-        self.into()
-    }
-
-    pub fn into_ready(self) -> Thread<Ready> {
-        self.into()
     }
 }
