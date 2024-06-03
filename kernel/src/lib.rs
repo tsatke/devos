@@ -6,7 +6,6 @@
 #![feature(assert_matches)]
 #![feature(const_mut_refs)]
 #![feature(error_in_core)]
-#![feature(exclusive_range_pattern)]
 #![feature(iter_array_chunks)]
 #![feature(naked_functions)]
 #![feature(negative_impls)]
@@ -14,8 +13,8 @@
 
 extern crate alloc;
 
-use bootloader_api::config::Mapping;
 use bootloader_api::{BootInfo, BootloaderConfig};
+use bootloader_api::config::Mapping;
 use conquer_once::spin::OnceCell;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::{Page, Size4KiB};
@@ -27,8 +26,8 @@ use crate::acpi::{KERNEL_ACPI_ADDR, KERNEL_ACPI_LEN};
 use crate::apic::{KERNEL_APIC_ADDR, KERNEL_APIC_LEN};
 use crate::arch::{gdt, idt};
 use crate::io::vfs;
-use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 use crate::mem::Size;
+use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 
 pub mod acpi;
 pub mod apic;
