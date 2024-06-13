@@ -9,7 +9,7 @@ use core::slice::from_raw_parts;
 
 use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 
-use graphics::{PrimitiveDrawing, Vec2};
+use graphics::PrimitiveDrawing;
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use kernel::arch::panic::handle_panic;
 use kernel::process::Process;
@@ -54,8 +54,6 @@ extern "C" fn vga_stuff() {
 
     // white screen
     vga.clear_screen(Color::White);
-
-
 }
 
 #[panic_handler]

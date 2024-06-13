@@ -8,3 +8,4 @@ description = "The standard library for DevOS."
 
 [dependencies]
 kernel_api = { path = "../kernel/api" }
+linked_list_allocator.workspace = true
