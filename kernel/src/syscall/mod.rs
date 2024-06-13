@@ -10,6 +10,7 @@ use kernel_api::syscall::{Errno, SocketDomain, SocketType};
 
 use crate::{process, serial_println};
 use crate::io::path::Path;
+use crate::io::socket::create_socket;
 use crate::io::vfs::vfs;
 use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::process::fd::Fileno;
@@ -245,7 +246,9 @@ pub fn sys_write(fd: Fileno, buf: &[u8]) -> Result<usize> {
     process.write(fd, buf).map_err(Into::into)
 }
 
-pub fn sys_socket(domain: SocketDomain, typ: SocketType, protocol: usize) -> Result<Fileno> {
+pub fn sys_socket(domain: SocketDomain, typ: SocketType, protocol: usize) -> Result<usize> {
     serial_println!("sys_socket({:?}, {:?}, {})", domain, typ, protocol);
-    Err(Errno::ENOSYS)
+    let socket_id = create_socket();
+
+    Ok(socket_id.into_usize())
 }

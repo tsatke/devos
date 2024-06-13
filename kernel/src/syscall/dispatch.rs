@@ -94,7 +94,7 @@ fn dispatch_sys_exit(arg1: usize) -> ! {
     sys_exit(arg1)
 }
 
-fn dispatch_sys_socket(arg1: usize, arg2: usize, arg3: usize) -> Result<Fileno> {
+fn dispatch_sys_socket(arg1: usize, arg2: usize, arg3: usize) -> Result<usize> {
     let domain = TryInto::<SocketDomain>::try_into(arg1).map_err(|_| Errno::EINVAL)?;
     let typ = TryInto::<SocketType>::try_into(arg2).map_err(|_| Errno::EINVAL)?;
     let protocol = arg3;
