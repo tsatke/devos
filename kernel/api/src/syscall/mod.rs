@@ -1,8 +1,8 @@
 use num_enum::TryFromPrimitive;
 
-mod errno;
-
 pub use errno::*;
+
+mod errno;
 
 pub const SYSCALL_INTERRUPT_INDEX: usize = 0x80;
 
@@ -13,51 +13,20 @@ pub enum Syscall {
     Write,
     Open,
     Close,
-    Stat,
-    Fstat,
-    Lstat,
-    Poll,
-    Lseek,
     Mmap,
-    Mprotect,
-    Munmap,
-    Brk,
-    RtSigAction,
-    RtSigProcMask,
-    Ioctl,
-    Pread,
-    Pwrite,
-    Getcwd,
-    Chdir,
-    Dup,
-    Pipe,
-    Select,
-    Flock,
-    Ftruncate,
-    Fsync,
-    Fdatasync,
-    Truncate,
-    GetDents,
-    GetPID,
-    GetPPID,
-    GetUID,
-    GetEUID,
-    GetGID,
-    GetEGID,
-    GetGroups,
-    SetUID,
-    SetGID,
     Access,
-    Chown,
-    Chmod,
-    Link,
-    Symlink,
-    Unlink,
-    Rename,
-    Mkdir,
-    Rmdir,
-    GetTimeOfDay,
-    ClockGetTime,
-    Nanosleep,
     Exit,
+    Socket,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, TryFromPrimitive)]
+#[repr(usize)]
+pub enum SocketDomain {
+    Unix,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, TryFromPrimitive)]
+#[repr(usize)]
+pub enum SocketType {
+    Stream,
 }

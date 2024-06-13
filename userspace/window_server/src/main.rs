@@ -3,8 +3,9 @@
 
 extern crate alloc;
 
+use kernel_api::syscall::{SocketDomain, SocketType};
 use std::rt;
-use std::syscall::sys_exit;
+use std::syscall::{sys_exit, sys_socket};
 
 #[no_mangle]
 pub fn _start() -> isize {
@@ -16,5 +17,6 @@ pub fn _start() -> isize {
 }
 
 fn main() {
+    sys_socket(SocketDomain::Unix, SocketType::Stream, 0);
     panic!("Hello, world!");
 }

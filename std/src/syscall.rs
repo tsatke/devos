@@ -1,7 +1,7 @@
 use alloc::ffi::CString;
 
+use kernel_api::syscall::{SocketDomain, SocketType, Syscall};
 pub use kernel_api::syscall::Errno;
-use kernel_api::syscall::Syscall;
 
 use crate::arch::syscall::{syscall1, syscall3};
 use crate::arch::syscall::syscall6;
@@ -37,4 +37,8 @@ pub fn sys_mmap(
 pub fn sys_exit(status: isize) -> ! {
     unsafe { syscall1(Syscall::Exit, status as usize) };
     unreachable!()
+}
+
+pub fn sys_socket(domain: SocketDomain, ty: SocketType, protocol: usize) -> Errno {
+    unsafe { syscall3(Syscall::Socket, domain as usize, ty as usize, protocol) }.into()
 }

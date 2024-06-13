@@ -6,7 +6,7 @@ use x86_64::VirtAddr;
 
 pub use dispatch::*;
 pub use error::*;
-use kernel_api::syscall::Errno;
+use kernel_api::syscall::{Errno, SocketDomain, SocketType};
 
 use crate::{process, serial_println};
 use crate::io::path::Path;
@@ -243,4 +243,9 @@ pub fn sys_write(fd: Fileno, buf: &[u8]) -> Result<usize> {
     serial_println!("sys_write({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
     let process = process::current();
     process.write(fd, buf).map_err(Into::into)
+}
+
+pub fn sys_socket(domain: SocketDomain, typ: SocketType, protocol: usize) -> Result<Fileno> {
+    serial_println!("sys_socket({:?}, {:?}, {})", domain, typ, protocol);
+    Err(Errno::ENOSYS)
 }
