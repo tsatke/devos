@@ -1,6 +1,6 @@
 use alloc::format;
 
-use crate::arch::syscall::sys_write;
+use crate::syscall::sys_write;
 
 #[doc(hidden)]
 pub fn _print(args: core::fmt::Arguments) {

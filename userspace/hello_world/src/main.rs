@@ -7,7 +7,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use std::{println, rt};
-use std::arch::syscall::{Errno, sys_close, sys_exit, sys_open, sys_read};
+use std::syscall::{Errno, sys_close, sys_exit, sys_open, sys_read};
 
 #[no_mangle]
 pub fn _start() -> isize {

@@ -3,8 +3,8 @@
 
 extern crate alloc;
 
-use std::arch::syscall::sys_exit;
 use std::rt;
+use std::syscall::sys_exit;
 
 #[no_mangle]
 pub fn _start() -> isize {

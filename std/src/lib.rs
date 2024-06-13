@@ -3,11 +3,12 @@
 
 extern crate alloc;
 
-use crate::arch::syscall::sys_exit;
+use crate::syscall::sys_exit;
 
 pub mod arch;
 pub mod rt;
 pub mod print;
+pub mod syscall;
 
 #[cfg(not(test))]
 #[panic_handler]

@@ -1,6 +1,6 @@
 use linked_list_allocator::LockedHeap;
 
-use crate::arch::syscall::{Errno, sys_exit, sys_mmap, sys_open};
+use crate::syscall::{Errno, sys_exit, sys_mmap, sys_open};
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
