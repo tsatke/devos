@@ -41,6 +41,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         0.into(),
     );
 
+    let _ = Process::spawn_from_executable(
+        process::current(),
+        "/bin/window_server",
+        0.into(),
+        0.into(),
+    );
+
     panic!("kernel_main returned");
 }
 

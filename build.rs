@@ -37,7 +37,7 @@ fn main() {
         .filter(|e| {
             e.is_dir()
                 && e.file_name()
-                    .is_some_and(|f| f.to_str().unwrap().starts_with("test_kernel_"))
+                .is_some_and(|f| f.to_str().unwrap().starts_with("test_kernel_"))
         })
         .map(|e| {
             e.file_name()
@@ -51,7 +51,7 @@ fn main() {
                 test_kernel.to_uppercase(),
                 test_kernel
             ))
-            .unwrap(),
+                .unwrap(),
         );
         let test_kernel_path = out_dir.join(format!("{test_kernel}.img"));
         bootloader::UefiBoot::new(&test_kernel_binary_path)
@@ -80,7 +80,7 @@ fn create_ext2_image(out_dir: &Path, os_disk_dir: &Path) -> PathBuf {
     cmd.arg("-m").arg("5");
     cmd.arg("-t").arg("ext2");
     cmd.arg(image_file.to_str().unwrap());
-    cmd.arg("2M");
+    cmd.arg("5M");
 
     let rc = cmd.status().unwrap();
     assert_eq!(0, rc.code().unwrap());
@@ -134,13 +134,14 @@ fn build_os_disk(out_dir: &Path) -> PathBuf {
     };
 
     copy_bindep("hello_world", "/bin");
+    copy_bindep("window_server", "/bin");
 
     os_disk_dir
 }
 
 fn copy_artifact_into_dir<P>(destination: P, artifact_file: P) -> Result<(), Error>
-where
-    P: AsRef<Path>,
+    where
+        P: AsRef<Path>,
 {
     let dir = destination.as_ref();
     assert!(dir.exists());

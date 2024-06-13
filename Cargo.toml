@@ -13,6 +13,7 @@ test_kernel_unittests = { path = "tests/test_kernel_unittests", artifact = "bin"
 test_kernel_vfs = { path = "tests/test_kernel_vfs", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_vmobject = { path = "tests/test_kernel_vmobject", artifact = "bin", target = "x86_64-unknown-none" }
 test_kernel_file_vmobject = { path = "tests/test_kernel_file_vmobject", artifact = "bin", target = "x86_64-unknown-none" }
+window_server = { path = "userspace/window_server", artifact = "bin", target = "x86_64-unknown-none" }
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
@@ -31,6 +32,7 @@ members = [
     "kernel_test_framework",
     "kernel_test_framework/derive",
     "userspace/hello_world",
+    "userspace/window_server",
 ]
 
 [workspace.dependencies]
