@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(error_in_core)]
 #![deny(unsafe_op_in_unsafe_fn)]
 
 pub use derive::kernel_test;
