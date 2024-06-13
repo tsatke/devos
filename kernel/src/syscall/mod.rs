@@ -241,8 +241,6 @@ pub fn sys_read(fd: Fileno, buf: &mut [u8]) -> Result<usize> {
 
 pub fn sys_write(fd: Fileno, buf: &[u8]) -> Result<usize> {
     serial_println!("sys_write({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
-    process_tree().read().dump();
-
     let process = process::current();
     process.write(fd, buf).map_err(Into::into)
 }
