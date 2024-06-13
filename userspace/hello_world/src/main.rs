@@ -6,8 +6,8 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use std::arch::syscall::{Errno, sys_close, sys_exit, sys_open, sys_read, sys_write};
-use std::rt;
+use std::{println, rt};
+use std::arch::syscall::{Errno, sys_close, sys_exit, sys_open, sys_read};
 
 #[no_mangle]
 pub fn _start() -> isize {
@@ -33,15 +33,12 @@ fn main() {
 
     // write something to stdout
 
-    let stdout = must(sys_open("/dev/stdout", 0, 0));
     let greeting = must(sys_open("/var/data/hello.txt", 0, 0));
-    let mut data = vec![0_u8; 14];
+    let mut data = vec![0_u8; 13];
     let n_read = must(sys_read(greeting, &mut data[0..13]));
-    data[13] = b'\n';
-    let n_write = must(sys_write(stdout, &data));
-    assert_eq!(n_read, n_write - 1);
+    assert_eq!(n_read, 13);
+    println!("hello.txt contained: '{}'", core::str::from_utf8(&data).unwrap());
 
-    sys_close(stdout);
     sys_close(greeting);
 }
 
