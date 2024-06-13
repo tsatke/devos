@@ -17,16 +17,24 @@ pub enum Syscall {
     Access,
     Exit,
     Socket,
+    Bind,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, TryFromPrimitive)]
 #[repr(usize)]
 pub enum SocketDomain {
-    Unix,
+    Unix = 0,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, TryFromPrimitive)]
 #[repr(usize)]
 pub enum SocketType {
-    Stream,
+    Stream = 0,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[repr(C)]
+pub struct FfiSockAddr {
+    pub domain: SocketDomain,
+    pub data: *const u8,
 }

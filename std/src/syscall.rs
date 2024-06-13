@@ -1,6 +1,7 @@
 use alloc::ffi::CString;
+use core::ptr::addr_of;
 
-use kernel_api::syscall::{SocketDomain, SocketType, Syscall};
+use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType, Syscall};
 pub use kernel_api::syscall::Errno;
 
 use crate::arch::syscall::{syscall1, syscall3};
@@ -41,4 +42,8 @@ pub fn sys_exit(status: isize) -> ! {
 
 pub fn sys_socket(domain: SocketDomain, ty: SocketType, protocol: usize) -> Errno {
     unsafe { syscall3(Syscall::Socket, domain as usize, ty as usize, protocol) }.into()
+}
+
+pub fn sys_bind(socket: usize, address: FfiSockAddr, address_len: usize) -> Errno {
+    unsafe { syscall3(Syscall::Bind, socket, addr_of!(address) as usize, address_len) }.into()
 }

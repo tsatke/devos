@@ -6,7 +6,7 @@ use x86_64::VirtAddr;
 
 pub use dispatch::*;
 pub use error::*;
-use kernel_api::syscall::{Errno, SocketDomain, SocketType};
+use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType};
 
 use crate::{process, serial_println};
 use crate::io::path::Path;
@@ -251,4 +251,10 @@ pub fn sys_socket(domain: SocketDomain, typ: SocketType, protocol: usize) -> Res
     let socket_id = create_socket();
 
     Ok(socket_id.into_usize())
+}
+
+pub fn sys_bind(socket: usize, address: FfiSockAddr, address_len: usize) -> Result<()> {
+    serial_println!("sys_bind({}, {:?}, {})", socket, address, address_len);
+
+    Ok(())
 }

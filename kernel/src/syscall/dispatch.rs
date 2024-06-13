@@ -1,7 +1,9 @@
-use kernel_api::syscall::{Errno, SocketDomain, SocketType, Syscall};
+use core::ptr;
+
+use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType, Syscall};
 
 use crate::process::fd::Fileno;
-use crate::syscall::{MapFlags, Prot, sys_access, sys_close, sys_exit, sys_mmap, sys_read, sys_socket, sys_write};
+use crate::syscall::{MapFlags, Prot, sys_access, sys_bind, sys_close, sys_exit, sys_mmap, sys_read, sys_socket, sys_write};
 use crate::syscall::{AMode, sys_open};
 use crate::syscall::convert::{
     TryFromUserspaceAddress, TryFromUserspaceRange, UserspaceAddress, UserspaceRange,
@@ -34,6 +36,7 @@ pub fn dispatch_syscall(
         Syscall::Read => dispatch_sys_read(arg1, arg2, arg3).map(Errno::from),
         Syscall::Write => dispatch_sys_write(arg1, arg2, arg3).map(Errno::from),
         Syscall::Socket => dispatch_sys_socket(arg1, arg2, arg3).map(Errno::from),
+        Syscall::Bind => dispatch_sys_bind(arg1, arg2, arg3).map(Errno::from),
     };
     syscall_result.unwrap_or_else(|v| v).as_isize()
 }
@@ -100,4 +103,12 @@ fn dispatch_sys_socket(arg1: usize, arg2: usize, arg3: usize) -> Result<usize> {
     let protocol = arg3;
 
     sys_socket(domain, typ, protocol)
+}
+
+fn dispatch_sys_bind(arg1: usize, arg2: usize, arg3: usize) -> Result<()> {
+    let socket = arg1;
+    let address = unsafe { ptr::read(arg2 as *const FfiSockAddr) };
+    let address_len = arg3;
+
+    sys_bind(socket, address, address_len)
 }
