@@ -7,13 +7,13 @@ extern crate alloc;
 use alloc::string::ToString;
 use core::panic::PanicInfo;
 
-use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 use x86_64::structures::paging::PageTableFlags;
 
+use kernel::{bootloader_config, kernel_init, serial_print, serial_println};
 use kernel::mem::virt::{AllocationStrategy, MapAt};
 use kernel::process::vmm;
 use kernel::qemu::ExitCode;
-use kernel::{bootloader_config, kernel_init, serial_print, serial_println};
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -68,7 +68,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         kernel::process::current().name(),
         kernel::process::current_thread().id(),
         kernel::process::current_thread().name(),
-        info.message().unwrap()
+        info.message()
     );
     if let Some(location) = info.location() {
         serial_println!(

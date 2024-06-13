@@ -4,10 +4,10 @@
 
 use core::panic::PanicInfo;
 
-use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 
-use kernel::qemu::ExitCode;
 use kernel::{bootloader_config, kernel_init, serial_print, serial_println};
+use kernel::qemu::ExitCode;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -32,7 +32,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         "thread '{}' panicked at {}:\n{}",
         kernel::process::current_thread().name(),
         info.location().unwrap(),
-        info.message().unwrap()
+        info.message()
     );
     if let Some(location) = info.location() {
         serial_println!(

@@ -4,11 +4,11 @@
 
 use core::panic::PanicInfo;
 
-use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 
+use kernel::{bootloader_config, kernel_init, process, serial_println};
 use kernel::qemu::ExitCode;
 use kernel::syscall::sys_open;
-use kernel::{bootloader_config, kernel_init, process, serial_println};
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -36,7 +36,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         kernel::process::current().name(),
         kernel::process::current_thread().id(),
         kernel::process::current_thread().name(),
-        info.message().unwrap()
+        info.message()
     );
     if let Some(location) = info.location() {
         serial_println!(

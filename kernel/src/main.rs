@@ -107,7 +107,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         process::current().name(),
         process::current_thread().id(),
         process::current_thread().name(),
-        info.message().unwrap()
+        info.message()
     );
     if let Some(location) = info.location() {
         serial_println!(

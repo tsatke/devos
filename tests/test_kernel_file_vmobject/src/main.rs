@@ -72,7 +72,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         kernel::process::current().name(),
         kernel::process::current_thread().id(),
         kernel::process::current_thread().name(),
-        info.message().unwrap()
+        info.message()
     );
     if let Some(location) = info.location() {
         serial_println!(
