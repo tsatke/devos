@@ -31,8 +31,6 @@ fn main() {
         v.push(i);
     }
 
-    // write something to stdout
-
     let greeting = must(sys_open("/var/data/hello.txt", 0, 0));
     let mut data = vec![0_u8; 13];
     let n_read = must(sys_read(greeting, &mut data[0..13]));
