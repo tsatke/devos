@@ -39,9 +39,3 @@ fn main() {
 
     sys_close(greeting);
 }
-
-#[cfg(not(test))]
-#[panic_handler]
-fn panic_handler(_: &core::panic::PanicInfo) -> ! {
-    sys_exit(2)
-}

@@ -12,8 +12,8 @@ use crate::{process, serial_println};
 use crate::io::path::Path;
 use crate::io::vfs::vfs;
 use crate::mem::virt::{AllocationStrategy, MapAt};
-use crate::process::{process_tree, vmm};
 use crate::process::fd::Fileno;
+use crate::process::vmm;
 
 mod convert;
 mod dispatch;

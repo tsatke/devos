@@ -3,8 +3,8 @@
 
 extern crate alloc;
 
-use std::{println, rt};
-use std::arch::syscall::{Errno, sys_exit};
+use std::arch::syscall::sys_exit;
+use std::rt;
 
 #[no_mangle]
 pub fn _start() -> isize {
@@ -15,19 +15,6 @@ pub fn _start() -> isize {
     sys_exit(0);
 }
 
-fn must(errno: Errno) -> usize {
-    if errno.as_isize() < 0 {
-        sys_exit(-errno.as_isize());
-    }
-    errno.as_isize() as usize
-}
-
 fn main() {
-    println!("Hello, world!");
-}
-
-#[cfg(not(test))]
-#[panic_handler]
-fn panic_handler(_: &core::panic::PanicInfo) -> ! {
-    sys_exit(2)
+    panic!("Hello, world!");
 }
