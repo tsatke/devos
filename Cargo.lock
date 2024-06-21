@@ -408,6 +408,7 @@ dependencies = [
  "test_kernel_unittests",
  "test_kernel_vfs",
  "test_kernel_vmobject",
+ "window_server",
 ]
 
 [[package]]
@@ -635,7 +636,6 @@ checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 name = "hello_world"
 version = "0.1.0"
 dependencies = [
- "linked_list_allocator",
  "std",
 ]
 
@@ -1121,6 +1121,7 @@ name = "std"
 version = "0.1.0"
 dependencies = [
  "kernel_api",
+ "linked_list_allocator",
 ]
 
 [[package]]
@@ -1315,6 +1316,14 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
+
+[[package]]
+name = "window_server"
+version = "0.1.0"
+dependencies = [
+ "kernel_api",
+ "std",
+]
 
 [[package]]
 name = "windows-sys"

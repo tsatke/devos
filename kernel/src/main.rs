@@ -9,7 +9,7 @@ use core::slice::from_raw_parts;
 
 use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 
-use graphics::{PrimitiveDrawing, Vec2};
+use graphics::PrimitiveDrawing;
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use kernel::arch::panic::handle_panic;
 use kernel::process::Process;
@@ -41,6 +41,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         0.into(),
     );
 
+    let _ = Process::spawn_from_executable(
+        process::current(),
+        "/bin/window_server",
+        0.into(),
+        0.into(),
+    );
+
     panic!("kernel_main returned");
 }
 
@@ -54,49 +61,6 @@ extern "C" fn vga_stuff() {
 
     // white screen
     vga.clear_screen(Color::White);
-
-    // mesh
-    for l in (80..720).step_by(20) {
-        for r in (80..720).step_by(20) {
-            vga.draw_line(Vec2 { x: 680, y: l }, Vec2 { x: 1200, y: r }, Color::Black);
-        }
-    }
-
-    // triangle
-    vga.fill_triangle(
-        Vec2 { x: 600, y: 700 },
-        Vec2 { x: 200, y: 600 },
-        Vec2 { x: 400, y: 500 },
-        Color::Black,
-    );
-
-    // colors
-    vga.fill_rect(Vec2 { x: 10, y: 10 }, Vec2 { x: 60, y: 60 }, Color::Red);
-    vga.fill_rect(Vec2 { x: 70, y: 10 }, Vec2 { x: 120, y: 60 }, Color::Green);
-    vga.fill_rect(Vec2 { x: 130, y: 10 }, Vec2 { x: 180, y: 60 }, Color::Blue);
-
-    // gradient
-    let start_point = Vec2 { x: 100, y: 200 };
-    let end_point = Vec2 { x: 300, y: 400 };
-
-    let width = end_point.x - start_point.x + 1;
-    let height = end_point.y - start_point.y + 1;
-
-    for y in 0..height {
-        for x in 0..width {
-            let r = (x as f32 / width as f32 * 255.0) as u32;
-            let b = (y as f32 / height as f32 * 255.0) as u32;
-            let color = Color::Other(0xff_ff_ff - (r << 16) - b);
-
-            vga.set_pixel(
-                Vec2 {
-                    x: start_point.x + x,
-                    y: start_point.y + y,
-                },
-                color,
-            );
-        }
-    }
 }
 
 #[panic_handler]

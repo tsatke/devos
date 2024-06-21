@@ -2,6 +2,8 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use derive_more::Display;
 
+use kernel_api::syscall::Errno;
+
 use crate::io::vfs::{vfs, VfsError, VfsNode};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Display)]
@@ -20,6 +22,12 @@ impl Fileno {
 impl From<Fileno> for usize {
     fn from(value: Fileno) -> Self {
         value.0
+    }
+}
+
+impl From<Fileno> for Errno {
+    fn from(value: Fileno) -> Self {
+        Errno::from(value.0)
     }
 }
 

@@ -3,6 +3,15 @@ use derive_more::Deref;
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Deref)]
 pub struct Errno(isize);
 
+impl Errno {
+    pub fn unwrap(self) -> usize {
+        if self.0 < 0 {
+            panic!("errno {}", self);
+        }
+        self.0 as usize
+    }
+}
+
 impl From<()> for Errno {
     fn from(_: ()) -> Self {
         Self::new(0)

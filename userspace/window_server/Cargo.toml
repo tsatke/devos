@@ -1,11 +1,10 @@
 [package]
-name = "std"
+name = "window_server"
 version = "0.1.0"
 edition = "2021"
-description = "The standard library for DevOS."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-kernel_api = { path = "../kernel/api" }
-linked_list_allocator.workspace = true
+kernel_api = { path = "../../kernel/api" }
+std = { version = "0.1.0", path = "../../std" }

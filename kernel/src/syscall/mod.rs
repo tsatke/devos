@@ -6,14 +6,15 @@ use x86_64::VirtAddr;
 
 pub use dispatch::*;
 pub use error::*;
-use kernel_api::syscall::Errno;
+use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType};
 
 use crate::{process, serial_println};
 use crate::io::path::Path;
+use crate::io::socket::create_socket;
 use crate::io::vfs::vfs;
 use crate::mem::virt::{AllocationStrategy, MapAt};
-use crate::process::{process_tree, vmm};
 use crate::process::fd::Fileno;
+use crate::process::vmm;
 
 mod convert;
 mod dispatch;
@@ -241,8 +242,19 @@ pub fn sys_read(fd: Fileno, buf: &mut [u8]) -> Result<usize> {
 
 pub fn sys_write(fd: Fileno, buf: &[u8]) -> Result<usize> {
     serial_println!("sys_write({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
-    process_tree().read().dump();
-
     let process = process::current();
     process.write(fd, buf).map_err(Into::into)
+}
+
+pub fn sys_socket(domain: SocketDomain, typ: SocketType, protocol: usize) -> Result<usize> {
+    serial_println!("sys_socket({:?}, {:?}, {})", domain, typ, protocol);
+    let socket_id = create_socket();
+
+    Ok(socket_id.into_usize())
+}
+
+pub fn sys_bind(socket: usize, address: FfiSockAddr, address_len: usize) -> Result<()> {
+    serial_println!("sys_bind({}, {:?}, {})", socket, address, address_len);
+
+    Ok(())
 }
