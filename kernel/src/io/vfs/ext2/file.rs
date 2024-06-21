@@ -19,8 +19,8 @@ pub struct Ext2Inode<T> {
 }
 
 impl<T> Ext2Inode<T>
-    where
-        T: BlockDevice,
+where
+    T: BlockDevice,
 {
     pub fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize> {
         let block_size = self.fs.read().superblock().block_size();
@@ -39,7 +39,7 @@ impl<T> Ext2Inode<T>
         Ok(buf.len())
     }
 
-    pub fn write(&mut self, _buf: &[u8], _offset: usize) -> Result<usize> {
+    pub fn write(&mut self, buf: &[u8], offset: usize) -> Result<usize> {
         todo!()
     }
 
@@ -53,8 +53,8 @@ impl<T> Ext2Inode<T>
 }
 
 impl<T> Ext2Inode<T>
-    where
-        T: BlockDevice,
+where
+    T: BlockDevice,
 {
     fn read_blocks(&self, start_block: usize, end_block: usize, buf: &mut [u8]) -> Result<()> {
         let block_size = self.fs.read().superblock().block_size() as usize;

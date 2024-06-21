@@ -5,7 +5,7 @@ use std::fs;
 
 use clap::Parser;
 
-use devos::{KERNEL_BINARY, OS_DISK, UEFI_PATH};
+use devos::{create_qcow_image, KERNEL_BINARY, OS_DISK, UEFI_PATH};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = "The boot tool for DevOS.")]
@@ -65,9 +65,12 @@ c"#
     cmd.arg("-drive")
         .arg(format!("format=raw,file={UEFI_PATH}"));
 
+    // create a copy on write image
+    let os_disk = create_qcow_image(OS_DISK);
+
     // add the os disk as hard drive
     cmd.arg("-drive")
-        .arg(format!("file={},if=ide,format=raw", OS_DISK));
+        .arg(format!("file={os_disk},if=ide,format=qcow2"));
 
     if args.verbose {
         println!("qemu command: {:?}", cmd);
