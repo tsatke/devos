@@ -1,12 +1,19 @@
+#![feature(iter_array_chunks)]
 #![no_std]
 
 extern crate alloc;
 
 use alloc::vec::Vec;
+use core::fmt::{Debug, Display, Formatter};
+
 use bitflags::bitflags;
 use conquer_once::spin::OnceCell;
-use core::fmt::{Debug, Display, Formatter};
+
+pub use device::*;
 use pci::{MassStorageSubClass, PciDeviceClass};
+use pci::PciStandardHeaderDevice;
+
+use crate::controller::IdeController;
 
 mod channel;
 mod command;
@@ -14,13 +21,9 @@ mod controller;
 mod device;
 mod drive;
 
-use crate::controller::IdeController;
-pub use device::*;
-use pci::PciStandardHeaderDevice;
-
 static IDE_DEVICES: OnceCell<Vec<IdeBlockDevice>> = OnceCell::uninit();
 
-pub fn drives() -> impl Iterator<Item = &'static IdeBlockDevice> {
+pub fn drives() -> impl Iterator<Item=&'static IdeBlockDevice> {
     IDE_DEVICES.get_or_init(collect_devices).iter()
 }
 

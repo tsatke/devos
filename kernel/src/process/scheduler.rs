@@ -134,7 +134,7 @@ impl Scheduler {
     pub unsafe fn reschedule(&mut self) {
         /*
         IMPORTANT!!!
-        WE CAN NOT ACQUIRE ANY LOCKS!!!
+        WE CAN NOT ACQUIRE ANY LOCKS!!! (allocating memory acquires locks)
         This will cause deadlocks and/or instability!
 
         Imagine the lock being held by the current thread, so we are unable
@@ -144,7 +144,7 @@ impl Scheduler {
 
         // move new threads to the ready queue
         while let Some(thread) = new_threads().pop() {
-            self.ready.push_back(thread);
+            self.ready.push_back(thread); // FIXME: this can allocate memory and lead to instability (and it happens from time to time)
         }
 
         let thread = self.ready.pop_front().expect("no threads to schedule"); // this should never happen, as we should have at least the kernel thread that is in a hlt-loop (or still busy with booting)

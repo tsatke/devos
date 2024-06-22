@@ -65,6 +65,10 @@ c"#
     cmd.arg("-drive")
         .arg(format!("format=raw,file={UEFI_PATH}"));
 
+    // TODO: remove
+    cmd.arg("-vga").arg("none");
+    cmd.arg("-nographic");
+
     // create a copy on write image
     let os_disk = create_qcow_image(OS_DISK);
 

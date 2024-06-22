@@ -1,11 +1,13 @@
-use crate::channel::IdeChannel;
-use crate::command::Command;
-use crate::{is_bit_set, Status, UDMAMode};
 use alloc::format;
 use alloc::sync::Arc;
 use core::fmt::{Debug, Display, Formatter};
+
 use spin::{RwLock, RwLockWriteGuard};
 use x86_64::instructions::interrupts;
+
+use crate::{is_bit_set, Status, UDMAMode};
+use crate::channel::IdeChannel;
+use crate::command::Command;
 
 #[derive(Clone)]
 pub struct IdeDrive {

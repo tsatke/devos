@@ -17,6 +17,7 @@ pub enum VfsError {
     HandleClosed,
     ReadError,
     WriteError,
+    NoSpace,
 }
 
 impl From<VfsError> for Errno {
@@ -27,6 +28,7 @@ impl From<VfsError> for Errno {
             VfsError::Unsupported => Errno::ENOSYS,
             VfsError::HandleClosed => Errno::EBADF,
             VfsError::ReadError | VfsError::WriteError => Errno::EIO,
+            VfsError::NoSpace => Errno::ENOSPC,
         }
     }
 }
