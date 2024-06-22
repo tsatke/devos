@@ -52,8 +52,8 @@ where
         }
     }
 
-    pub fn write(&self, buf: &[u8], offset: usize) -> Result<usize> {
-        match &self.inner {
+    pub fn write(&mut self, buf: &[u8], offset: usize) -> Result<usize> {
+        match &mut self.inner {
             Inner::RegularFile(f) => self.fs.write().write_to_file(f, offset, buf).map_err(|_| VfsError::WriteError),
             _ => Err(VfsError::Unsupported),
         }

@@ -4,6 +4,7 @@
 
 extern crate alloc;
 
+use alloc::string::String;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -12,7 +13,6 @@ use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 use graphics::PrimitiveDrawing;
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use kernel::arch::panic::handle_panic;
-use kernel::process::Process;
 use vga::Color;
 
 const CONFIG: BootloaderConfig = bootloader_config();
@@ -32,21 +32,37 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info).expect("kernel_init failed");
 
-    process::spawn_thread_in_current_process("vga_stuff", vga_stuff);
+    // process::spawn_thread_in_current_process("vga_stuff", vga_stuff);
+    //
+    // let _ = Process::spawn_from_executable(
+    //     process::current(),
+    //     "/bin/hello_world",
+    //     0.into(),
+    //     0.into(),
+    // );
+    //
+    // let _ = Process::spawn_from_executable(
+    //     process::current(),
+    //     "/bin/window_server",
+    //     0.into(),
+    //     0.into(),
+    // );
 
-    let _ = Process::spawn_from_executable(
-        process::current(),
-        "/bin/hello_world",
-        0.into(),
-        0.into(),
-    );
+    let p = process::current();
 
-    let _ = Process::spawn_from_executable(
-        process::current(),
-        "/bin/window_server",
-        0.into(),
-        0.into(),
-    );
+    let fd = p.open_file("/var/data/hello.txt").unwrap();
+    let written = p.write(fd, b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX").unwrap();
+    serial_println!("written: {}", written);
+    p.close_fd(fd).unwrap();
+
+    let mut buf = [0_u8; 256];
+    let fd = p.open_file("/var/data/hello.txt").unwrap();
+    let read = p.read(fd, &mut buf).unwrap();
+    serial_println!("read: {}", read);
+    p.close_fd(fd).unwrap();
+
+    serial_println!("read: {:?}", String::from_utf8(buf[..read].to_vec()).unwrap());
+
 
     panic!("kernel_main returned");
 }
