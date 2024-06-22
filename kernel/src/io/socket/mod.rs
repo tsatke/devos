@@ -18,7 +18,7 @@ pub fn create_socket() -> SocketId {
 }
 
 pub fn get_socket(id: SocketId) -> Option<Arc<SocketBuffer>> {
-    SOCKETS.lock().get(&id).map(|socket| socket.clone())
+    SOCKETS.lock().get(&id).cloned()
 }
 
 pub fn remove_socket(id: SocketId) {

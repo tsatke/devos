@@ -8,6 +8,12 @@ pub struct SocketBuffer {
     inner: Mutex<RingBuffer>,
 }
 
+impl Default for SocketBuffer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SocketBuffer {
     pub fn new() -> Self {
         Self::with_size(256 * 1024)

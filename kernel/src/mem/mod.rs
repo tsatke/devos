@@ -2,22 +2,22 @@ use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::sync::Arc;
 
-use bootloader_api::info::MemoryRegionKind;
 use bootloader_api::BootInfo;
+use bootloader_api::info::MemoryRegionKind;
 use spin::RwLock;
+use x86_64::{PhysAddr, VirtAddr};
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
-use x86_64::{PhysAddr, VirtAddr};
 
 pub use address_space::*;
 pub use size::*;
 
-use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
+use crate::{KERNEL_CODE_ADDR, KERNEL_CODE_LEN, process, Result, serial_println};
 use crate::mem::virt::{
     heap, Interval, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject,
 };
+use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 use crate::process::vmm;
-use crate::{process, serial_println, Result, KERNEL_CODE_ADDR, KERNEL_CODE_LEN};
 
 mod address_space;
 mod physical;
@@ -135,7 +135,9 @@ macro_rules! map_page {
         let page: Page<$size> = $page;
         let process = $crate::process::current();
         let mut address_space = process.address_space().write();
-        unsafe { address_space.map_to(page, $frame, $flags).unwrap().flush() }
+        let frame = $frame;
+        let flags = $flags;
+        unsafe { address_space.map_to(page, frame, flags).unwrap().flush() }
     }};
 }
 

@@ -35,8 +35,8 @@ enum Inner {
 impl AsRef<Inode> for Inner {
     fn as_ref(&self) -> &Inode {
         match self {
-            Inner::RegularFile(f) => &f,
-            Inner::Directory(d) => &d,
+            Inner::RegularFile(f) => f,
+            Inner::Directory(d) => d,
         }
     }
 }
