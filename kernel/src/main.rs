@@ -4,7 +4,7 @@
 
 extern crate alloc;
 
-use alloc::string::String;
+use alloc::vec;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -51,18 +51,24 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let p = process::current();
 
     let fd = p.open_file("/var/data/hello.txt").unwrap();
-    let written = p.write(fd, b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX").unwrap();
-    serial_println!("written: {}", written);
+    let data = vec![b'X'; 1719];
+    loop
+    {
+        let written = p.write(fd, &data).unwrap();
+        let sz = p.stat(fd).unwrap().size;
+        serial_println!("written: {} (size is now {})", written, sz);
+        if sz as usize + data.len() >= 12288 {
+            break;
+        }
+    }
     p.close_fd(fd).unwrap();
 
     let mut buf = [0_u8; 256];
     let fd = p.open_file("/var/data/hello.txt").unwrap();
     let read = p.read(fd, &mut buf).unwrap();
     serial_println!("read: {}", read);
+    buf.iter().for_each(|v| assert_eq!(v, &b'X'));
     p.close_fd(fd).unwrap();
-
-    serial_println!("read: {:?}", String::from_utf8(buf[..read].to_vec()).unwrap());
-
 
     panic!("kernel_main returned");
 }

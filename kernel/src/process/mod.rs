@@ -17,7 +17,7 @@ pub use scheduler::*;
 pub use tree::*;
 
 use crate::io::path::{OwnedPath, Path};
-use crate::io::vfs::{vfs, VfsError, VfsNode};
+use crate::io::vfs::{Stat, vfs, VfsError, VfsNode};
 use crate::mem::{AddressSpace, Size};
 use crate::mem::virt::{MapAt, VirtualMemoryManager};
 use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId};
@@ -242,8 +242,8 @@ impl Process {
     }
 
     pub fn open_file<P>(&self, path: P) -> Result<Fileno, VfsError>
-        where
-            P: AsRef<Path>,
+    where
+        P: AsRef<Path>,
     {
         let path = path.as_ref();
         let node = vfs().open(path)?;
@@ -290,6 +290,15 @@ impl Process {
             None => return Err(VfsError::HandleClosed),
         };
         fd.write(buf)
+    }
+
+    pub fn stat(&self, fd: Fileno) -> Result<Stat, VfsError> {
+        let guard = self.open_fds().read();
+        let fd = match guard.get(&fd) {
+            Some(fd) => fd,
+            None => return Err(VfsError::HandleClosed),
+        };
+        vfs().stat(&fd.node())
     }
 
     pub fn close_fd(&self, fd: Fileno) -> Result<(), VfsError> {
