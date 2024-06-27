@@ -51,8 +51,8 @@ kernel_api = { path = "kernel/api" }
 kernel_test_framework = { path = "kernel_test_framework" }
 linked_list_allocator = "0.10.5"
 linkme = "0.3.17"
-mkfs-ext2 = { path = "../mkfs/ext2" }
-mkfs-filesystem = { path = "../mkfs/filesystem" }
+mkfs-ext2 = { git = "https://github.com/tsatke/mkfs" }
+mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
 num_enum = { version = "0.7.0", default-features = false }
 pci = { path = "kernel/driver/pci" }
 raw-cpuid = { version = "11.0", default-features = false }
