@@ -25,6 +25,8 @@ struct Args {
     debug: bool,
     #[arg(long, help = "Only print the path to the UEFI image")]
     no_run: bool,
+    #[arg(long, help = "Do not attach any graphical output devices")]
+    headless: bool,
 }
 
 fn main() {
@@ -65,9 +67,10 @@ c"#
     cmd.arg("-drive")
         .arg(format!("format=raw,file={UEFI_PATH}"));
 
-    // TODO: remove
-    cmd.arg("-vga").arg("none");
-    cmd.arg("-nographic");
+    if args.headless {
+        cmd.arg("-vga").arg("none");
+        cmd.arg("-nographic");
+    }
 
     // create a copy on write image
     let os_disk = create_qcow_image(OS_DISK);
