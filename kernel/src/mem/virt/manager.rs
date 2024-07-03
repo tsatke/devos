@@ -195,6 +195,8 @@ impl VirtualMemoryManager {
             Arc::new(RwLock::new(PmObject::new(
                 PhysicalAllocationStrategy::AllocateOnAccess,
                 physical_memory,
+                // don't deallocate if we get handed the physical frames that are used
+                !matches!(allocation_strategy, AllocationStrategy::MapNow(_)),
             ))),
             interval,
             flags,

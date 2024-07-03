@@ -168,6 +168,8 @@ pub fn sys_mmap(
         offset
     );
 
+    let addr = if addr.is_null() { MapAt::Anywhere } else { MapAt::Fixed(addr) };
+
     let mut flags = PageTableFlags::empty();
     if prot.contains(Prot::Read) {
         flags |= PageTableFlags::PRESENT;
@@ -179,16 +181,16 @@ pub fn sys_mmap(
         flags |= PageTableFlags::NO_EXECUTE;
     }
 
-    if map_flags.contains(MapFlags::Anon) {
+    let mapped_address = if map_flags.contains(MapFlags::Anon) {
         vmm()
             .allocate_memory_backed_vmobject(
                 format!("mmap anon (len={})", size),
-                MapAt::Fixed(addr),
+                addr,
                 size,
                 AllocationStrategy::AllocateOnAccess,
                 flags,
             )
-            .map_err(|_| Errno::ENOMEM)?;
+            .map_err(|_| Errno::ENOMEM)?
     } else {
         let process = process::current();
         let node = process
@@ -208,33 +210,34 @@ pub fn sys_mmap(
                     format!("mmap '{}' (offset={}, len={})", node.path(), offset, size),
                     node,
                     offset,
-                    MapAt::Fixed(addr),
+                    addr,
                     size,
                     flags,
                 )
-                .map_err(|_| Errno::ENOMEM)?;
+                .map_err(|_| Errno::ENOMEM)?
         } else {
             // check whether the file is a device and needs special handling
             let fs = node.fs().read();
-            if let Some(phys_frames) = fs.physical_memory(node.handle())? {
+            let res = if let Some(phys_frames) = fs.physical_memory(node.handle())? {
                 let frames = phys_frames.collect::<Vec<_>>();
                 vmm()
                     .allocate_memory_backed_vmobject(
                         format!("mmap device '{}' (len={})", node.path(), size),
-                        MapAt::Fixed(addr),
+                        addr,
                         size,
                         AllocationStrategy::MapNow(&frames),
                         flags,
                     )
-                    .map_err(|_| Errno::ENOMEM)?;
+                    .map_err(|_| Errno::ENOMEM)?
             } else {
                 // we have some non-regular file that doesn't have physical memory, what?
                 panic!("mmap unsupported file type: {:#?} (doesn't have physical memory)", stat.mode.bitand(FileMode::S_IFMT));
             };
+            res
         }
     };
 
-    Ok(addr)
+    Ok(mapped_address)
 }
 
 pub fn sys_mount(

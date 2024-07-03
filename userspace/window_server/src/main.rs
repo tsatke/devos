@@ -4,10 +4,11 @@
 extern crate alloc;
 
 use alloc::string::ToString;
+use core::slice::from_raw_parts_mut;
 
 use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType, Stat};
 use std::{println, rt};
-use std::syscall::{sys_bind, sys_exit, sys_socket, sys_stat};
+use std::syscall::{sys_bind, sys_close, sys_exit, sys_mmap, sys_open, sys_socket, sys_stat};
 
 #[no_mangle]
 pub fn _start() -> isize {
@@ -42,4 +43,10 @@ fn main() {
     sys_stat("/dev/fb0", &mut stat).unwrap();
 
     println!("stat: {:#?}", stat);
+
+    let fd = sys_open("/dev/fb0", 0, 0).unwrap();
+    let addr = sys_mmap(0, stat.size as usize, 3, 2, fd, 0).unwrap();
+    sys_close(fd).unwrap();
+    let fb = unsafe { from_raw_parts_mut(addr as *mut u32, stat.size as usize / 4) };
+    fb.fill(0x00FF_0000);
 }

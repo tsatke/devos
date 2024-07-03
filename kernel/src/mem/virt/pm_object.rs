@@ -11,6 +11,7 @@ use crate::mem::virt::AllocationError;
 pub struct PmObject {
     allocation_strategy: PhysicalAllocationStrategy,
     phys_frames: Vec<PhysFrame>,
+    should_deallocate_physical_memory_on_drop: bool,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -50,6 +51,7 @@ impl PmObject {
         Ok(Self {
             allocation_strategy,
             phys_frames,
+            should_deallocate_physical_memory_on_drop: true, // in this constructor, we allocated the memory, so we have to free it
         })
     }
 
@@ -77,6 +79,10 @@ impl Drop for PmObject {
 }
 
 fn deallocate_pm_object(pm_object: &PmObject) {
+    if !pm_object.should_deallocate_physical_memory_on_drop {
+        return;
+    }
+    
     let mut guard = PhysicalMemoryManager::lock();
     for frame in &pm_object.phys_frames {
         guard.deallocate_frame(*frame);
