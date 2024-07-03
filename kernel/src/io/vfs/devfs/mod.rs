@@ -1,8 +1,11 @@
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
+use x86_64::structures::paging::PhysFrame;
 
 use kernel_api::syscall::Stat;
 
@@ -26,21 +29,36 @@ pub trait DevFile: Send + Sync {
     fn write(&mut self, buf: &[u8], offset: usize) -> Result<usize>;
 }
 
-pub struct VirtualDevFs {
+pub type OpenFileFn<'a> = dyn Fn() -> Box<dyn DevFile> + 'a + Send + Sync;
+
+pub struct VirtualDevFs<'a> {
     fsid: FsId,
     handles: BTreeMap<VfsHandle, Box<dyn DevFile>>,
+    open_functions: BTreeMap<String, Box<OpenFileFn<'a>>>,
 }
 
-impl VirtualDevFs {
+impl<'a> VirtualDevFs<'a> {
     pub fn new(fsid: FsId) -> Self {
-        Self {
+        let mut res = Self {
             fsid,
             handles: BTreeMap::new(),
-        }
+            open_functions: BTreeMap::new(),
+        };
+
+        res.register_file("/zero", || Box::new(Zero));
+        res.register_file("/stdin", || Box::new(stdio::STDIN));
+        res.register_file("/stdout", || Box::new(stdio::STDOUT));
+        res.register_file("/stderr", || Box::new(stdio::STDERR));
+
+        res
+    }
+
+    pub fn register_file<F: Fn() -> Box<dyn DevFile> + 'a + Send + Sync>(&mut self, path: impl AsRef<str>, open_fn: F) {
+        self.open_functions.insert(path.as_ref().to_string(), Box::new(open_fn));
     }
 }
 
-impl VirtualDevFs {
+impl VirtualDevFs<'_> {
     fn get_impl(&self, handle: VfsHandle) -> Result<&dyn DevFile> {
         match self.handles.get(&handle) {
             Some(v) => Ok(v.as_ref()),
@@ -56,19 +74,16 @@ impl VirtualDevFs {
     }
 }
 
-impl FileSystem for VirtualDevFs {
+impl FileSystem for VirtualDevFs<'_> {
     fn fsid(&self) -> FsId {
         self.fsid
     }
 
     fn open(&mut self, path: &Path) -> Result<VfsHandle> {
-        let implementation: Box<dyn DevFile> = match path.as_str() {
-            "/zero" => Box::new(Zero),
-            "/stdin" => Box::new(stdio::STDIN),
-            "/stdout" => Box::new(stdio::STDOUT),
-            "/stderr" => Box::new(stdio::STDERR),
-            _ => return Err(VfsError::NoSuchFile),
-        };
+        let implementation = self.open_functions
+            .get(path.to_string().as_str())
+            .ok_or(VfsError::NoSuchFile)?
+            ();
         let handle = next_handle();
         self.handles.insert(handle, implementation);
         Ok(handle)
@@ -105,5 +120,9 @@ impl FileSystem for VirtualDevFs {
 
     fn remove(&mut self, _: &Path) -> Result<()> {
         Err(VfsError::Unsupported)
+    }
+
+    fn physical_memory(&self, _handle: VfsHandle) -> Result<Option<Box<dyn Iterator<Item=PhysFrame>>>> {
+        todo!()
     }
 }
