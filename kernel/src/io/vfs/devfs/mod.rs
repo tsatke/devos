@@ -4,10 +4,12 @@ use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
+use kernel_api::syscall::Stat;
+
 use crate::io::path::Path;
+use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, VfsHandle};
 use crate::io::vfs::devfs::zero::Zero;
 use crate::io::vfs::error::{Result, VfsError};
-use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, Stat, VfsHandle};
 
 mod stdio;
 mod zero;
@@ -93,7 +95,7 @@ impl FileSystem for VirtualDevFs {
         todo!()
     }
 
-    fn stat(&mut self, _handle: VfsHandle) -> Result<Stat> {
+    fn stat(&mut self, _handle: VfsHandle, stat: &mut Stat) -> Result<()> {
         todo!()
     }
 

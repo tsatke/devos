@@ -9,6 +9,7 @@ use spin::RwLock;
 
 pub use error::*;
 pub use file_system::*;
+use kernel_api::syscall::Stat;
 pub use vfs_node::*;
 
 use crate::io::path::{OwnedPath, Path};
@@ -141,19 +142,19 @@ impl Vfs {
         guard.truncate(node.handle(), size)
     }
 
-    pub fn stat(&self, node: &VfsNode) -> Result<Stat> {
+    pub fn stat(&self, node: &VfsNode, stat: &mut Stat) -> Result<()> {
         let mut guard = node.fs().write();
-        guard.stat(node.handle())
+        guard.stat(node.handle(), stat)
     }
 
-    pub fn stat_path<P>(&self, p: P) -> Result<Stat>
+    pub fn stat_path<P>(&self, p: P, stat: &mut Stat) -> Result<()>
     where
         P: AsRef<Path>,
     {
         let path = p.as_ref();
         let (fs, path) = self.find_fs_and_relativize(path)?;
         let mut guard = fs.write();
-        guard.stat_path(path.as_path())
+        guard.stat_path(path.as_path(), stat)
     }
 
     #[allow(dead_code)]

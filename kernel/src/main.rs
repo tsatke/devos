@@ -13,6 +13,7 @@ use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 use graphics::PrimitiveDrawing;
 use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
 use kernel::arch::panic::handle_panic;
+use kernel_api::syscall::Stat;
 use vga::Color;
 
 const CONFIG: BootloaderConfig = bootloader_config();
@@ -55,7 +56,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     loop
     {
         let written = p.write(fd, &data).unwrap();
-        let sz = p.stat(fd).unwrap().size;
+        let mut stat = Stat::default();
+        p.stat(fd, &mut stat).unwrap();
+        let sz = stat.size;
         serial_println!("written: {} (size is now {})", written, sz);
         if sz as usize + data.len() >= 12288 {
             break;

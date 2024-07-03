@@ -11,10 +11,11 @@ use filesystem::BlockDevice;
 use spin::RwLock;
 
 use file::Ext2Inode;
+use kernel_api::syscall::Stat;
 
 use crate::io::path::{Component, Path};
+use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, VfsHandle};
 use crate::io::vfs::error::{Result, VfsError};
-use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, Stat, VfsHandle};
 
 mod file;
 
@@ -148,8 +149,8 @@ where
         todo!()
     }
 
-    fn stat(&mut self, handle: VfsHandle) -> Result<Stat> {
-        self.resolve_handle(handle)?.read().stat()
+    fn stat(&mut self, handle: VfsHandle, stat: &mut Stat) -> Result<()> {
+        self.resolve_handle(handle)?.read().stat(stat)
     }
 
     fn create(&mut self, _path: &Path, _ftype: FileType) -> Result<()> {

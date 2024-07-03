@@ -3,6 +3,8 @@ use alloc::vec::Vec;
 
 use derive_more::Constructor;
 
+use kernel_api::syscall::Stat;
+
 use crate::io::path::Path;
 use crate::io::vfs::error::Result;
 use crate::io::vfs::FsId;
@@ -60,11 +62,13 @@ pub trait FileSystem: Send + Sync {
 
     fn truncate(&mut self, handle: VfsHandle, size: usize) -> Result<()>;
 
-    fn stat(&mut self, handle: VfsHandle) -> Result<Stat>;
+    fn stat(&mut self, handle: VfsHandle, stat: &mut Stat) -> Result<()>;
 
-    fn stat_path(&mut self, p: &Path) -> Result<Stat> {
+    fn stat_path(&mut self, p: &Path, stat: &mut Stat) -> Result<()> {
         let handle = self.open(p)?;
-        self.stat(handle)
+        let res = self.stat(handle, stat);
+        self.close(handle)?;
+        res
     }
 
     /// Creates a node at the given path.
@@ -90,20 +94,4 @@ pub enum FileType {
     FIFO,
     Socket,
     SymbolicLink,
-}
-
-#[derive(Clone, Default)]
-pub struct Stat {
-    pub dev: u64,
-    pub inode: u64,
-    pub rdev: u32,
-    pub nlink: u32,
-    pub uid: u32,
-    pub gid: u32,
-    pub size: u64,
-    pub atime: u32,
-    pub mtime: u32,
-    pub ctime: u32,
-    pub blksize: u32,
-    pub blocks: u32,
 }

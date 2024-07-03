@@ -15,6 +15,7 @@ use kernel::io::vfs::vfs;
 use kernel::mem::virt::MapAt;
 use kernel::process::vmm;
 use kernel::qemu::ExitCode;
+use kernel_api::syscall::Stat;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -33,7 +34,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 fn test_read_file_via_vmo() {
     let path = "/var/data/number_list_10000.txt";
     let node = vfs().open(path).expect("no such file");
-    let stat = vfs().stat(&node).expect("unable to stat file");
+    let mut stat = Stat::default();
+    vfs().stat(&node, &mut stat).expect("unable to stat file");
     let size = stat.size as usize;
 
     let addr = vmm()

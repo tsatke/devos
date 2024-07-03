@@ -6,7 +6,7 @@ use x86_64::VirtAddr;
 
 pub use dispatch::*;
 pub use error::*;
-use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType};
+use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType, Stat};
 
 use crate::{process, serial_println};
 use crate::io::path::Path;
@@ -94,7 +94,7 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Result<()> {
         return Err(Errno::ENOSYS);
     }
 
-    vfs().stat_path(path).map_err(Into::into).map(|_| ())
+    vfs().stat_path(path, &mut Stat::default()).map_err(Into::into).map(|_| ())
 }
 
 pub fn sys_close(fd: Fileno) -> Result<()> {

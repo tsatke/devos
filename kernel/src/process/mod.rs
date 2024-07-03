@@ -13,11 +13,12 @@ use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
+use kernel_api::syscall::Stat;
 pub use scheduler::*;
 pub use tree::*;
 
 use crate::io::path::{OwnedPath, Path};
-use crate::io::vfs::{Stat, vfs, VfsError, VfsNode};
+use crate::io::vfs::{vfs, VfsError, VfsNode};
 use crate::mem::{AddressSpace, Size};
 use crate::mem::virt::{MapAt, VirtualMemoryManager};
 use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId};
@@ -90,7 +91,10 @@ extern "C" fn trampoline() {
 
     let elf_data = {
         let file = vfs().open(executable_file).expect("failed to open executable file");
-        let stat = vfs().stat(&file).expect("failed to stat executable file");
+        
+        let mut stat = Stat::default();
+        vfs().stat(&file, &mut stat).expect("failed to stat executable file");
+
         let size = stat.size as usize;
         let addr = vmm().allocate_file_backed_vm_object(
             format!("executable '{}' (len={})", executable_file, size),
@@ -292,13 +296,13 @@ impl Process {
         fd.write(buf)
     }
 
-    pub fn stat(&self, fd: Fileno) -> Result<Stat, VfsError> {
+    pub fn stat(&self, fd: Fileno, stat: &mut Stat) -> Result<(), VfsError> {
         let guard = self.open_fds().read();
         let fd = match guard.get(&fd) {
             Some(fd) => fd,
             None => return Err(VfsError::HandleClosed),
         };
-        vfs().stat(&fd.node())
+        vfs().stat(&fd.node(), stat)
     }
 
     pub fn close_fd(&self, fd: Fileno) -> Result<(), VfsError> {

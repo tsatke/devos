@@ -4,8 +4,10 @@ use ext2::{Inode, InodeAddress, Type};
 use filesystem::BlockDevice;
 use spin::RwLock;
 
-use crate::io::vfs::{Stat, VfsError};
+use kernel_api::syscall::{FileMode, Stat};
+
 use crate::io::vfs::error::Result;
+use crate::io::vfs::VfsError;
 
 pub struct Ext2Inode<T> {
     fs: Arc<RwLock<ext2::Ext2Fs<T>>>,
@@ -59,13 +61,22 @@ where
         }
     }
 
-    pub fn stat(&self) -> Result<Stat> {
-        let inode = self.inode_num.get() as u64; // TODO: is this correct?
-        let size = self.inner.as_ref().len() as u64;
-        Ok(Stat {
-            inode,
-            size,
-            ..Default::default() // TODO: fill in the rest
-        })
+    pub fn stat(&self, stat: &mut Stat) -> Result<()> {
+        stat.ino = self.inode_num.get() as u64;
+        stat.size = self.inner.as_ref().len() as u64;
+        
+        let typ = self.inner.as_ref().typ();
+        stat.mode |= match typ {
+            t if t == Type::FIFO => FileMode::S_IFIFO,
+            t if t == Type::CharacterDevice => FileMode::S_IFCHR,
+            t if t == Type::Directory => FileMode::S_IFDIR,
+            t if t == Type::BlockDevice => FileMode::S_IFBLK,
+            t if t == Type::RegularFile => FileMode::S_IFREG,
+            t if t == Type::SymLink => FileMode::S_IFLNK,
+            t if t == Type::UnixSocket => FileMode::S_IFSOCK,
+            _ => FileMode::empty(),
+        };
+
+        Ok(())
     }
 }
