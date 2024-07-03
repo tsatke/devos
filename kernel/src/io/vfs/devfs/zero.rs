@@ -1,5 +1,8 @@
+use kernel_api::syscall::Stat;
+
 use crate::io::vfs::devfs::DevFile;
 use crate::io::vfs::error::Result;
+use crate::io::vfs::VfsError;
 
 pub struct Zero;
 
@@ -11,5 +14,9 @@ impl DevFile for Zero {
 
     fn write(&mut self, buf: &[u8], _: usize) -> Result<usize> {
         Ok(buf.len())
+    }
+
+    fn stat(&self, _: &mut Stat) -> Result<()> {
+        Err(VfsError::Unsupported)
     }
 }

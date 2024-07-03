@@ -2,8 +2,9 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use x86_64::PhysAddr;
-use x86_64::structures::paging::{PhysFrame, Size4KiB};
+use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
 
+use kernel_api::syscall::{FileMode, Stat};
 use pci::{BaseAddressRegister, PciStandardHeaderDevice};
 
 use crate::io::vfs::{Result, VfsError};
@@ -21,6 +22,18 @@ impl DevFile for Fb {
 
     fn write(&mut self, _: &[u8], _: usize) -> Result<usize> {
         Err(VfsError::Unsupported)
+    }
+
+    fn stat(&self, stat: &mut Stat) -> Result<()> {
+        // TODO: ino, dev, nlink, uid, gid, rdev, blksize, blocks
+
+        stat.mode |= FileMode::S_IFCHR;
+        stat.nlink = 1; // TODO: can this change?
+        stat.size = self.frames.iter().map(|f| f.size()).sum::<u64>(); // TODO: is this correct? might the memory be shorter?
+        stat.blksize = Size4KiB::SIZE; // the size of a PhysFrame
+        stat.blocks = self.frames.len() as u64;
+
+        Ok(())
     }
 
     fn physical_memory(&self) -> Result<Option<Box<dyn Iterator<Item=PhysFrame> + '_>>> {

@@ -1,3 +1,5 @@
+use kernel_api::syscall::Stat;
+
 use crate::io::vfs::devfs::DevFile;
 use crate::io::vfs::error::Result;
 use crate::io::vfs::VfsError;
@@ -23,5 +25,9 @@ impl DevFile for StdFile {
         let text = core::str::from_utf8(buf).map_err(|_| VfsError::WriteError)?;
         serial_print!("{}", text);
         Ok(buf.len())
+    }
+
+    fn stat(&self, _: &mut Stat) -> Result<()> {
+        Err(VfsError::Unsupported)
     }
 }

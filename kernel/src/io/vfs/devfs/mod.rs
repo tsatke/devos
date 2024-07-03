@@ -31,6 +31,8 @@ pub trait DevFile: Send + Sync {
 
     fn write(&mut self, buf: &[u8], offset: usize) -> Result<usize>;
 
+    fn stat(&self, stat: &mut Stat) -> Result<()>;
+
     fn physical_memory(&self) -> Result<Option<Box<dyn Iterator<Item=PhysFrame> + '_>>> {
         Ok(None)
     }
@@ -121,8 +123,8 @@ impl FileSystem for VirtualDevFs<'_> {
         todo!()
     }
 
-    fn stat(&mut self, _handle: VfsHandle, _stat: &mut Stat) -> Result<()> {
-        todo!()
+    fn stat(&mut self, handle: VfsHandle, stat: &mut Stat) -> Result<()> {
+        self.get_impl(handle)?.stat(stat)
     }
 
     fn create(&mut self, _: &Path, _: FileType) -> Result<()> {

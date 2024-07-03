@@ -39,8 +39,7 @@ fn main() {
     println!("Hello, world!");
 
     let mut stat = Stat::default();
-    sys_stat("/var/data/hello.txt", &mut stat).unwrap();
+    sys_stat("/dev/fb0", &mut stat).unwrap();
 
     println!("stat: {:#?}", stat);
-    println!("file is regular file?: {}", stat.mode.is_regular_file());
 }
