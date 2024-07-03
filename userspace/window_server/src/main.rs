@@ -5,9 +5,9 @@ extern crate alloc;
 
 use alloc::string::ToString;
 
-use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType};
+use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType, Stat};
 use std::{println, rt};
-use std::syscall::{sys_bind, sys_exit, sys_socket};
+use std::syscall::{sys_bind, sys_exit, sys_socket, sys_stat};
 
 #[no_mangle]
 pub fn _start() -> isize {
@@ -37,4 +37,10 @@ fn main() {
     sys_bind(socket, address, address_len).unwrap();
 
     println!("Hello, world!");
+
+    let mut stat = Stat::default();
+    sys_stat("/var/data/hello.txt", &mut stat).unwrap();
+
+    println!("stat: {:#?}", stat);
+    println!("file is regular file?: {}", stat.mode.is_regular_file());
 }

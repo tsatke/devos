@@ -109,7 +109,7 @@ where
         // FIXME: instead of returning a new handle, check whether we already have that inode open behind another handle
         let (found_num, found) = self.find_inode(path)?;
         let handle = next_handle();
-        let inode = Ext2Inode::new(self.inner.clone(), found_num, found);
+        let inode = Ext2Inode::new(self.fsid(), self.inner.clone(), found_num, found);
         self.handles.insert(handle, Arc::new(RwLock::new(inode)));
         Ok(handle)
     }

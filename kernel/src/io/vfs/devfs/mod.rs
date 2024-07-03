@@ -95,7 +95,7 @@ impl FileSystem for VirtualDevFs {
         todo!()
     }
 
-    fn stat(&mut self, _handle: VfsHandle, stat: &mut Stat) -> Result<()> {
+    fn stat(&mut self, _handle: VfsHandle, _stat: &mut Stat) -> Result<()> {
         todo!()
     }
 

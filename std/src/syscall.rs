@@ -1,10 +1,10 @@
 use alloc::ffi::CString;
 use core::ptr::addr_of;
 
-use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType, Syscall};
+use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType, Stat, Syscall};
 pub use kernel_api::syscall::Errno;
 
-use crate::arch::syscall::{syscall1, syscall3};
+use crate::arch::syscall::{syscall1, syscall2, syscall3};
 use crate::arch::syscall::syscall6;
 
 pub fn sys_read(fd: usize, buf: &mut [u8]) -> Errno {
@@ -46,4 +46,9 @@ pub fn sys_socket(domain: SocketDomain, ty: SocketType, protocol: usize) -> Errn
 
 pub fn sys_bind(socket: usize, address: FfiSockAddr, address_len: usize) -> Errno {
     unsafe { syscall3(Syscall::Bind, socket, addr_of!(address) as usize, address_len) }.into()
+}
+
+pub fn sys_stat(path: &str, stat: &mut Stat) -> Errno {
+    let cstring = CString::new(path).unwrap();
+    unsafe { syscall2(Syscall::Stat, cstring.as_ptr() as usize, stat as *mut Stat as usize) }.into()
 }

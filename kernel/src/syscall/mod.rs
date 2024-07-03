@@ -258,3 +258,9 @@ pub fn sys_bind(socket: usize, address: FfiSockAddr, address_len: usize) -> Resu
 
     Ok(())
 }
+
+pub fn sys_stat(path: impl AsRef<Path>, stat: &mut Stat) -> Result<()> {
+    serial_println!("sys_stat({:?}, {:#p})", path.as_ref(), stat);
+    
+    vfs().stat_path(path, stat).map_err(Into::into).map(|_| ())
+}

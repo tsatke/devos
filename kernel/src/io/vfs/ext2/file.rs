@@ -6,10 +6,11 @@ use spin::RwLock;
 
 use kernel_api::syscall::{FileMode, Stat};
 
+use crate::io::vfs::{FsId, VfsError};
 use crate::io::vfs::error::Result;
-use crate::io::vfs::VfsError;
 
 pub struct Ext2Inode<T> {
+    fsid: FsId,
     fs: Arc<RwLock<ext2::Ext2Fs<T>>>,
     inode_num: InodeAddress,
     inner: Inner,
@@ -19,13 +20,13 @@ impl<T> Ext2Inode<T>
 where
     T: BlockDevice,
 {
-    pub fn new(fs: Arc<RwLock<ext2::Ext2Fs<T>>>, inode_num: InodeAddress, inode: Inode) -> Self {
+    pub fn new(fsid: FsId, fs: Arc<RwLock<ext2::Ext2Fs<T>>>, inode_num: InodeAddress, inode: Inode) -> Self {
         let inner = match inode.typ() {
             Type::RegularFile => Inner::RegularFile((inode_num, inode).try_into().unwrap()),
             Type::Directory => Inner::Directory((inode_num, inode).try_into().unwrap()),
             _ => panic!("unsupported inode type"),
         };
-        Self { fs, inode_num, inner }
+        Self { fsid, fs, inode_num, inner }
     }
 }
 
@@ -62,9 +63,11 @@ where
     }
 
     pub fn stat(&self, stat: &mut Stat) -> Result<()> {
+        let inode = self.inner.as_ref();
+
+        stat.dev = self.fsid.0;
         stat.ino = self.inode_num.get() as u64;
-        stat.size = self.inner.as_ref().len() as u64;
-        
+
         let typ = self.inner.as_ref().typ();
         stat.mode |= match typ {
             t if t == Type::FIFO => FileMode::S_IFIFO,
@@ -76,6 +79,16 @@ where
             t if t == Type::UnixSocket => FileMode::S_IFSOCK,
             _ => FileMode::empty(),
         };
+
+        stat.nlink = inode.num_hard_links() as u32;
+        // TODO: uid, gid
+        stat.rdev = 0; // TODO: set correct rdev
+        stat.size = inode.len() as u64;
+        stat.atime = inode.last_access_time().into();
+        stat.mtime = inode.last_modification_time().into();
+        stat.ctime = inode.creation_time().into();
+        stat.blksize = self.fs.read().superblock().block_size() as u64;
+        stat.blocks = inode.num_disk_sectors() as u64;
 
         Ok(())
     }

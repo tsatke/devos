@@ -1,6 +1,7 @@
 use core::ops::BitAnd;
 
 use bitflags::bitflags;
+use derive_more::From;
 use num_enum::TryFromPrimitive;
 
 pub use errno::*;
@@ -21,6 +22,7 @@ pub enum Syscall {
     Exit,
     Socket,
     Bind,
+    Stat,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, TryFromPrimitive)]
@@ -109,9 +111,36 @@ pub struct Stat {
     pub gid: u32,
     pub rdev: u64,
     pub size: u64,
-    pub atime: u64,
-    pub mtime: u64,
-    pub ctime: u64,
+    pub atime: Time,
+    pub mtime: Time,
+    pub ctime: Time,
     pub blksize: u64,
     pub blocks: u64,
+}
+
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq, From)]
+#[repr(C)]
+pub struct Time(u64);
+
+impl From<u32> for Time {
+    fn from(value: u32) -> Self {
+        (value as u64).into()
+    }
+}
+
+#[derive(Default, Debug, Clone, Copy, Eq, PartialEq)]
+#[repr(C)]
+pub struct Timespec {
+    pub tv_sec: Time,
+    pub tv_nsec: u64,
+}
+
+impl<T: Into<Time>> From<T> for Timespec {
+    fn from(value: T) -> Self {
+        let time = value.into();
+        Self {
+            tv_sec: time,
+            tv_nsec: 0,
+        }
+    }
 }

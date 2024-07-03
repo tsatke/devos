@@ -1,14 +1,22 @@
+use core::ffi::CStr;
 use core::ptr;
+use core::slice::from_raw_parts;
 
-use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType, Syscall};
+use kernel_api::PATH_MAX;
+use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType, Stat, Syscall};
 
 use crate::process::fd::Fileno;
-use crate::syscall::{MapFlags, Prot, sys_access, sys_bind, sys_close, sys_exit, sys_mmap, sys_read, sys_socket, sys_write};
+use crate::syscall::{MapFlags, Prot, sys_access, sys_bind, sys_close, sys_exit, sys_mmap, sys_read, sys_socket, sys_stat, sys_write};
 use crate::syscall::{AMode, sys_open};
 use crate::syscall::convert::{
     TryFromUserspaceAddress, TryFromUserspaceRange, UserspaceAddress, UserspaceRange,
 };
 use crate::syscall::error::Result;
+
+fn check_is_userspace(arg: usize) -> Result<()> {
+    UserspaceAddress::try_from(arg).map_err(|_| Errno::EINVAL)?;
+    Ok(())
+}
 
 /// Dispatches syscalls. Inputs are the raw register values, the return value
 /// is the result of the syscall that is identified by the [`syscall`] argument.
@@ -37,6 +45,7 @@ pub fn dispatch_syscall(
         Syscall::Write => dispatch_sys_write(arg1, arg2, arg3).map(Errno::from),
         Syscall::Socket => dispatch_sys_socket(arg1, arg2, arg3).map(Errno::from),
         Syscall::Bind => dispatch_sys_bind(arg1, arg2, arg3).map(Errno::from),
+        Syscall::Stat => dispatch_sys_stat(arg1, arg2).map(Errno::from),
     };
     syscall_result.unwrap_or_else(|v| v).as_isize()
 }
@@ -46,6 +55,18 @@ fn dispatch_sys_access(arg1: usize, arg2: usize) -> Result<()> {
     let path = <&str as TryFromUserspaceAddress>::try_from_userspace_addr(userspace_addr)?;
 
     sys_access(path, AMode::from_bits_truncate(arg2))
+}
+
+fn dispatch_sys_stat(arg1: usize, arg2: usize) -> Result<()> {
+    check_is_userspace(arg1)?;
+
+    let path = CStr::from_bytes_until_nul(unsafe { from_raw_parts(arg1 as *const u8, PATH_MAX) })
+        .map_err(|_| Errno::EINVAL)?
+        .to_str()
+        .map_err(|_| Errno::EINVAL)?;
+    let mut stat = unsafe { &mut *(arg2 as *mut Stat) };
+
+    sys_stat(path, &mut stat)
 }
 
 fn dispatch_sys_mmap(
