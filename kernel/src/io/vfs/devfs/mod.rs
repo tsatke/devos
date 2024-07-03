@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
+use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
@@ -14,6 +15,7 @@ use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, VfsHandle};
 use crate::io::vfs::devfs::zero::Zero;
 use crate::io::vfs::error::{Result, VfsError};
 
+mod fb;
 mod stdio;
 mod zero;
 
@@ -26,7 +28,12 @@ fn next_handle() -> VfsHandle {
 
 pub trait DevFile: Send + Sync {
     fn read(&self, buf: &mut [u8], offset: usize) -> Result<usize>;
+
     fn write(&mut self, buf: &[u8], offset: usize) -> Result<usize>;
+
+    fn physical_memory(&self) -> Result<Option<Box<dyn Iterator<Item=PhysFrame> + '_>>> {
+        Ok(None)
+    }
 }
 
 pub type OpenFileFn<'a> = dyn Fn() -> Box<dyn DevFile> + 'a + Send + Sync;
@@ -49,6 +56,10 @@ impl<'a> VirtualDevFs<'a> {
         res.register_file("/stdin", || Box::new(stdio::STDIN));
         res.register_file("/stdout", || Box::new(stdio::STDOUT));
         res.register_file("/stderr", || Box::new(stdio::STDERR));
+
+        for (i, fb) in fb::find_fbs().enumerate() {
+            res.register_file(format!("/fb{i}"), move || Box::new(fb.clone()));
+        }
 
         res
     }
@@ -122,7 +133,7 @@ impl FileSystem for VirtualDevFs<'_> {
         Err(VfsError::Unsupported)
     }
 
-    fn physical_memory(&self, _handle: VfsHandle) -> Result<Option<Box<dyn Iterator<Item=PhysFrame>>>> {
-        todo!()
+    fn physical_memory(&self, handle: VfsHandle) -> Result<Option<Box<dyn Iterator<Item=PhysFrame> + '_>>> {
+        self.get_impl(handle)?.physical_memory()
     }
 }

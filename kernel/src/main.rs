@@ -9,11 +9,9 @@ use core::slice::from_raw_parts;
 
 use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 
-use graphics::PrimitiveDrawing;
-use kernel::{bootloader_config, kernel_init, process, screen, serial_println};
+use kernel::{bootloader_config, kernel_init, process, serial_println};
 use kernel::arch::panic::handle_panic;
 use kernel::process::Process;
-use vga::Color;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -32,8 +30,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info).expect("kernel_init failed");
 
-    // process::spawn_thread_in_current_process("vga_stuff", vga_stuff);
-    //
     // let _ = Process::spawn_from_executable(
     //     process::current(),
     //     "/bin/hello_world",
@@ -49,19 +45,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     );
 
     panic!("kernel_main returned");
-}
-
-#[allow(dead_code)]
-extern "C" fn vga_stuff() {
-    if !screen::vga_initialized() {
-        serial_println!("screen not initialized, skipping graphics");
-        return;
-    }
-
-    let mut vga = screen::lock();
-
-    // white screen
-    vga.clear_screen(Color::White);
 }
 
 #[panic_handler]

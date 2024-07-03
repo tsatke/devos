@@ -36,7 +36,6 @@ pub mod io;
 pub mod mem;
 pub mod process;
 pub mod qemu;
-pub mod screen;
 pub mod syscall;
 pub mod timer;
 
@@ -80,9 +79,7 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     vfs::init();
 
     interrupts::enable();
-
-    screen::init();
-
+    
     Ok(())
 }
 

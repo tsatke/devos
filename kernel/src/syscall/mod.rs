@@ -230,7 +230,7 @@ pub fn sys_mmap(
             } else {
                 // we have some non-regular file that doesn't have physical memory, what?
                 panic!("mmap unsupported file type: {:#?} (doesn't have physical memory)", stat.mode.bitand(FileMode::S_IFMT));
-            }
+            };
         }
     };
 
