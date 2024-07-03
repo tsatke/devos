@@ -1,7 +1,9 @@
+use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 
 use derive_more::Constructor;
+use x86_64::structures::paging::PhysFrame;
 
 use kernel_api::syscall::Stat;
 
@@ -82,6 +84,13 @@ pub trait FileSystem: Send + Sync {
 
     /// Removes the node at the given path.
     fn remove(&mut self, path: &Path) -> Result<()>;
+
+    /// Some files may not be backed by disk storage or virtual memory, but by physical memory.
+    /// This method allows the file system to expose the physical memory backing the file in case
+    /// it needs to be mmapped (such as frame buffers or other device-specific memory).
+    fn physical_memory(&self, _handle: VfsHandle) -> Result<Option<Box<dyn Iterator<Item=PhysFrame>>>> {
+        Ok(None)
+    }
 }
 
 #[allow(clippy::upper_case_acronyms)]

@@ -51,6 +51,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     panic!("kernel_main returned");
 }
 
+#[allow(dead_code)]
 extern "C" fn vga_stuff() {
     if !screen::vga_initialized() {
         serial_println!("screen not initialized, skipping graphics");

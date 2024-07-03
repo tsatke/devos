@@ -1,4 +1,6 @@
 use alloc::format;
+use alloc::vec::Vec;
+use core::ops::BitAnd;
 
 use bitflags::bitflags;
 use x86_64::structures::paging::PageTableFlags;
@@ -6,7 +8,7 @@ use x86_64::VirtAddr;
 
 pub use dispatch::*;
 pub use error::*;
-use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType, Stat};
+use kernel_api::syscall::{Errno, FfiSockAddr, FileMode, SocketDomain, SocketType, Stat};
 
 use crate::{process, serial_println};
 use crate::io::path::Path;
@@ -177,14 +179,13 @@ pub fn sys_mmap(
         flags |= PageTableFlags::NO_EXECUTE;
     }
 
-    let strategy = AllocationStrategy::AllocateOnAccess;
     if map_flags.contains(MapFlags::Anon) {
         vmm()
             .allocate_memory_backed_vmobject(
                 format!("mmap anon (len={})", size),
                 MapAt::Fixed(addr),
                 size,
-                strategy,
+                AllocationStrategy::AllocateOnAccess,
                 flags,
             )
             .map_err(|_| Errno::ENOMEM)?;
@@ -197,16 +198,40 @@ pub fn sys_mmap(
             .ok_or(Errno::EBADF)?
             .node()
             .clone();
-        vmm()
-            .allocate_file_backed_vm_object(
-                format!("mmap '{}' (offset={}, len={})", node.path(), offset, size),
-                node,
-                offset,
-                MapAt::Fixed(addr),
-                size,
-                flags,
-            )
-            .map_err(|_| Errno::ENOMEM)?;
+
+        let mut stat = Stat::default();
+        vfs().stat_path(node.path(), &mut stat).map_err(Into::<Errno>::into)?;
+
+        if stat.mode.is_regular_file() {
+            vmm()
+                .allocate_file_backed_vm_object(
+                    format!("mmap '{}' (offset={}, len={})", node.path(), offset, size),
+                    node,
+                    offset,
+                    MapAt::Fixed(addr),
+                    size,
+                    flags,
+                )
+                .map_err(|_| Errno::ENOMEM)?;
+        } else {
+            // check whether the file is a device and needs special handling
+            let fs = node.fs().read();
+            if let Some(phys_frames) = fs.physical_memory(node.handle())? {
+                let frames = phys_frames.collect::<Vec<_>>();
+                vmm()
+                    .allocate_memory_backed_vmobject(
+                        format!("mmap device '{}' (len={})", node.path(), size),
+                        MapAt::Fixed(addr),
+                        size,
+                        AllocationStrategy::MapNow(&frames),
+                        flags,
+                    )
+                    .map_err(|_| Errno::ENOMEM)?;
+            } else {
+                // we have some non-regular file that doesn't have physical memory, what?
+                panic!("mmap unsupported file type: {:#?} (doesn't have physical memory)", stat.mode.bitand(FileMode::S_IFMT));
+            }
+        }
     };
 
     Ok(addr)
@@ -261,6 +286,6 @@ pub fn sys_bind(socket: usize, address: FfiSockAddr, address_len: usize) -> Resu
 
 pub fn sys_stat(path: impl AsRef<Path>, stat: &mut Stat) -> Result<()> {
     serial_println!("sys_stat({:?}, {:#p})", path.as_ref(), stat);
-    
+
     vfs().stat_path(path, stat).map_err(Into::into).map(|_| ())
 }
