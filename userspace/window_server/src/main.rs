@@ -8,7 +8,7 @@ use core::slice::from_raw_parts_mut;
 
 use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType, Stat};
 use std::{println, rt};
-use std::syscall::{sys_bind, sys_close, sys_exit, sys_mmap, sys_open, sys_socket, sys_stat};
+use std::syscall::{Errno, sys_bind, sys_close, sys_exit, sys_mmap, sys_open, sys_socket, sys_stat};
 
 #[no_mangle]
 pub fn _start() -> isize {
@@ -40,9 +40,14 @@ fn main() {
     println!("Hello, world!");
 
     let mut stat = Stat::default();
-    sys_stat("/dev/fb0", &mut stat).unwrap();
+    let res = sys_stat("/dev/fb0", &mut stat);
+    if res == Errno::ENOENT {
+        println!("No framebuffer found");
+        return;
+    }
+    res.unwrap();
 
-    println!("stat: {:#?}", stat);
+    println!("framebuffer stat: {:?}", stat);
 
     let fd = sys_open("/dev/fb0", 0, 0).unwrap();
     let addr = sys_mmap(0, stat.size as usize, 3, 2, fd, 0).unwrap();

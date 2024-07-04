@@ -4,6 +4,7 @@
 
 extern crate alloc;
 
+use alloc::format;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -11,7 +12,9 @@ use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 
 use kernel::{bootloader_config, kernel_init, process, serial_println};
 use kernel::arch::panic::handle_panic;
+use kernel::io::vfs::vfs;
 use kernel::process::Process;
+use kernel_api::syscall::Stat;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -30,12 +33,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info).expect("kernel_init failed");
 
-    // let _ = Process::spawn_from_executable(
-    //     process::current(),
-    //     "/bin/hello_world",
-    //     0.into(),
-    //     0.into(),
-    // );
+    let _ = Process::spawn_from_executable(
+        process::current(),
+        "/bin/hello_world",
+        0.into(),
+        0.into(),
+    );
 
     let _ = Process::spawn_from_executable(
         process::current(),
@@ -43,6 +46,19 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         0.into(),
         0.into(),
     );
+
+    for p in ["/var", "/var/data", "/dev", "/bin"] {
+        serial_println!("listing {}", p);
+        vfs().read_dir(p)
+            .unwrap()
+            .into_iter()
+            .filter(|v| v.name != "." && v.name != "..") // FIXME: we currently can't handle . and .. during path resolution
+            .for_each(|entry| {
+                let mut stat = Stat::default();
+                vfs().stat_path(format!("{}/{}", p, entry.name), &mut stat).unwrap();
+                serial_println!("{} {}", stat.mode, entry.name);
+            });
+    }
 
     panic!("kernel_main returned");
 }

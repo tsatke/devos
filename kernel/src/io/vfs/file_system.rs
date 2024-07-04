@@ -1,11 +1,12 @@
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::ops::BitAnd;
 
-use derive_more::Constructor;
+use derive_more::{Constructor, Display};
 use x86_64::structures::paging::PhysFrame;
 
-use kernel_api::syscall::Stat;
+use kernel_api::syscall::{FileMode, Stat};
 
 use crate::io::path::Path;
 use crate::io::vfs::error::Result;
@@ -94,7 +95,7 @@ pub trait FileSystem: Send + Sync {
 }
 
 #[allow(clippy::upper_case_acronyms)]
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Display, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FileType {
     RegularFile,
     Directory,
@@ -103,4 +104,19 @@ pub enum FileType {
     FIFO,
     Socket,
     SymbolicLink,
+}
+
+impl From<FileMode> for FileType {
+    fn from(value: FileMode) -> Self {
+        match value.bitand(FileMode::S_IFMT) {
+            v if v == FileMode::S_IFREG => Self::RegularFile,
+            v if v == FileMode::S_IFDIR => Self::Directory,
+            v if v == FileMode::S_IFCHR => Self::CharacterDevice,
+            v if v == FileMode::S_IFBLK => Self::BlockDevice,
+            v if v == FileMode::S_IFIFO => Self::FIFO,
+            v if v == FileMode::S_IFSOCK => Self::Socket,
+            v if v == FileMode::S_IFLNK => Self::SymbolicLink,
+            _ => unreachable!(),
+        }
+    }
 }

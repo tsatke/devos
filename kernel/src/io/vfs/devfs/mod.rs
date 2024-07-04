@@ -55,6 +55,7 @@ impl<'a> VirtualDevFs<'a> {
         };
 
         res.register_file("/zero", || Box::new(Zero));
+        res.register_file("/null", || Box::new(Zero));
         res.register_file("/stdin", || Box::new(stdio::STDIN));
         res.register_file("/stdout", || Box::new(stdio::STDOUT));
         res.register_file("/stderr", || Box::new(stdio::STDERR));
@@ -107,8 +108,25 @@ impl FileSystem for VirtualDevFs<'_> {
         Ok(())
     }
 
-    fn read_dir(&mut self, _path: &Path) -> Result<Vec<DirEntry>> {
-        todo!("read_dir not yet implemented for VirtualDevFs")
+    fn read_dir(&mut self, path: &Path) -> Result<Vec<DirEntry>> {
+        if path.as_str() != "" {
+            return Err(VfsError::NoSuchFile);
+        }
+
+        let mut entries = Vec::with_capacity(self.open_functions.len());
+
+        for (name, open_fn) in &self.open_functions {
+            let mut stat = Stat::default();
+            if open_fn().stat(&mut stat).is_err() {
+                continue;
+            }
+            entries.push(DirEntry {
+                name: name.chars().skip(1).collect(),
+                typ: stat.mode.into(),
+            });
+        }
+
+        Ok(entries)
     }
 
     fn read(&mut self, handle: VfsHandle, buf: &mut [u8], offset: usize) -> Result<usize> {

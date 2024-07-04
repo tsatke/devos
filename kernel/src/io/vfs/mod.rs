@@ -107,14 +107,13 @@ impl Vfs {
         Ok(VfsNode::new(path.into(), handle, fs))
     }
 
-    #[allow(dead_code)]
     pub fn read_dir<P>(&self, path: P) -> Result<impl Iterator<Item=DirEntry>>
     where
         P: AsRef<Path>,
     {
         let path = path.as_ref();
-        let (fs, _) = self.find_fs_and_relativize(path)?;
-        let vec = fs.write().read_dir(path)?;
+        let (fs, relative_path) = self.find_fs_and_relativize(path)?;
+        let vec = fs.write().read_dir(relative_path.as_path())?;
         Ok(vec.into_iter())
     }
 

@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use ext2::{Inode, InodeAddress, Type};
+use ext2::{Inode, InodeAddress, Permissions, Type};
 use filesystem::BlockDevice;
 use spin::RwLock;
 
@@ -77,8 +77,9 @@ where
             t if t == Type::RegularFile => FileMode::S_IFREG,
             t if t == Type::SymLink => FileMode::S_IFLNK,
             t if t == Type::UnixSocket => FileMode::S_IFSOCK,
-            _ => FileMode::empty(),
+            _ => unreachable!(),
         };
+        stat.mode |= ext2_permissions_to_file_mode(inode.perm());
 
         stat.nlink = inode.num_hard_links() as u32;
         // TODO: uid, gid
@@ -92,4 +93,23 @@ where
 
         Ok(())
     }
+}
+
+fn ext2_permissions_to_file_mode(permissions: Permissions) -> FileMode {
+    let mut mode = FileMode::empty();
+
+    mode |= if permissions.contains(Permissions::UserRead) { FileMode::S_IRUSR } else { FileMode::empty() }
+        | if permissions.contains(Permissions::UserWrite) { FileMode::S_IWUSR } else { FileMode::empty() }
+        | if permissions.contains(Permissions::UserExec) { FileMode::S_IXUSR } else { FileMode::empty() }
+        | if permissions.contains(Permissions::GroupRead) { FileMode::S_IRGRP } else { FileMode::empty() }
+        | if permissions.contains(Permissions::GroupWrite) { FileMode::S_IWGRP } else { FileMode::empty() }
+        | if permissions.contains(Permissions::GroupExec) { FileMode::S_IXGRP } else { FileMode::empty() }
+        | if permissions.contains(Permissions::OtherRead) { FileMode::S_IROTH } else { FileMode::empty() }
+        | if permissions.contains(Permissions::OtherWrite) { FileMode::S_IWOTH } else { FileMode::empty() }
+        | if permissions.contains(Permissions::OtherExec) { FileMode::S_IXOTH } else { FileMode::empty() }
+        | if permissions.contains(Permissions::SetUID) { FileMode::S_ISUID } else { FileMode::empty() }
+        | if permissions.contains(Permissions::SetGID) { FileMode::S_ISGID } else { FileMode::empty() }
+        | if permissions.contains(Permissions::Sticky) { FileMode::S_ISVTX } else { FileMode::empty() };
+
+    mode
 }

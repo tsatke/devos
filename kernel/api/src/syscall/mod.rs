@@ -1,3 +1,5 @@
+use alloc::string::String;
+use core::fmt::{Display, Formatter};
 use core::ops::BitAnd;
 
 use bitflags::bitflags;
@@ -74,6 +76,34 @@ bitflags! {
         const S_IFDIR = 0o040000;
         const S_IFCHR = 0o020000;
         const S_IFIFO = 0o010000;
+    }
+}
+
+impl Display for FileMode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        // TODO: support suid, sgid and sticky bit
+
+        let mut s = String::new();
+        s.push(match self.bitand(FileMode::S_IFMT) {
+            FileMode::S_IFSOCK => 's',
+            FileMode::S_IFLNK => 'l',
+            FileMode::S_IFREG => '-',
+            FileMode::S_IFBLK => 'b',
+            FileMode::S_IFDIR => 'd',
+            FileMode::S_IFCHR => 'c',
+            FileMode::S_IFIFO => 'p',
+            _ => '?',
+        });
+        s.push(if self.contains(FileMode::S_IRUSR) { 'r' } else { '-' });
+        s.push(if self.contains(FileMode::S_IWUSR) { 'w' } else { '-' });
+        s.push(if self.contains(FileMode::S_IXUSR) { 'x' } else { '-' });
+        s.push(if self.contains(FileMode::S_IRGRP) { 'r' } else { '-' });
+        s.push(if self.contains(FileMode::S_IWGRP) { 'w' } else { '-' });
+        s.push(if self.contains(FileMode::S_IXGRP) { 'x' } else { '-' });
+        s.push(if self.contains(FileMode::S_IROTH) { 'r' } else { '-' });
+        s.push(if self.contains(FileMode::S_IWOTH) { 'w' } else { '-' });
+        s.push(if self.contains(FileMode::S_IXOTH) { 'x' } else { '-' });
+        write!(f, "{}", s)
     }
 }
 
