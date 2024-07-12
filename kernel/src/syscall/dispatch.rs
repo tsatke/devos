@@ -64,9 +64,9 @@ fn dispatch_sys_stat(arg1: usize, arg2: usize) -> Result<()> {
         .map_err(|_| Errno::EINVAL)?
         .to_str()
         .map_err(|_| Errno::EINVAL)?;
-    let mut stat = unsafe { &mut *(arg2 as *mut Stat) };
+    let stat = unsafe { &mut *(arg2 as *mut Stat) };
 
-    sys_stat(path, &mut stat)
+    sys_stat(path, stat)
 }
 
 fn dispatch_sys_mmap(

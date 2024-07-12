@@ -165,14 +165,11 @@ impl<T: IntrusiveNode> LockFreeIntrusiveLinkedList<T> {
                     self.head.compare_exchange(null_mut(), other_head, Release, Relaxed).ok();
                     return;
                 }
-            } else {
-                if unsafe { (*old_tail).next() }.compare_exchange(null_mut(), other_head, Release, Relaxed).is_ok() {
-                    if self.tail.compare_exchange(old_tail, other_tail, Release, Relaxed).is_ok() {
-                        unsafe { (*other_head).previous() }.compare_exchange(null_mut(), old_tail, Release, Relaxed)
-                            .expect("something changed about the other list after we took it, this must not happen");
-                        return;
-                    }
-                }
+            } else if unsafe { (*old_tail).next() }.compare_exchange(null_mut(), other_head, Release, Relaxed).is_ok()
+                && self.tail.compare_exchange(old_tail, other_tail, Release, Relaxed).is_ok() {
+                unsafe { (*other_head).previous() }.compare_exchange(null_mut(), old_tail, Release, Relaxed)
+                    .expect("something changed about the other list after we took it, this must not happen");
+                return;
             }
         }
     }

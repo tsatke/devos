@@ -56,7 +56,7 @@ fn find_vga_fbs() -> impl Iterator<Item=Fb> {
             )
         })
         .map(|device| PciStandardHeaderDevice::new(device.clone()).unwrap())
-        .and_then(|ctrl| {
+        .map(|ctrl| {
             let bar0 = ctrl.bar0();
             let (addr, size) = match bar0 {
                 BaseAddressRegister::MemorySpace32(bar) => (bar.addr as u64, bar.size),
@@ -66,12 +66,11 @@ fn find_vga_fbs() -> impl Iterator<Item=Fb> {
                 }
             };
 
-            let frames = (addr..addr + size as u64)
+            (addr..addr + size as u64)
                 .step_by(4096)
                 .map(PhysAddr::new)
                 .map(PhysFrame::<Size4KiB>::containing_address)
-                .collect::<Vec<_>>();
-            Some(frames)
+                .collect::<Vec<_>>()
         })
         .map(|frames| Fb { frames })
         .into_iter()

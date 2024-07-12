@@ -303,7 +303,7 @@ impl Process {
             Some(fd) => fd,
             None => return Err(VfsError::HandleClosed),
         };
-        vfs().stat(&fd.node(), stat)
+        vfs().stat(fd.node(), stat)
     }
 
     pub fn close_fd(&self, fd: Fileno) -> Result<(), VfsError> {

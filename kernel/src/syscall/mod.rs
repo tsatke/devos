@@ -217,8 +217,8 @@ pub fn sys_mmap(
                 .map_err(|_| Errno::ENOMEM)?
         } else {
             // check whether the file is a device and needs special handling
-            let fs = node.fs().read();
-            let res = if let Some(phys_frames) = fs.physical_memory(node.handle())? {
+            if let Some(phys_frames) = node.fs().read()
+                .physical_memory(node.handle())? {
                 let frames = phys_frames.collect::<Vec<_>>();
                 vmm()
                     .allocate_memory_backed_vmobject(
@@ -232,8 +232,7 @@ pub fn sys_mmap(
             } else {
                 // we have some non-regular file that doesn't have physical memory, what?
                 panic!("mmap unsupported file type: {:#?} (doesn't have physical memory)", stat.mode.bitand(FileMode::S_IFMT));
-            };
-            res
+            }
         }
     };
 
