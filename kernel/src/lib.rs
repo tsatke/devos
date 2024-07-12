@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 #![feature(allocator_api)]
+#![feature(arbitrary_self_types)]
 #![feature(array_chunks)]
 #![feature(assert_matches)]
 #![feature(const_mut_refs)]
@@ -79,7 +80,7 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     vfs::init();
 
     interrupts::enable();
-    
+
     Ok(())
 }
 
