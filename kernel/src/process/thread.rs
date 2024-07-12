@@ -6,7 +6,7 @@ use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::mem::size_of;
 use core::pin::Pin;
-use core::sync::atomic::AtomicU64;
+use core::sync::atomic::{AtomicPtr, AtomicU64};
 use core::sync::atomic::Ordering::Relaxed;
 
 use derive_more::Display;
@@ -15,6 +15,7 @@ use x86_64::registers::rflags::RFlags;
 use crate::mem::Size;
 use crate::process;
 use crate::process::{Process, process_tree};
+use crate::process::lfill::IntrusiveNode;
 
 const STACK_SIZE: usize = Size::KiB(32).bytes();
 
@@ -22,8 +23,8 @@ const STACK_SIZE: usize = Size::KiB(32).bytes();
 pub struct ThreadId(u64);
 
 impl<T> PartialEq<T> for ThreadId
-    where
-        T: Into<u64> + Copy,
+where
+    T: Into<u64> + Copy,
 {
     fn eq(&self, other: &T) -> bool {
         self.0 == (*other).into()
@@ -55,12 +56,17 @@ macro_rules! state_transition {
     ($from:ident, $conv:ident, $to:ident) => {
         impl From<Thread<$from>> for Thread<$to> {
             fn from(value: Thread<$from>) -> Self {
+                assert_eq!(core::ptr::null_mut(), value.next.load(Relaxed));
+                assert_eq!(core::ptr::null_mut(), value.prev.load(Relaxed));
+
                 Thread {
                     id: value.id,
                     name: value.name,
                     process: value.process,
                     last_stack_ptr: value.last_stack_ptr,
                     stack: value.stack,
+                    next: AtomicPtr::default(),
+                    prev: AtomicPtr::default(),
                     _state: Default::default(),
                 }
             }
@@ -83,20 +89,37 @@ state_transition!(Blocked, into_ready, Ready);
 
 #[derive(Debug)]
 pub struct Thread<S>
-    where
-        S: State + 'static,
+where
+    S: State + 'static,
 {
     id: ThreadId,
     name: String,
     process: Process,
     last_stack_ptr: Pin<Box<usize>>,
     stack: Option<Vec<u8>>,
+
+    next: AtomicPtr<Thread<S>>,
+    prev: AtomicPtr<Thread<S>>,
+
     _state: PhantomData<S>,
 }
 
+impl<S> IntrusiveNode for Thread<S>
+where
+    S: State + 'static,
+{
+    fn next(&self) -> &AtomicPtr<Self> {
+        &self.next
+    }
+
+    fn previous(&self) -> &AtomicPtr<Self> {
+        &self.prev
+    }
+}
+
 impl<S> PartialEq<Self> for Thread<S>
-    where
-        S: 'static + State,
+where
+    S: 'static + State,
 {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id && self.last_stack_ptr == other.last_stack_ptr
@@ -106,8 +129,8 @@ impl<S> PartialEq<Self> for Thread<S>
 impl<S> Eq for Thread<S> where S: State + 'static {}
 
 impl<S> Thread<S>
-    where
-        S: State + 'static,
+where
+    S: State + 'static,
 {
     pub fn id(&self) -> &ThreadId {
         &self.id
@@ -177,6 +200,8 @@ impl Thread<Ready> {
             process: process.clone(),
             last_stack_ptr: Box::pin(0), // will be set correctly in [`setup_stack`]
             stack: Some(vec![0; STACK_SIZE]),
+            next: AtomicPtr::default(),
+            prev: AtomicPtr::default(),
             _state: Default::default(),
         };
         thread.setup_stack(entry_point);
@@ -252,6 +277,8 @@ impl Thread<Running> {
             process: kernel_process,
             last_stack_ptr: Box::pin(0), // will be set correctly during the next `reschedule`
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)
+            next: AtomicPtr::default(),
+            prev: AtomicPtr::default(),
             _state: Default::default(),
         }
     }
