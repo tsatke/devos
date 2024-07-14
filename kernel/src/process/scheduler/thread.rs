@@ -2,8 +2,7 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
-use core::fmt::Debug;
-use core::marker::PhantomData;
+use core::fmt::{Debug, Formatter};
 use core::mem::size_of;
 use core::pin::Pin;
 use core::sync::atomic::{AtomicPtr, AtomicU64};
@@ -14,8 +13,8 @@ use x86_64::registers::rflags::RFlags;
 
 use crate::mem::Size;
 use crate::process;
-use crate::process::{Process, process_tree};
-use crate::process::lfill::IntrusiveNode;
+use crate::process::{Priority, Process, process_tree};
+use crate::process::scheduler::lfill::IntrusiveNode;
 
 const STACK_SIZE: usize = Size::KiB(32).bytes();
 
@@ -40,74 +39,44 @@ impl ThreadId {
     }
 }
 
-pub trait State {}
-
-macro_rules! state {
-    ($($name:ident),*) => {
-        $(
-            #[derive(Copy, Clone, Debug, derive_more::Display, Eq, PartialEq)]
-            pub struct $name;
-            impl State for $name {}
-        )*
-    };
+#[derive(Copy, Clone, Debug, Display, Eq, PartialEq)]
+pub enum State {
+    Ready,
+    Running,
+    Finished,
 }
 
-macro_rules! state_transition {
-    ($from:ident, $conv:ident, $to:ident) => {
-        impl From<Thread<$from>> for Thread<$to> {
-            fn from(value: Thread<$from>) -> Self {
-                assert_eq!(core::ptr::null_mut(), value.next.load(Relaxed));
-                assert_eq!(core::ptr::null_mut(), value.prev.load(Relaxed));
-
-                Thread {
-                    id: value.id,
-                    name: value.name,
-                    process: value.process,
-                    last_stack_ptr: value.last_stack_ptr,
-                    stack: value.stack,
-                    next: AtomicPtr::default(),
-                    prev: AtomicPtr::default(),
-                    _state: Default::default(),
-                }
-            }
-        }
-
-        impl Thread<$from> {
-            pub fn $conv(self) -> Thread<$to> {
-                self.into()
-            }
-        }
-    };
-}
-
-state!(Ready, Running, Blocked, Finished);
-state_transition!(Ready, into_running, Running);
-state_transition!(Running, into_finished, Finished);
-state_transition!(Running, into_blocked, Blocked);
-state_transition!(Running, into_ready, Ready);
-state_transition!(Blocked, into_ready, Ready);
-
-#[derive(Debug)]
-pub struct Thread<S>
-where
-    S: State + 'static,
-{
+pub struct Thread {
     id: ThreadId,
     name: String,
     process: Process,
+    priority: Priority, // TODO: move priority into this module
     last_stack_ptr: Pin<Box<usize>>,
     stack: Option<Vec<u8>>,
 
-    next: AtomicPtr<Thread<S>>,
-    prev: AtomicPtr<Thread<S>>,
+    next: AtomicPtr<Thread>,
+    prev: AtomicPtr<Thread>,
 
-    _state: PhantomData<S>,
+    state: State,
 }
 
-impl<S> IntrusiveNode for Thread<S>
-where
-    S: State + 'static,
-{
+impl Debug for Thread {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Thread")
+            .field("id", &self.id)
+            .field("name", &self.name)
+            .field("process", &self.process)
+            .field("last_stack_ptr", &self.last_stack_ptr)
+            .field("stack_ptr", &self.stack.as_ref().map(|s| s.as_ptr()))
+            .field("stack_len", &self.stack.as_ref().map(|s| s.len()))
+            .field("next", &self.next.load(Relaxed))
+            .field("prev", &self.prev.load(Relaxed))
+            .field("state", &self.state)
+            .finish()
+    }
+}
+
+impl IntrusiveNode for Thread {
     fn next(&self) -> &AtomicPtr<Self> {
         &self.next
     }
@@ -117,21 +86,15 @@ where
     }
 }
 
-impl<S> PartialEq<Self> for Thread<S>
-where
-    S: 'static + State,
-{
+impl PartialEq<Self> for Thread {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id && self.last_stack_ptr == other.last_stack_ptr
     }
 }
 
-impl<S> Eq for Thread<S> where S: State + 'static {}
+impl Eq for Thread {}
 
-impl<S> Thread<S>
-where
-    S: State + 'static,
-{
+impl Thread {
     pub fn id(&self) -> &ThreadId {
         &self.id
     }
@@ -150,6 +113,22 @@ where
 
     pub fn process(&self) -> &Process {
         &self.process
+    }
+
+    pub fn state(&self) -> State {
+        self.state
+    }
+
+    pub fn set_state(&mut self, state: State) {
+        self.state = state;
+    }
+
+    pub fn priority(&self) -> Priority {
+        self.priority
+    }
+
+    pub fn set_priority(&mut self, priority: Priority) {
+        self.priority = priority;
     }
 }
 
@@ -188,21 +167,23 @@ impl<'a> StackWriter<'a> {
     }
 }
 
-impl Thread<Ready> {
-    pub fn new(
+impl Thread {
+    pub fn new_ready(
         process: &Process,
         name: impl Into<String>,
+        priority: Priority,
         entry_point: extern "C" fn(),
-    ) -> Thread<Ready> {
+    ) -> Thread {
         let mut thread = Self {
             id: ThreadId::new(),
             name: name.into(),
             process: process.clone(),
+            priority,
             last_stack_ptr: Box::pin(0), // will be set correctly in [`setup_stack`]
             stack: Some(vec![0; STACK_SIZE]),
             next: AtomicPtr::default(),
             prev: AtomicPtr::default(),
-            _state: Default::default(),
+            state: State::Ready,
         };
         thread.setup_stack(entry_point);
         process_tree().write().add_thread(process.pid(), thread.id());
@@ -269,17 +250,18 @@ extern "C" fn leave_thread() -> ! {
     unsafe { process::exit_current_thread() }
 }
 
-impl Thread<Running> {
+impl Thread {
     pub unsafe fn kernel_thread(kernel_process: Process) -> Self {
         Self {
             id: ThreadId::new(),
             name: "kernel".to_string(),
             process: kernel_process,
+            priority: Priority::Normal,
             last_stack_ptr: Box::pin(0), // will be set correctly during the next `reschedule`
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)
             next: AtomicPtr::default(),
             prev: AtomicPtr::default(),
-            _state: Default::default(),
+            state: State::Running,
         }
     }
 }

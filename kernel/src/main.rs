@@ -13,7 +13,7 @@ use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 use kernel::{bootloader_config, kernel_init, process, serial_println};
 use kernel::arch::panic::handle_panic;
 use kernel::io::vfs::vfs;
-use kernel::process::Process;
+use kernel::process::{change_thread_priority, Priority, Process};
 use kernel_api::syscall::Stat;
 
 const CONFIG: BootloaderConfig = bootloader_config();
@@ -36,6 +36,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let _ = Process::spawn_from_executable(
         process::current(),
         "/bin/hello_world",
+        Priority::Normal,
         0.into(),
         0.into(),
     );
@@ -43,6 +44,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     let _ = Process::spawn_from_executable(
         process::current(),
         "/bin/window_server",
+        Priority::Realtime,
         0.into(),
         0.into(),
     );
@@ -60,6 +62,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             });
     }
 
+    change_thread_priority(Priority::Low);
+    
     panic!("kernel_main returned");
 }
 

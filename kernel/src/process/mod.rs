@@ -24,14 +24,12 @@ use crate::mem::virt::{MapAt, VirtualMemoryManager};
 use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId};
 use crate::process::elf::ElfLoader;
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
-use crate::process::thread::{Ready, Running, Thread};
+use crate::process::thread::{State, Thread};
 
 pub mod attributes;
 pub mod elf;
 pub mod fd;
-mod lfill;
 mod scheduler;
-mod thread;
 mod tree;
 
 pub fn init(address_space: AddressSpace) {
@@ -50,17 +48,22 @@ pub fn vmm() -> &'static VirtualMemoryManager {
     current().vmm()
 }
 
-pub fn current_thread() -> &'static Thread<Running> {
+pub fn current_thread() -> &'static Thread {
     unsafe { scheduler() }.current_thread()
 }
 
-pub fn spawn_thread_in_current_process(name: impl Into<String>, func: extern "C" fn()) {
-    spawn_thread(name, current(), func)
+pub fn spawn_thread_in_current_process(name: impl Into<String>, priority: Priority, func: extern "C" fn()) {
+    spawn_thread(name, current(), priority, func)
 }
 
-pub fn spawn_thread(name: impl Into<String>, process: &Process, func: extern "C" fn()) {
-    let thread = Thread::<Ready>::new(process, name, func);
+pub fn spawn_thread(name: impl Into<String>, process: &Process, priority: Priority, func: extern "C" fn()) {
+    let thread = Thread::new_ready(process, name, priority, func);
+    debug_assert_eq!(thread.state(), State::Ready);
     spawn(thread)
+}
+
+pub fn change_thread_priority(priority: Priority) {
+    unsafe { change_current_thread_prio(priority) }
 }
 
 pub fn exit_thread() -> ! {
@@ -69,8 +72,8 @@ pub fn exit_thread() -> ! {
 
 #[derive(Clone, Debug)]
 pub struct Process {
-    cr3_value: usize,
     // TODO: remove this, read it from the address space (maybe use an atomic to circumvent the locking?)
+    cr3_value: usize,
     address_space: Arc<RwLock<AddressSpace>>,
     virtual_memory_manager: Arc<VirtualMemoryManager>,
 
@@ -122,13 +125,14 @@ impl Process {
     pub fn spawn_from_executable(
         parent: &Process,
         path: impl AsRef<Path>,
+        priority: Priority,
         uid: RealUserId,
         gid: RealGroupId,
     ) -> Self {
         let path = path.as_ref();
 
         let proc = Self::create_user(parent, Some(path.to_owned()), path.to_string(), uid, gid);
-        spawn_thread("main", &proc, trampoline);
+        spawn_thread("main", &proc, priority, trampoline);
 
         proc
     }

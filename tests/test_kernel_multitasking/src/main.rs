@@ -10,6 +10,7 @@ use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
 use x86_64::instructions::hlt;
 
 use kernel::{bootloader_config, kernel_init, process, serial_print, serial_println};
+use kernel::process::Priority;
 use kernel::qemu::ExitCode;
 
 const CONFIG: BootloaderConfig = bootloader_config();
@@ -35,9 +36,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 fn test_counter() {
     assert_eq!(0, COUNTER.load(Relaxed));
 
-    process::spawn_thread_in_current_process("count1", count);
-    process::spawn_thread_in_current_process("count2", count);
-    process::spawn_thread_in_current_process("count3", count);
+    process::spawn_thread_in_current_process("count1", Priority::Normal, count);
+    process::spawn_thread_in_current_process("count2", Priority::Normal, count);
+    process::spawn_thread_in_current_process("count3", Priority::Normal, count);
 
     for _ in 0..20 {
         hlt(); // should be enough to get the functions scheduled 5 times each
