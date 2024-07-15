@@ -277,6 +277,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 /// This is unsafe since it writes to an LAPIC register.
 #[inline]
 pub unsafe fn end_of_interrupt() {
+    // FIXME: this locks, which sometimes leads to deadlocks
     LAPIC.get().unwrap().lock().end_of_interrupt();
 }
 

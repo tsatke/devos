@@ -37,15 +37,15 @@ fn main() {
         return;
     }
 
-    if args.debug {
+    #[cfg(debug_assertions)]
+    {
         // create an lldb debug file to make debugging easy
         let content = format!(
             r#"target create {KERNEL_BINARY}
 target modules load --file {KERNEL_BINARY} --slide 0xffff800000000000
 gdb-remote localhost:1234
 b _start
-b rust_begin_unwind
-c"#
+b rust_begin_unwind"#
         );
         fs::write("debug.lldb", content).expect("unable to create debug file");
         println!("debug file is ready, run `lldb -s debug.lldb` to start debugging");
@@ -59,8 +59,11 @@ c"#
     if args.fullscreen {
         cmd.arg("-full-screen");
     }
+    
+    #[cfg(not(debug_assertions))]
+    cmd.arg("-s");
+
     if args.debug {
-        cmd.arg("-s");
         cmd.arg("-S");
     }
     cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
