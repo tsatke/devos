@@ -6,7 +6,7 @@ use x86_64::instructions::interrupts;
 
 use crate::arch::switch::switch;
 use crate::process::{IN_RESCHEDULE, Priority, Scheduler};
-use crate::process::scheduler::{FINISHED_THREADS, new_threads};
+use crate::process::scheduler::{FINISHED_THREADS, NEW_THREADS};
 use crate::process::thread::{State, Thread};
 
 impl Scheduler {
@@ -98,8 +98,9 @@ impl Scheduler {
     }
 
     fn take_new_threads(&mut self) {
-        while let Some((prio, thread)) = new_threads().pop() {
-            self.ready[prio].push_back(Box::into_raw(thread));
+        while let Some(thread) = NEW_THREADS.pop_front() {
+            let thread = unsafe { Box::from_raw(thread) };
+            self.ready[thread.priority()].push_back(Box::into_raw(thread));
         }
     }
 }

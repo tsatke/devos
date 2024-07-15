@@ -4,8 +4,6 @@ use core::iter::Cycle;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
-use conquer_once::spin::OnceCell;
-use crossbeam_queue::SegQueue;
 use x86_64::instructions::hlt;
 
 pub use queues::Priority;
@@ -29,25 +27,19 @@ pub static IN_RESCHEDULE: AtomicBool = AtomicBool::new(false);
 
 // this needs to be a lock-free, allocation-free list, because the scheduler appends to it
 static FINISHED_THREADS: LockFreeIntrusiveLinkedList<Thread> = LockFreeIntrusiveLinkedList::new();
-static NEW_THREADS: OnceCell<SegQueue<(Priority, Box<Thread>)>> = OnceCell::uninit();
-
-fn new_threads() -> &'static SegQueue<(Priority, Box<Thread>)> {
-    NEW_THREADS
-        .try_get()
-        .expect("new thread queue not initialized")
-}
+// this needs to be a lock-free, allocation-free list, because the scheduler reads from it
+static NEW_THREADS: LockFreeIntrusiveLinkedList<Thread> = LockFreeIntrusiveLinkedList::new();
 
 pub fn init(kernel_thread: Thread) {
     unsafe { SCHEDULER = Some(Scheduler::new(kernel_thread)) };
-    NEW_THREADS.init_once(SegQueue::new);
 
     // now that the finish queue is initialized, we can spawn the cleanup thread
-    spawn_thread_in_current_process("cleanup_finished_threads", Priority::Low, cleanup_finished_threads);
+    spawn_thread_in_current_process("cleanup_finished_threads", Low, cleanup_finished_threads);
 }
 
 pub(crate) fn spawn(thread: Thread) {
     assert_eq!(thread.state(), State::Ready);
-    new_threads().push((thread.priority(), Box::new(thread)))
+    NEW_THREADS.push_back(Box::into_raw(Box::new(thread)))
 }
 
 extern "C" fn cleanup_finished_threads() {
