@@ -2,22 +2,25 @@ use alloc::format;
 use alloc::string::ToString;
 
 use conquer_once::spin::OnceCell;
-use spin::Mutex;
-use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder, TimerDivide, TimerMode};
+use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerDivide, TimerMode, xapic_base};
+use x86_64::{PhysAddr, VirtAddr};
 use x86_64::instructions::port::Port;
 use x86_64::structures::paging::{PageTableFlags, PhysFrame};
-use x86_64::{PhysAddr, VirtAddr};
 
+use crate::{Result, serial_println};
 use crate::arch::idt::InterruptIndex;
-use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::mem::Size;
+use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::process::vmm;
-use crate::{serial_println, Result};
 
-pub static LAPIC: OnceCell<Mutex<LocalApic>> = OnceCell::uninit();
+static mut LAPIC: Option<LocalApic> = None;
 
 pub static KERNEL_APIC_ADDR: OnceCell<VirtAddr> = OnceCell::uninit();
 pub static KERNEL_APIC_LEN: Size = Size::KiB(4); // 1 page
+
+pub unsafe fn lapic() -> &'static mut LocalApic {
+    LAPIC.as_mut().expect("LAPIC not initialized")
+}
 
 pub fn init() -> Result<()> {
     disable_8259();
@@ -55,7 +58,7 @@ pub fn init() -> Result<()> {
     unsafe {
         lapic.enable();
     }
-    LAPIC.init_once(move || Mutex::new(lapic));
+    unsafe { LAPIC = Some(lapic) };
 
     Ok(())
 }
