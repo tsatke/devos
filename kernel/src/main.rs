@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![feature(panic_info_message)]
 
 extern crate alloc;
 
@@ -63,7 +62,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     }
 
     change_thread_priority(Priority::Low);
-    
+
     panic!("kernel_main returned");
 }
 

@@ -59,8 +59,8 @@ b rust_begin_unwind"#
     if args.fullscreen {
         cmd.arg("-full-screen");
     }
-    
-    #[cfg(not(debug_assertions))]
+
+    #[cfg(debug_assertions)]
     cmd.arg("-s");
 
     if args.debug {

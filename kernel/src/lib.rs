@@ -74,6 +74,7 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
 
     gdt::init();
     idt::init();
+    syscall::init();
     mem::init(boot_info)?;
     acpi::init(boot_info)?;
     apic::init()?;

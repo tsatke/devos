@@ -3,13 +3,14 @@ use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
-use core::intrinsics::transmute;
+use core::arch::asm;
 use core::slice::from_raw_parts;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
 use elfloader::ElfBinary;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use x86_64::instructions::segmentation::Segment;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
@@ -115,10 +116,48 @@ extern "C" fn trampoline() {
     let elf = ElfBinary::new(elf_data).unwrap();
     elf.load(&mut loader).unwrap();
     let image = loader.into_inner();
-    let entry = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
-    let entry_fn = unsafe { transmute::<*const u8, extern "C" fn()>(entry) };
+    let code_ptr = unsafe { image.as_ptr().add(elf.entry_point() as usize) };
+
+    let entry_fn: extern "C" fn() = unsafe { core::mem::transmute(code_ptr) };
 
     entry_fn();
+
+    // TODO: I guess before we can jump to entry_fn in usermode, we need to make sure that the code and stack are actually in user space instead of the kernel heap.
+
+    // let stack_ptr = read_rsp();
+    //
+    // let (cs, ds) = {
+    //     // set ds and tss, return cs and ds
+    //
+    //     let (mut cs, mut ds) = (GDT.1.user_code_selector, GDT.1.user_data_selector);
+    //     cs.0 |= PrivilegeLevel::Ring3 as u16;
+    //     ds.0 |= PrivilegeLevel::Ring3 as u16;
+    //     unsafe { DS::set_reg(ds) };
+    //     (cs.0, ds.0)
+    // };
+    //
+    // tlb::flush_all();
+    //
+    // unsafe {
+    //     asm!(
+    //     "push {stack_segment:r}",
+    //     "push {stack_ptr}",
+    //     "push 0x200", // rflags with only interrupts enabled
+    //     "push {code_segment:r}",
+    //     "push {code_ptr}",
+    //     "iretq",
+    //     stack_segment = in(reg) ds,
+    //     stack_ptr = in(reg) stack_ptr,
+    //     code_segment = in(reg) cs,
+    //     code_ptr = in(reg) code_ptr,
+    //     );
+    // }
+}
+
+fn read_rsp() -> usize {
+    let rsp: usize;
+    unsafe { asm!("mov {}, rsp", out(reg) rsp) };
+    rsp
 }
 
 impl Process {

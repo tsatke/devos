@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use core::ops::BitAnd;
 
 use bitflags::bitflags;
+use x86_64::registers::model_specific::Msr;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
@@ -21,6 +22,18 @@ use crate::process::vmm;
 mod convert;
 mod dispatch;
 mod error;
+
+pub fn init() {
+    let mut ia32_star = Msr::new(0xC0000081);
+    unsafe { ia32_star.write(0x230008 << 32) };
+
+    let mut ia32_efer = Msr::new(0xC0000080);
+    unsafe {
+        let mut v = ia32_efer.read();
+        v |= 1; // enable SCE - system call extenisons
+        ia32_efer.write(v);
+    }
+}
 
 bitflags! {
     #[derive(Debug, Copy, Clone, Eq, PartialEq)]
