@@ -53,5 +53,5 @@ fn main() {
     let addr = sys_mmap(0, stat.size as usize, 3, 2, fd, 0).unwrap();
     sys_close(fd).unwrap();
     let fb = unsafe { from_raw_parts_mut(addr as *mut u32, stat.size as usize / 4) };
-    fb.fill(0x00FF_0000);
+    fb.fill(0x0000_FF00);
 }
