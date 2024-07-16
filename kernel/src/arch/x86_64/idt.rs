@@ -11,7 +11,7 @@ use x86_64::structures::paging::PageTableFlags;
 use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 
 use crate::{process, serial_println};
-use crate::apic::lapic;
+use crate::apic::LAPIC;
 use crate::arch::syscall::syscall_handler_impl;
 use crate::process::vmm;
 use crate::timer::notify_timer_interrupt;
@@ -277,7 +277,8 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 /// This is unsafe since it writes to an LAPIC register.
 #[inline]
 pub unsafe fn end_of_interrupt() {
-    unsafe { lapic().end_of_interrupt() };
+    // FIXME: this locks, which sometimes leads to deadlocks
+    LAPIC.get().unwrap().lock().end_of_interrupt();
 }
 
 #[cfg(test)]
