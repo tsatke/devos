@@ -232,9 +232,6 @@ extern "x86-interrupt" fn page_fault_handler(
     };
 
     interrupts::enable();
-    unsafe {
-        end_of_interrupt();
-    }
 
     // IMPORTANT: From here, we need to be 100% thread safe!
 
@@ -265,10 +262,6 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
     let mut port = Port::new(0x60);
     let _scancode: u8 = unsafe { port.read() };
     // TODO: put scancode into scancode queue
-
-    unsafe {
-        end_of_interrupt();
-    }
 }
 
 /// Notifies the LAPIC that the interrupt has been handled.
@@ -277,13 +270,14 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStac
 /// This is unsafe since it writes to an LAPIC register.
 #[inline]
 pub unsafe fn end_of_interrupt() {
-    // FIXME: this locks, which sometimes leads to deadlocks
     LAPIC.get().unwrap().lock().end_of_interrupt();
 }
 
-#[cfg(test)]
+#[cfg(feature = "kernel_test")]
 mod tests {
-    #[test_case]
+    use kernel_test_framework::kernel_test;
+
+    #[kernel_test]
     fn test_breakpoint_exception() {
         // invoke a breakpoint exception
         x86_64::instructions::interrupts::int3();

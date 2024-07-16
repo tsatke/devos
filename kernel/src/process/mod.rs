@@ -3,14 +3,12 @@ use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
-use core::arch::asm;
 use core::slice::from_raw_parts;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
 use elfloader::ElfBinary;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
-use x86_64::instructions::segmentation::Segment;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
@@ -154,11 +152,11 @@ extern "C" fn trampoline() {
     // }
 }
 
-fn read_rsp() -> usize {
-    let rsp: usize;
-    unsafe { asm!("mov {}, rsp", out(reg) rsp) };
-    rsp
-}
+// fn read_rsp() -> usize {
+//     let rsp: usize;
+//     unsafe { asm!("mov {}, rsp", out(reg) rsp) };
+//     rsp
+// }
 
 impl Process {
     pub fn spawn_from_executable(

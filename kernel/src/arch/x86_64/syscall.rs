@@ -1,6 +1,5 @@
 use x86_64::structures::idt::InterruptStackFrame;
 
-use crate::arch::idt;
 use crate::syscall::dispatch_syscall;
 
 #[repr(align(8), C)]
@@ -33,8 +32,4 @@ pub(in crate::arch) extern "sysv64" fn syscall_handler_impl(
     let res = dispatch_syscall(n, arg1, arg2, arg3, arg4, arg5, arg6);
 
     regs.rax = res as usize; // save result
-
-    unsafe {
-        idt::end_of_interrupt();
-    }
 }
