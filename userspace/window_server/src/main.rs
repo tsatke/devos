@@ -54,4 +54,18 @@ fn main() {
     sys_close(fd).unwrap();
     let fb = unsafe { from_raw_parts_mut(addr as *mut u32, stat.size as usize / 4) };
     fb.fill(0x0000_FF00);
+
+    const WIDTH: usize = 1280;
+    const HEIGHT: usize = 800;
+
+    for v in (0x00..0xFF).chain((0x00..0xFF).rev()).cycle() {
+        for _ in 0..5 {
+            fb
+                .chunks_exact_mut(WIDTH)
+                .skip(200)
+                .take(80)
+                .flat_map(|row| row.iter_mut().skip(400).take(80))
+                .for_each(|pixel| *pixel = 0xFF - (v / 2) << 8 | v);
+        }
+    }
 }
