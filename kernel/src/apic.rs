@@ -12,7 +12,7 @@ use crate::arch::idt::InterruptIndex;
 use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::mem::Size;
 use crate::process::vmm;
-use crate::{serial_println, Result};
+use crate::Result;
 
 pub static LAPIC: OnceCell<Mutex<LocalApic>> = OnceCell::uninit();
 
@@ -40,7 +40,6 @@ pub fn init() -> Result<()> {
             | PageTableFlags::NO_CACHE
             | PageTableFlags::NO_EXECUTE,
     )?;
-    serial_println!("apic_virtual_address: {:#p}", apic_virtual_address);
 
     let mut lapic = LocalApicBuilder::new()
         .timer_vector(InterruptIndex::Timer.into())
