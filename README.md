@@ -5,7 +5,7 @@
 [![project chat](https://img.shields.io/badge/zulip-join_chat-brightgreen.svg)](https://devos.zulipchat.com)
 [![build](https://github.com/tsatke/devos/actions/workflows/build.yml/badge.svg)](https://github.com/tsatke/devos/actions/workflows/build.yml)
 
-An operating system and kernel developed with the Rust programming language, with an emphasis on usability for developers who use it.
+An operating system and kernel developed with the Rust programming language.
 
 [Requirements](#requirements) •
 [Features](#features) •
@@ -24,16 +24,18 @@ With those installed, you can simply run `cargo build` to build an image.
 If you also have QEMU installed, `cargo run` and `cargo test` also will work.
 
 ### Features
+
 Check out the next [milestone](https://github.com/tsatke/devos/milestone/1) for progress.
+
 - [x] Heap
 - [x] Syscalls
 - [ ] Drivers
-  - [x] PCI driver
-  - [x] IDE driver (no ATA)
-  - [x] VGA
-  - [ ] NVMe
-  - [ ] Networking
-- [x] Virtual File System with EXT2 implementation (read-only for now)
+    - [x] PCI driver
+    - [x] IDE driver (no ATA)
+    - [x] VGA
+    - [ ] NVMe
+    - [ ] Networking
+- [x] Virtual File System with EXT2 implementation
 - [x] Preemptive multitasking (processes & threads)
 - [ ] Interactive shell
 - [x] Test framework
