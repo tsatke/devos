@@ -7,8 +7,8 @@ use alloc::string::ToString;
 use core::slice::from_raw_parts_mut;
 
 use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType, Stat};
+use std::syscall::{sys_bind, sys_close, sys_exit, sys_mmap, sys_open, sys_socket, sys_stat, Errno};
 use std::{println, rt};
-use std::syscall::{Errno, sys_bind, sys_close, sys_exit, sys_mmap, sys_open, sys_socket, sys_stat};
 
 #[no_mangle]
 pub fn _start() -> isize {
@@ -56,6 +56,7 @@ fn main() {
     fb.fill(0x0000_FF00);
 
     const WIDTH: usize = 1280;
+    #[allow(dead_code)]
     const HEIGHT: usize = 800;
 
     for v in (0x00..0xFF).chain((0x00..0xFF).rev()).cycle() {
