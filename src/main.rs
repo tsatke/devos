@@ -1,8 +1,6 @@
 extern crate clap;
 extern crate devos;
 
-use std::fs;
-
 use clap::Parser;
 
 use devos::{create_qcow_image, KERNEL_BINARY, OS_DISK, UEFI_PATH};
@@ -48,7 +46,7 @@ gdb-remote localhost:1234
 b _start
 b rust_begin_unwind"#
         );
-        fs::write("debug.lldb", content).expect("unable to create debug file");
+        std::fs::write("debug.lldb", content).expect("unable to create debug file");
         println!("debug file is ready, run `lldb -s debug.lldb` to start debugging");
     }
 
