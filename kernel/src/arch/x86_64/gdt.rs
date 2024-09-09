@@ -1,8 +1,6 @@
-use core::ptr::addr_of;
-
 use conquer_once::spin::Lazy;
 use x86_64::instructions::tables::load_tss;
-use x86_64::registers::segmentation::{CS, DS, Segment};
+use x86_64::registers::segmentation::{Segment, CS, DS};
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
@@ -15,7 +13,8 @@ static TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
         const STACK_SIZE: usize = 4096 * 5;
         static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE]; // should be a proper stack allocation
 
-        let stack_start = VirtAddr::from_ptr(unsafe { addr_of!(STACK) });
+        #[allow(unused_unsafe)] // this unsafe is very much used
+        let stack_start = VirtAddr::from_ptr(unsafe { &raw mut STACK });
         stack_start + STACK_SIZE
     };
     tss
