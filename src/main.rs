@@ -32,8 +32,9 @@ struct Args {
 fn main() {
     let args = Args::parse();
     if args.no_run {
-        println!("KERNEL_BINARY={}", KERNEL_BINARY);
-        println!("UEFI={}", UEFI_PATH);
+        println!("KERNEL_BINARY={KERNEL_BINARY}");
+        println!("UEFI={UEFI_PATH}");
+        println!("OS_DISK={OS_DISK}");
         return;
     }
 
