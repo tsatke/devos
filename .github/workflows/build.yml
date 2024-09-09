@@ -17,7 +17,7 @@ jobs:
     name: "Lint"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - uses: actions/cache@v3
         with:
           path: |
@@ -29,9 +29,10 @@ jobs:
             !target/release/build/devos-*
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install latest nightly
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+          override: true
           components: rustfmt, clippy, llvm-tools-preview, rust-src
       - name: Add build target
         run: |
@@ -47,7 +48,7 @@ jobs:
     name: "Test"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - uses: actions/cache@v3
         with:
           path: |
@@ -59,9 +60,10 @@ jobs:
             !target/release/build/devos-*
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install latest nightly
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+          override: true
           components: rustfmt, clippy, llvm-tools-preview, rust-src
       - name: Add build target
         run: |
@@ -73,13 +75,13 @@ jobs:
         run: |
           cargo test
           cargo test --release
-  
+            
 
   build:
     name: "Build and upload artifacts"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       - uses: actions/cache@v3
         with:
           path: |
@@ -91,9 +93,10 @@ jobs:
             !target/release/build/devos-*
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install latest nightly
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+          override: true
           components: rustfmt, clippy, llvm-tools-preview, rust-src
       - name: Add build target
         run: |
