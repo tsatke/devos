@@ -20,10 +20,6 @@ impl AtomicPriority {
         self.inner.store(priority.into(), ordering)
     }
 
-    pub fn load(&self, ordering: Ordering) -> Priority {
-        Priority::try_from_primitive(self.inner.load(ordering)).unwrap()
-    }
-
     pub fn swap(&self, priority: Priority, ordering: Ordering) -> Priority {
         Priority::try_from_primitive(self.inner.swap(priority.into(), ordering)).unwrap()
     }
