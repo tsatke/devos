@@ -81,6 +81,12 @@ b rust_begin_unwind"#
     cmd.arg("-drive")
         .arg(format!("file={os_disk},if=ide,format=qcow2"));
 
+    // add an xhci controller
+    cmd.arg("-device").arg("qemu-xhci");
+
+    // add a usb keyboard (instead of the PS/2 keyboard
+    cmd.arg("-device").arg("usb-kbd");
+
     if args.verbose {
         println!("qemu command: {:?}", cmd);
     }
