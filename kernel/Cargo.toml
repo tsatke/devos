@@ -29,6 +29,7 @@ uart_16550.workspace = true
 vga.workspace = true
 x2apic.workspace = true
 x86_64.workspace = true
+xhci.workspace = true
 
 [features]
 default = []

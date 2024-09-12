@@ -3,17 +3,20 @@
 
 extern crate alloc;
 
-use alloc::format;
+use core::num::NonZeroUsize;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
-use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
-
-use kernel::{bootloader_config, kernel_init, process, serial_println};
+use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use kernel::arch::panic::handle_panic;
-use kernel::io::vfs::vfs;
-use kernel::process::{change_thread_priority, Priority, Process};
-use kernel_api::syscall::Stat;
+use kernel::mem::virt::Interval;
+use kernel::process::{change_thread_priority, vmm, Priority, Process};
+use kernel::{bootloader_config, kernel_init, map_page, process, serial_println};
+use pci::{BaseAddressRegister, PciDeviceClass, PciStandardHeaderDevice, SerialBusSubClass};
+use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
+use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
+use x86_64::{PhysAddr, VirtAddr};
+use xhci::accessor::Mapper;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -34,36 +37,65 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     let _ = Process::spawn_from_executable(
         process::current(),
-        "/bin/hello_world",
-        Priority::Normal,
-        0.into(),
-        0.into(),
-    );
-
-    let _ = Process::spawn_from_executable(
-        process::current(),
         "/bin/window_server",
         Priority::Realtime,
         0.into(),
         0.into(),
     );
 
-    for p in ["/var", "/var/data", "/dev", "/bin"] {
-        serial_println!("listing {}", p);
-        vfs().read_dir(p)
-            .unwrap()
-            .into_iter()
-            .filter(|v| v.name != "." && v.name != "..") // FIXME: we currently can't handle . and .. during path resolution
-            .for_each(|entry| {
-                let mut stat = Stat::default();
-                vfs().stat_path(format!("{}/{}", p, entry.name), &mut stat).unwrap();
-                serial_println!("{} {}", stat.mode, entry.name);
-            });
-    }
+    pci::devices()
+        .filter_map(|device| {
+            if !matches!(device.class(), PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)) {
+                return None;
+            }
+            let shd = PciStandardHeaderDevice::new(device.clone()).ok()?;
+            let bar0 = shd.bar0();
+            let (addr, size) = match bar0 {
+                BaseAddressRegister::MemorySpace64(bar) => (bar.addr, bar.size),
+                _ => return None,
+            };
+
+            let registers = unsafe { xhci::Registers::new(addr as usize, XhciMapper) };
+
+            Some(shd.bar0())
+        })
+        .for_each(|d| serial_println!("{:#x?}", d));
 
     change_thread_priority(Priority::Low);
-
     panic!("kernel_main returned");
+}
+
+#[derive(Debug, Copy, Clone)]
+struct XhciMapper;
+
+impl Mapper for XhciMapper {
+    unsafe fn map(&mut self, phys_start: usize, bytes: usize) -> NonZeroUsize {
+        let frames = {
+            let start = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(phys_start as u64));
+            let end = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(phys_start as u64 + bytes as u64 - 1));
+            PhysFrameRangeInclusive { start, end }
+        };
+
+        let interval = vmm().reserve(bytes).unwrap().leak();
+        serial_println!("allocated interval at {:#p} size {:#x}", interval.start(), interval.size());
+
+        for (i, frame) in frames.enumerate() {
+            let vaddr = interval.start() + (i as u64 * frame.size());
+            map_page!(
+                Page::containing_address(vaddr),
+                frame,
+                Size4KiB,
+                PageTableFlags::PRESENT
+            );
+        }
+
+        NonZeroUsize::new(interval.start().as_u64() as usize).unwrap()
+    }
+
+    fn unmap(&mut self, virt_start: usize, bytes: usize) {
+        serial_println!("unmap: {:#p} size {:#x}", VirtAddr::new(virt_start as u64), bytes);
+        assert!(vmm().release(Interval::new(VirtAddr::new(virt_start as u64), bytes)));
+    }
 }
 
 #[panic_handler]
