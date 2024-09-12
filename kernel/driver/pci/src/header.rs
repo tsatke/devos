@@ -139,7 +139,7 @@ impl PciStandardHeaderDevice {
 
             let size = (!(new_bar & !0b1111) + 1) as usize;
 
-            if bar & 0x02 > 0 {
+            if (bar >> 1) & 0x02 > 0 {
                 // 64bit bar
                 let addr = (bar & !0b1111) as u64 | ((next_bar.unwrap() as u64) << 32);
                 BaseAddressRegister::MemorySpace64(MemorySpace64Bar {
