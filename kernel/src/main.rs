@@ -3,17 +3,17 @@
 
 extern crate alloc;
 
-use alloc::format;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 
 use kernel::arch::panic::handle_panic;
-use kernel::io::vfs::vfs;
+use kernel::driver::pci;
+use kernel::driver::pci::{PciDeviceClass, PciStandardHeaderDevice, SerialBusSubClass};
+use kernel::driver::xhci::XhciRegisters;
 use kernel::process::{change_thread_priority, Priority, Process};
 use kernel::{bootloader_config, kernel_init, process, serial_println};
-use kernel_api::syscall::Stat;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -34,32 +34,20 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     let _ = Process::spawn_from_executable(
         process::current(),
-        "/bin/hello_world",
-        Priority::Normal,
-        0.into(),
-        0.into(),
-    );
-
-    let _ = Process::spawn_from_executable(
-        process::current(),
         "/bin/window_server",
         Priority::Realtime,
         0.into(),
         0.into(),
     );
 
-    for p in ["/var", "/var/data", "/dev", "/bin"] {
-        serial_println!("listing {}", p);
-        vfs().read_dir(p)
-            .unwrap()
-            .into_iter()
-            .filter(|v| v.name != "." && v.name != "..") // FIXME: we currently can't handle . and .. during path resolution
-            .for_each(|entry| {
-                let mut stat = Stat::default();
-                vfs().stat_path(format!("{}/{}", p, entry.name), &mut stat).unwrap();
-                serial_println!("{} {}", stat.mode, entry.name);
-            });
-    }
+    pci::devices()
+        .filter(|d| matches!(d.class(), PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)))
+        .map(|d| PciStandardHeaderDevice::new(d.clone()).unwrap())
+        .map(|d| XhciRegisters::try_from(d).unwrap())
+        .for_each(|xhci_regs| {
+            serial_println!("xhci registes: {:#?}", xhci_regs);
+        });
+
     change_thread_priority(Priority::Low);
 
     panic!("kernel_main returned");
