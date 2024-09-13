@@ -503,9 +503,9 @@ bitflags! {
     /// ## Notification Enable (N0-N15) – RW
     /// When a Notification Enable bit is set, a Device Notification
     /// Event shall be generated when a Device Notification Transaction Packet is received with the
-    /// matching value in the Notification Type field. For example, setting N1 to ‘1’ enables Device
+    /// matching value in the Notification Type field. For example, setting N1 to `1` enables Device
     /// Notification Event generation if a Device Notification TP is received with its Notification Type
-    /// field set to ‘1’ (FUNCTION_WAKE), etc.
+    /// field set to `1` (FUNCTION_WAKE), etc.
     ///
     /// **Note**: Of the currently defined USB3 Device Notification Types, only the
     /// FUNCTION_WAKE type should not be handled automatically by the xHC. Only
