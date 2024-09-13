@@ -47,6 +47,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         .next()
         .unwrap();
     serial_println!("capabilities: {:#?}", xhci.capabilities.read());
+    serial_println!("usb status: {:#?}", xhci.operational.read());
 
     change_thread_priority(Priority::Low);
 
