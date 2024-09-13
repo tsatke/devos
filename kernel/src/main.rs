@@ -7,12 +7,12 @@ use alloc::format;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
-use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
+use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 
-use kernel::{bootloader_config, kernel_init, process, serial_println};
 use kernel::arch::panic::handle_panic;
 use kernel::io::vfs::vfs;
 use kernel::process::{change_thread_priority, Priority, Process};
+use kernel::{bootloader_config, kernel_init, process, serial_println};
 use kernel_api::syscall::Stat;
 
 const CONFIG: BootloaderConfig = bootloader_config();
@@ -60,7 +60,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 serial_println!("{} {}", stat.mode, entry.name);
             });
     }
-
     change_thread_priority(Priority::Low);
 
     panic!("kernel_main returned");

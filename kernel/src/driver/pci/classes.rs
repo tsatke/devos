@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::driver::pci::Error;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum PciDeviceClass {

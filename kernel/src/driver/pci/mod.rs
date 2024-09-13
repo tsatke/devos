@@ -1,7 +1,3 @@
-#![no_std]
-
-extern crate alloc;
-
 use alloc::vec::Vec;
 
 use bitflags::bitflags;
@@ -12,8 +8,6 @@ pub use classes::*;
 pub use device::*;
 pub use header::*;
 
-use crate::raw::iterate_bus;
-
 mod classes;
 mod device;
 mod header;
@@ -21,12 +15,12 @@ mod raw;
 
 static DEVICES: OnceCell<Devices> = OnceCell::uninit();
 
-pub fn devices() -> impl Iterator<Item = &'static PciDevice> {
+pub fn devices() -> impl Iterator<Item=&'static PciDevice> {
     DEVICES
         .get_or_init(|| {
             let mut devices = Vec::new();
             for bus in 0..=255 {
-                unsafe { iterate_bus(bus, &mut devices) };
+                unsafe { raw::iterate_bus(bus, &mut devices) };
             }
             Devices { devices }
         })

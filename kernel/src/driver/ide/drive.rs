@@ -5,9 +5,9 @@ use core::fmt::{Debug, Display, Formatter};
 use spin::{RwLock, RwLockWriteGuard};
 use x86_64::instructions::interrupts;
 
-use crate::{is_bit_set, Status, UDMAMode};
-use crate::channel::IdeChannel;
-use crate::command::Command;
+use crate::driver::ide::channel::IdeChannel;
+use crate::driver::ide::command::Command;
+use crate::driver::ide::{is_bit_set, Status, UDMAMode};
 
 #[derive(Clone)]
 pub struct IdeDrive {
@@ -95,7 +95,7 @@ impl IdeDrive {
 pub struct IdentifyError;
 
 impl IdeDrive {
-    pub(crate) fn channel(&self) -> RwLockWriteGuard<IdeChannel> {
+    pub fn channel(&self) -> RwLockWriteGuard<IdeChannel> {
         self.channel.write()
     }
 

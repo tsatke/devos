@@ -1,19 +1,13 @@
-#![feature(iter_array_chunks)]
-#![no_std]
-
-extern crate alloc;
-
 use alloc::vec::Vec;
 use core::fmt::{Debug, Display, Formatter};
 
 use bitflags::bitflags;
 use conquer_once::spin::OnceCell;
 
+use crate::driver::ide::controller::IdeController;
+use crate::driver::pci::PciStandardHeaderDevice;
+use crate::driver::pci::{MassStorageSubClass, PciDeviceClass};
 pub use device::*;
-use pci::{MassStorageSubClass, PciDeviceClass};
-use pci::PciStandardHeaderDevice;
-
-use crate::controller::IdeController;
 
 mod channel;
 mod command;
@@ -28,7 +22,7 @@ pub fn drives() -> impl Iterator<Item=&'static IdeBlockDevice> {
 }
 
 fn collect_devices() -> Vec<IdeBlockDevice> {
-    pci::devices()
+    crate::driver::pci::devices()
         .filter(|dev| {
             matches!(
                 dev.class(),

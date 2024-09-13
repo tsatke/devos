@@ -3,9 +3,9 @@ use core::fmt::Debug;
 use filesystem::BlockDevice;
 use x86_64::instructions::interrupts::without_interrupts;
 
-use crate::command::Command;
-use crate::drive::IdeDrive;
-use crate::Status;
+use crate::driver::ide::command::Command;
+use crate::driver::ide::drive::IdeDrive;
+use crate::driver::ide::Status;
 
 #[derive(Debug, Clone)]
 pub struct IdeBlockDevice {

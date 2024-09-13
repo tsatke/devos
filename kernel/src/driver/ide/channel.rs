@@ -3,8 +3,8 @@ use core::fmt::{Debug, Formatter};
 
 use x86_64::instructions::port::{Port, PortReadOnly, PortWriteOnly};
 
-use crate::{Error, Status};
-use crate::command::Command;
+use crate::driver::ide::command::Command;
+use crate::driver::ide::{Error, Status};
 
 #[allow(dead_code)] // a lot of fields are unused, but they exist according to spec, so we keep them
 pub struct IdeChannel {

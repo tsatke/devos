@@ -31,7 +31,7 @@ pub fn vfs() -> &'static Vfs {
 }
 
 pub fn init() {
-    let root_drive = ide::drives()
+    let root_drive = crate::driver::ide::drives()
         .nth(1)
         .expect("we need at least one additional IDE drive for now")
         .clone();

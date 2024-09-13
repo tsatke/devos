@@ -1,13 +1,12 @@
 use alloc::sync::Arc;
 
-use spin::RwLock;
-
-use crate::raw::{
+use crate::driver::pci::raw::{
     read_config_half_word, read_config_word, OFFSET_BIST, OFFSET_CLASS_SUBCLASS,
     OFFSET_HEADER_TYPE, OFFSET_INTERRUPT_LINE, OFFSET_INTERRUPT_PIN, OFFSET_PROG_IF_REVISION_ID,
     OFFSET_STATUS,
 };
-use crate::{Error, InterruptPin, PciDeviceClass, PciHeaderType, Status, BIST};
+use crate::driver::pci::{Error, InterruptPin, PciDeviceClass, PciHeaderType, Status, BIST};
+use spin::RwLock;
 
 #[derive(Clone, Debug)]
 pub struct PciDevice {
@@ -36,7 +35,7 @@ impl PciDevice {
     /// reads from memory, which could have unintended
     /// effects. Also, the caller has to ensure that this
     /// is only called once for every combination of parameters.
-    pub(crate) unsafe fn new(
+    pub unsafe fn new(
         bus: u8,
         slot: u8,
         function: u8,

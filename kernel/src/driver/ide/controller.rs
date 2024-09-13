@@ -3,13 +3,11 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt::{Debug, Formatter};
 
+use crate::driver::ide::channel::IdeChannel;
+use crate::driver::ide::drive::IdeDrive;
+use crate::driver::ide::is_bit_set;
+use crate::driver::pci::{InterruptPin, MassStorageSubClass, PciDeviceClass, PciStandardHeaderDevice};
 use spin::RwLock;
-
-use pci::{InterruptPin, MassStorageSubClass, PciDeviceClass, PciStandardHeaderDevice};
-
-use crate::channel::IdeChannel;
-use crate::drive::IdeDrive;
-use crate::is_bit_set;
 
 pub struct IdeController {
     primary: Arc<RwLock<IdeChannel>>,
@@ -17,7 +15,7 @@ pub struct IdeController {
     interrupt_pin: InterruptPin,
     interrupt_line: Option<u8>,
 
-    pub(crate) drives: Vec<IdeDrive>,
+    pub drives: Vec<IdeDrive>,
 }
 
 impl From<PciStandardHeaderDevice> for IdeController {

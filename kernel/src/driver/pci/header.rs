@@ -1,7 +1,7 @@
 use core::ops::Deref;
 
-use crate::raw::{read_config_double_word, write_config_double_word};
-use crate::{Error, PciDevice};
+use crate::driver::pci::raw::{read_config_double_word, write_config_double_word};
+use crate::driver::pci::{Error, PciDevice};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(u8)]

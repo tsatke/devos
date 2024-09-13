@@ -1,8 +1,7 @@
 use alloc::vec::Vec;
 
+use crate::driver::pci::PciDevice;
 use x86_64::instructions::port::Port;
-
-use crate::PciDevice;
 
 const CONFIG_ADDRESS: u16 = 0xCF8;
 const CONFIG_DATA: u16 = 0xCFC;

@@ -237,12 +237,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a35ba5100c2431e20b924c8103c2cf8adb919ed9880f625e8770c3cb9d1b06aa"
 
 [[package]]
-name = "bresenham"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfc1116225f66d2ea341a26503f83a6b1205070a6f7199ce1f1550ead91f6fd7"
-
-[[package]]
 name = "build_const"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -610,13 +604,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "graphics"
-version = "0.1.0"
-dependencies = [
- "bresenham",
-]
-
-[[package]]
 name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -634,19 +621,6 @@ name = "hermit-abi"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fed44880c466736ef9a5c5b5facefb5ed0785676d0c02d612db14e54f0d84286"
-
-[[package]]
-name = "ide"
-version = "0.1.0"
-dependencies = [
- "bitflags 2.4.1",
- "conquer-once",
- "kernel_api",
- "mkfs-filesystem",
- "pci",
- "spin",
- "x86_64",
-]
 
 [[package]]
 name = "instant"
@@ -685,8 +659,6 @@ dependencies = [
  "crossbeam-queue",
  "derive_more",
  "elfloader",
- "graphics",
- "ide",
  "kernel_api",
  "kernel_test_framework",
  "linked_list_allocator",
@@ -694,11 +666,9 @@ dependencies = [
  "mkfs-ext2",
  "mkfs-filesystem",
  "num_enum",
- "pci",
  "raw-cpuid 11.0.0",
  "spin",
  "uart_16550",
- "vga",
  "x2apic",
  "x86_64",
 ]
@@ -859,17 +829,6 @@ name = "paste"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
-
-[[package]]
-name = "pci"
-version = "0.1.0"
-dependencies = [
- "bitflags 2.4.1",
- "conquer-once",
- "derive_more",
- "spin",
- "x86_64",
-]
 
 [[package]]
 name = "pin-project"
@@ -1302,16 +1261,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 dependencies = [
  "getrandom",
-]
-
-[[package]]
-name = "vga"
-version = "0.1.0"
-dependencies = [
- "bresenham",
- "conquer-once",
- "graphics",
- "spin",
 ]
 
 [[package]]

@@ -13,8 +13,8 @@
 
 extern crate alloc;
 
-use bootloader_api::{BootInfo, BootloaderConfig};
 use bootloader_api::config::Mapping;
+use bootloader_api::{BootInfo, BootloaderConfig};
 use conquer_once::spin::OnceCell;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::{Page, Size4KiB};
@@ -26,12 +26,13 @@ use crate::acpi::{KERNEL_ACPI_ADDR, KERNEL_ACPI_LEN};
 use crate::apic::{KERNEL_APIC_ADDR, KERNEL_APIC_LEN};
 use crate::arch::{gdt, idt};
 use crate::io::vfs;
-use crate::mem::Size;
 use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
+use crate::mem::Size;
 
 pub mod acpi;
 pub mod apic;
 pub mod arch;
+pub mod driver;
 mod error;
 pub mod io;
 pub mod mem;
