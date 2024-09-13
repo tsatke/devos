@@ -7,10 +7,13 @@ use core::ops::Deref;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
-pub use error::*;
+pub use capabilities::*;
+pub use operational::*;
 pub use registers::*;
 
+mod capabilities;
 mod error;
+mod operational;
 mod registers;
 
 #[derive(Debug)]
