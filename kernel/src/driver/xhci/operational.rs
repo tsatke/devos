@@ -1,5 +1,7 @@
 use bitflags::bitflags;
-use volatile::access::ReadWrite;
+use core::fmt;
+use core::fmt::{Debug, Formatter};
+use volatile::access::{ReadOnly, ReadWrite};
 use volatile::VolatileFieldAccess;
 
 /// # Host Controller Operational Registers
@@ -46,12 +48,15 @@ use volatile::VolatileFieldAccess;
 #[repr(C)]
 #[derive(Debug, Copy, Clone, VolatileFieldAccess)]
 pub struct Operational {
+    /// [`UsbCmd`]
     #[access(ReadWrite)]
     usbcmd: UsbCmd,
+    /// [`UsbSts`]
     #[access(ReadWrite)]
     usbsts: UsbSts,
-    #[access(ReadWrite)]
-    pagesize: u32,
+    /// [`Pagesize`]
+    #[access(ReadOnly)]
+    pagesize: Pagesize,
     #[access(ReadWrite)]
     dnctrl: u32,
     #[access(ReadWrite)]
@@ -60,10 +65,6 @@ pub struct Operational {
     dcbaap: u64,
     #[access(ReadWrite)]
     config: u32,
-}
-
-fn foo() {
-    let _ = UsbCmd::RS;
 }
 
 bitflags! {
@@ -448,5 +449,42 @@ bitflags! {
         ///
         /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=399)
         const HCE = 1 << 12;
+    }
+}
+
+/// # Page Size – RO
+/// Default = Implementation defined. This field defines the page size supported by
+/// the xHC implementation. This xHC supports a page size of 2^(n+12) ([`Pagesize::size`]) if bit n ([`Pagesize::size_raw`]) is Set. For example, if
+/// bit 0 is Set, the xHC supports 4k byte page sizes.
+///
+/// For a Virtual Function, this register reflects the page size selected in the System Page Size field
+/// of the SR-IOV Extended Capability structure. For the Physical Function 0, this register reflects
+/// the implementation dependent default xHC page size.
+///
+/// Various xHC resources reference PAGESIZE to describe their minimum alignment requirements.
+/// The maximum possible page size is 128M.
+///
+/// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=399)
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub struct Pagesize(u32);
+
+impl Pagesize {
+    /// [`Pagesize`]
+    pub fn size_raw(&self) -> u32 {
+        self.0 & ((1 << 16) - 1)
+    }
+
+    /// [`Pagesize`]
+    pub fn size(&self) -> u32 {
+        1 << (self.size_raw() + 12)
+    }
+}
+
+impl Debug for Pagesize {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Pagesize")
+            .field("size", &self.size())
+            .finish()
     }
 }
