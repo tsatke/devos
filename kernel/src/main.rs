@@ -11,7 +11,7 @@ use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use kernel::arch::panic::handle_panic;
 use kernel::driver::pci;
 use kernel::driver::pci::{PciDeviceClass, PciStandardHeaderDevice, SerialBusSubClass};
-use kernel::driver::xhci::XhciRegisters;
+use kernel::driver::xhci::Xhci;
 use kernel::process::{change_thread_priority, Priority, Process};
 use kernel::{bootloader_config, kernel_init, process, serial_println};
 
@@ -40,13 +40,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         0.into(),
     );
 
-    pci::devices()
-        .filter(|d| matches!(d.class(), PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)))
+    let xhci = pci::devices()
+        .filter(|d| matches!(d.class(), PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)) && d.prog_if() == 0x30)
         .map(|d| PciStandardHeaderDevice::new(d.clone()).unwrap())
-        .map(|d| XhciRegisters::try_from(d).unwrap())
-        .for_each(|xhci_regs| {
-            serial_println!("xhci registes: {:#?}", xhci_regs);
-        });
+        .map(|d| Xhci::try_from(d).unwrap())
+        .next()
+        .unwrap();
+    serial_println!("capabilities: {:#?}", xhci.capabilities.read());
 
     change_thread_priority(Priority::Low);
 

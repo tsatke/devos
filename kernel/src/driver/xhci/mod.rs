@@ -1,22 +1,37 @@
 use crate::driver::pci::{BaseAddressRegister, PciDeviceClass, PciStandardHeaderDevice, SerialBusSubClass};
-use crate::mem::virt::{OwnedInterval, VmmError};
+use crate::driver::xhci::error::XhciError;
+use crate::mem::virt::OwnedInterval;
 use crate::process::vmm;
 use crate::{map_page, unmap_page};
-use core::error::Error;
-use derive_more::Display;
+use core::ops::Deref;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
+pub use error::*;
+pub use registers::*;
+
+mod error;
+mod registers;
+
 #[derive(Debug)]
-pub struct XhciRegisters<'a> {
+pub struct Xhci<'a> {
     interval: OwnedInterval<'a>,
+    registers: Registers<'a>,
 }
 
-impl TryFrom<PciStandardHeaderDevice> for XhciRegisters<'_> {
+impl<'a> Deref for Xhci<'a> {
+    type Target = Registers<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.registers
+    }
+}
+
+impl TryFrom<PciStandardHeaderDevice> for Xhci<'_> {
     type Error = XhciError;
 
     fn try_from(pci_device: PciStandardHeaderDevice) -> Result<Self, Self::Error> {
-        if !matches!(pci_device.class(), PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)) {
+        if !(matches!(pci_device.class(), PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)) && pci_device.prog_if() == 0x30) {
             return Err(XhciError::NotUsb);
         }
 
@@ -45,13 +60,16 @@ impl TryFrom<PciStandardHeaderDevice> for XhciRegisters<'_> {
                 );
             });
 
+        let registers = Registers::new(start_addr);
+
         Ok(Self {
             interval,
+            registers,
         })
     }
 }
 
-impl Drop for XhciRegisters<'_> {
+impl Drop for Xhci<'_> {
     fn drop(&mut self) {
         let start_addr = self.interval.start();
         (start_addr..(start_addr + (self.interval.size() - 1))).step_by(Size4KiB::SIZE as usize)
@@ -65,12 +83,5 @@ impl Drop for XhciRegisters<'_> {
     }
 }
 
-impl XhciRegisters<'_> {}
+impl Xhci<'_> {}
 
-#[derive(Debug, Display, Copy, Clone, Eq, PartialEq)]
-pub enum XhciError {
-    NotUsb,
-    VmmError(VmmError),
-}
-
-impl Error for XhciError {}

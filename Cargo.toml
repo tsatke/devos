@@ -51,6 +51,7 @@ num_enum = { version = "0.7.0", default-features = false }
 raw-cpuid = { version = "11.0", default-features = false }
 spin = "0.9.8"
 uart_16550 = "0.3"
+volatile = { version = "0.6.1", features = ["derive"] }
 x2apic = "0.4"
 x86_64 = "0.14"
 
