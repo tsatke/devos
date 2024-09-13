@@ -1,4 +1,4 @@
-use crate::driver::pci::Error;
+use crate::driver::pci::PciError;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum PciDeviceClass {
@@ -27,7 +27,7 @@ pub enum PciDeviceClass {
 }
 
 impl TryFrom<u16> for PciDeviceClass {
-    type Error = Error;
+    type Error = PciError;
 
     fn try_from(v: u16) -> Result<Self, Self::Error> {
         let class = (v >> 8) as u8;
@@ -46,7 +46,7 @@ impl TryFrom<u16> for PciDeviceClass {
             0x0A => Self::DockingStation,
             0x0B => Self::Processor,
             0x0C => Self::SerialBusController(SerialBusSubClass::try_from(sub)?),
-            _ => return Err(Error::UnknownPciDeviceClass(v)),
+            _ => return Err(PciError::UnknownPciDeviceClass(v)),
         })
     }
 }
@@ -60,7 +60,7 @@ pub enum DisplaySubClass {
 }
 
 impl TryFrom<u8> for DisplaySubClass {
-    type Error = Error;
+    type Error = PciError;
 
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         Ok(match v {
@@ -68,7 +68,7 @@ impl TryFrom<u8> for DisplaySubClass {
             0x01 => Self::XGAController,
             0x02 => Self::NoVGA3DController,
             0x80 => Self::Other,
-            _ => return Err(Error::UnknownDisplaySubClass(v)),
+            _ => return Err(PciError::UnknownDisplaySubClass(v)),
         })
     }
 }
@@ -89,7 +89,7 @@ pub enum SerialBusSubClass {
 }
 
 impl TryFrom<u8> for SerialBusSubClass {
-    type Error = Error;
+    type Error = PciError;
 
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         Ok(match v {
@@ -104,7 +104,7 @@ impl TryFrom<u8> for SerialBusSubClass {
             0x8 => Self::SERCOSInterface,
             0x9 => Self::CANbusController,
             0x80 => Self::Other,
-            _ => return Err(Error::UnknownSerialBusSubClass(v)),
+            _ => return Err(PciError::UnknownSerialBusSubClass(v)),
         })
     }
 }
@@ -124,7 +124,7 @@ pub enum MassStorageSubClass {
 }
 
 impl TryFrom<u8> for MassStorageSubClass {
-    type Error = Error;
+    type Error = PciError;
 
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         Ok(match v {
@@ -138,7 +138,7 @@ impl TryFrom<u8> for MassStorageSubClass {
             0x07 => Self::SerialAttachedSCSIController,
             0x08 => Self::NonVolatileMemoryController,
             0x80 => Self::Other,
-            _ => return Err(Error::UnknownMassStorageSubClass(v)),
+            _ => return Err(PciError::UnknownMassStorageSubClass(v)),
         })
     }
 }
@@ -158,7 +158,7 @@ pub enum NetworkSubClass {
 }
 
 impl TryFrom<u8> for NetworkSubClass {
-    type Error = Error;
+    type Error = PciError;
 
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         Ok(match v {
@@ -172,7 +172,7 @@ impl TryFrom<u8> for NetworkSubClass {
             0x07 => Self::InfinibandController,
             0x08 => Self::FabricController,
             0x80 => Self::Other,
-            _ => return Err(Error::UnknownNetworkSubClass(v)),
+            _ => return Err(PciError::UnknownNetworkSubClass(v)),
         })
     }
 }
@@ -193,7 +193,7 @@ pub enum BridgeSubClass {
 }
 
 impl TryFrom<u8> for BridgeSubClass {
-    type Error = Error;
+    type Error = PciError;
 
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         Ok(match v {
@@ -208,7 +208,7 @@ impl TryFrom<u8> for BridgeSubClass {
             0x08 => Self::RACEwayBridge,
             0x0A => Self::InfiniBand2PCIBridge,
             0x80 => Self::Other,
-            _ => return Err(Error::UnknownBridgeSubClass(v)),
+            _ => return Err(PciError::UnknownBridgeSubClass(v)),
         })
     }
 }
@@ -223,7 +223,7 @@ pub enum InterruptPin {
 }
 
 impl TryFrom<u8> for InterruptPin {
-    type Error = Error;
+    type Error = PciError;
 
     fn try_from(v: u8) -> Result<Self, Self::Error> {
         Ok(match v {
@@ -232,7 +232,7 @@ impl TryFrom<u8> for InterruptPin {
             2 => Self::INTB,
             3 => Self::INTC,
             4 => Self::INTD,
-            _ => return Err(Error::UnknownInterruptPin(v)),
+            _ => return Err(PciError::UnknownInterruptPin(v)),
         })
     }
 }

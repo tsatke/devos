@@ -4,7 +4,7 @@ use core::fmt::{Debug, Formatter};
 use x86_64::instructions::port::{Port, PortReadOnly, PortWriteOnly};
 
 use crate::driver::ide::command::Command;
-use crate::driver::ide::{Error, Status};
+use crate::driver::ide::{IdeError, Status};
 
 #[allow(dead_code)] // a lot of fields are unused, but they exist according to spec, so we keep them
 pub struct IdeChannel {
@@ -52,8 +52,8 @@ impl IdeChannel {
         unsafe { Status::from_bits_truncate(self.ports.status.read()) }
     }
 
-    pub fn error(&mut self) -> Error {
-        unsafe { Error::from_bits_truncate(self.ports.error.read()) }
+    pub fn error(&mut self) -> IdeError {
+        unsafe { IdeError::from_bits_truncate(self.ports.error.read()) }
     }
 
     pub fn wait_for_ready(&mut self) {

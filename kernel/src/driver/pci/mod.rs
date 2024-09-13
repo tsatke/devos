@@ -59,7 +59,7 @@ impl<'a> Iterator for DevicesIter<'a> {
 }
 
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Display)]
-pub enum Error {
+pub enum PciError {
     #[display(fmt = "unknown header type {_0:#x?}")]
     UnknownHeaderType(u8),
     #[display(fmt = "unknown pci device class {_0:#x?}")]
@@ -83,7 +83,7 @@ pub enum Error {
     NotPCI2PCIBridge(PciHeaderType),
 }
 
-impl core::error::Error for Error {}
+impl core::error::Error for PciError {}
 
 bitflags! {
     pub struct Status: u16 {

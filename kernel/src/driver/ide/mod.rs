@@ -65,7 +65,7 @@ bitflags! {
 
 bitflags! {
     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-    pub struct Error: u8 {
+    pub struct IdeError: u8 {
         const ADDRESS_MARK_NOT_FOUND = 1 << 0;
         const TRACK_ZERO_NOT_FOUND = 1 << 1;
         const ABORTED_COMMAND = 1 << 2;
@@ -77,13 +77,13 @@ bitflags! {
     }
 }
 
-impl Display for Error {
+impl Display for IdeError {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         Debug::fmt(self, f)
     }
 }
 
-impl core::error::Error for Error {}
+impl core::error::Error for IdeError {}
 
 fn is_bit_set(haystack: u64, needle: u8) -> bool {
     (haystack & (1 << needle)) > 0

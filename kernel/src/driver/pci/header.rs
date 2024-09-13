@@ -1,7 +1,7 @@
 use core::ops::Deref;
 
 use crate::driver::pci::raw::{read_config_double_word, write_config_double_word};
-use crate::driver::pci::{Error, PciDevice};
+use crate::driver::pci::{PciDevice, PciError};
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[repr(u8)]
@@ -12,14 +12,14 @@ pub enum PciHeaderType {
 }
 
 impl TryFrom<u8> for PciHeaderType {
-    type Error = Error;
+    type Error = PciError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         Ok(match value {
             0x00 => Self::Standard,
             0x01 => Self::Pci2PciBridge,
             0x02 => Self::CardBusBridge,
-            _ => return Err(Error::UnknownHeaderType(value)),
+            _ => return Err(PciError::UnknownHeaderType(value)),
         })
     }
 }
@@ -88,10 +88,10 @@ impl PciStandardHeaderDevice {
     const OFFSET_BAR4: u8 = 0x20;
     const OFFSET_BAR5: u8 = 0x24;
 
-    pub fn new(inner: PciDevice) -> Result<Self, Error> {
+    pub fn new(inner: PciDevice) -> Result<Self, PciError> {
         let header_type = inner.header_type();
         if header_type != PciHeaderType::Standard {
-            return Err(Error::NotStandardHeader(header_type));
+            return Err(PciError::NotStandardHeader(header_type));
         }
         Ok(PciStandardHeaderDevice { inner })
     }
@@ -219,10 +219,10 @@ impl Deref for Pci2PciBridge {
 }
 
 impl Pci2PciBridge {
-    pub fn new(inner: PciDevice) -> Result<Self, Error> {
+    pub fn new(inner: PciDevice) -> Result<Self, PciError> {
         let header_type = inner.header_type();
         if header_type != PciHeaderType::Pci2PciBridge {
-            return Err(Error::NotPCI2PCIBridge(header_type));
+            return Err(PciError::NotPCI2PCIBridge(header_type));
         }
         Ok(Pci2PciBridge { inner })
     }

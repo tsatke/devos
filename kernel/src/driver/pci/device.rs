@@ -5,7 +5,7 @@ use crate::driver::pci::raw::{
     OFFSET_HEADER_TYPE, OFFSET_INTERRUPT_LINE, OFFSET_INTERRUPT_PIN, OFFSET_PROG_IF_REVISION_ID,
     OFFSET_STATUS,
 };
-use crate::driver::pci::{Error, InterruptPin, PciDeviceClass, PciHeaderType, Status, BIST};
+use crate::driver::pci::{InterruptPin, PciDeviceClass, PciError, PciHeaderType, Status, BIST};
 use spin::RwLock;
 
 #[derive(Clone, Debug)]
@@ -41,7 +41,7 @@ impl PciDevice {
         function: u8,
         vendor: u16,
         device: u16,
-    ) -> Result<Self, Error> {
+    ) -> Result<Self, PciError> {
         let header_type_raw = read_config_half_word(bus, slot, function, OFFSET_HEADER_TYPE);
         let header_type = PciHeaderType::try_from(header_type_raw & ((1 << 7) - 1))?;
         let multi_function = header_type_raw & (1 << 7) > 0;
