@@ -58,7 +58,7 @@ pub struct Operational {
     #[access(ReadOnly)]
     pagesize: Pagesize,
     #[access(ReadWrite)]
-    dnctrl: u32,
+    dnctrl: DnCtrl,
     #[access(ReadWrite)]
     crcr: u64,
     #[access(ReadWrite)]
@@ -486,5 +486,69 @@ impl Debug for Pagesize {
         f.debug_struct("Pagesize")
             .field("size", &self.size())
             .finish()
+    }
+}
+
+bitflags! {
+    /// # Device Notification Control Register
+    /// This register is used by software to enable or disable the reporting of the
+    /// reception of specific USB Device Notification Transaction Packets. A Notification
+    /// Enable (Nx, where x = 0 to 15) flag is defined for each of the 16 possible de vice
+    /// notification types. If a flag is set for a specific notification type, a Device
+    /// Notification Event shall be generated when the respective notification packet is
+    /// received. After reset all notifications are disabled. Refer to section 6.4.2.7.
+    ///
+    /// This register shall be written as a Dword. Byte writes produce undefined results.
+    ///
+    /// ## Notification Enable (N0-N15) – RW
+    /// When a Notification Enable bit is set, a Device Notification
+    /// Event shall be generated when a Device Notification Transaction Packet is received with the
+    /// matching value in the Notification Type field. For example, setting N1 to ‘1’ enables Device
+    /// Notification Event generation if a Device Notification TP is received with its Notification Type
+    /// field set to ‘1’ (FUNCTION_WAKE), etc.
+    ///
+    /// **Note**: Of the currently defined USB3 Device Notification Types, only the
+    /// FUNCTION_WAKE type should not be handled automatically by the xHC. Only
+    /// under debug conditions would software write the DNCTRL register with a value
+    /// other than 0002h. Refer to section 8.5.6 in the USB3 specification for more
+    /// information on Notification Types. If new Device Notification Types are defined,
+    /// software may receive them by setting the respective Notification Enable bit.
+    ///
+    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=400)
+    #[repr(transparent)]
+    #[derive(Debug, Copy, Clone)]
+    pub struct DnCtrl: u32 {
+        /// [`DnCtrl`]
+        const N0 = 1 << 0;
+        /// [`DnCtrl`]
+        const N1 = 1 << 1;
+        /// [`DnCtrl`]
+        const N2 = 1 << 2;
+        /// [`DnCtrl`]
+        const N3 = 1 << 3;
+        /// [`DnCtrl`]
+        const N4 = 1 << 4;
+        /// [`DnCtrl`]
+        const N5 = 1 << 5;
+        /// [`DnCtrl`]
+        const N6 = 1 << 6;
+        /// [`DnCtrl`]
+        const N7 = 1 << 7;
+        /// [`DnCtrl`]
+        const N8 = 1 << 8;
+        /// [`DnCtrl`]
+        const N9 = 1 << 9;
+        /// [`DnCtrl`]
+        const N10 = 1 << 10;
+        /// [`DnCtrl`]
+        const N11 = 1 << 11;
+        /// [`DnCtrl`]
+        const N12 = 1 << 12;
+        /// [`DnCtrl`]
+        const N13 = 1 << 13;
+        /// [`DnCtrl`]
+        const N14 = 1 << 14;
+        /// [`DnCtrl`]
+        const N15 = 1 << 15;
     }
 }
