@@ -75,15 +75,7 @@ pub struct Capabilities {
     /// [`HccParams1`]
     #[access(ReadOnly)]
     hccparams1: HccParams1,
-    /// This register defines the offset of the Doorbell Array base address from the
-    /// Base.
-    ///
-    /// **Note**: Normally the Doorbell Array is Dword aligned, however if virtualization is
-    /// supported by the xHC (either through IOV or VTIO) then it shall be PAGESIZE
-    /// aligned. e.g. If the PAGESIZE = 4K (1000h), and the Doorbell Array is positioned
-    /// at a 3 page offset from the Base, then this register shall report 0000 3000h.
-    ///
-    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=387)
+    /// [`DbOff`]
     #[access(ReadOnly)]
     dboff: DbOff,
     /// This register defines the offset of the xHCI Runtime Registers from the Base.
@@ -96,15 +88,10 @@ pub struct Capabilities {
     /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=388)
     #[access(ReadOnly)]
     rtsoff: u32,
-    /// This register defines optional capabilities supported by the xHCI.
-    /// The default values for all fields in this register are implementation dependent.
-    ///
-    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=389)
+    /// [`HccParams2`]
     #[access(ReadOnly)]
     hccparms2: HccParams2,
-    /// This register defines the offset of the xHCI VTIO Registers from the Base.
-    ///
-    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=390)
+    /// [`VtiosOff`]
     vtiosoff: VtiosOff,
 }
 
@@ -523,6 +510,15 @@ impl Debug for HccParams1 {
     }
 }
 
+/// This register defines the offset of the Doorbell Array base address from the
+/// Base.
+///
+/// **Note**: Normally the Doorbell Array is Dword aligned, however if virtualization is
+/// supported by the xHC (either through IOV or VTIO) then it shall be PAGESIZE
+/// aligned. e.g. If the PAGESIZE = 4K (1000h), and the Doorbell Array is positioned
+/// at a 3 page offset from the Base, then this register shall report 0000 3000h.
+///
+/// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=387)
 #[repr(transparent)]
 #[derive(Copy, Clone)]
 pub struct DbOff(u32);
@@ -547,6 +543,10 @@ impl Debug for DbOff {
     }
 }
 
+/// This register defines optional capabilities supported by the xHCI.
+/// The default values for all fields in this register are implementation dependent.
+///
+/// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=389)
 #[repr(transparent)]
 #[derive(Copy, Clone)]
 pub struct HccParams2(u32);
@@ -694,6 +694,9 @@ impl Debug for HccParams2 {
     }
 }
 
+/// This register defines the offset of the xHCI VTIO Registers from the Base.
+///
+/// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=390)
 #[repr(transparent)]
 #[derive(Copy, Clone)]
 pub struct VtiosOff(u32);
