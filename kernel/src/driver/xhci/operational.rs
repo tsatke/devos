@@ -60,7 +60,7 @@ pub struct Operational {
     #[access(ReadWrite)]
     dnctrl: DnCtrl,
     #[access(ReadWrite)]
-    crcr: u64,
+    crcr: Crcr,
     #[access(ReadWrite)]
     dcbaap: u64,
     #[access(ReadWrite)]
@@ -550,5 +550,151 @@ bitflags! {
         const N14 = 1 << 14;
         /// [`DnCtrl`]
         const N15 = 1 << 15;
+    }
+}
+
+/// # Command Ring Control Register
+/// The Command Ring Control Register provides Command Ring control and status
+/// capabilities, and identifies the address and Cycle bit state of the Command Ring
+/// Dequeue Pointer.
+///
+/// **Note**: Refer to section 4.6 for more information on Command Ring Stop and Abort
+/// operation.
+///
+/// **Note**: Setting the Command Stop (CS) or Command Abort (CA) flags while CRR = ‘1’
+/// shall generate a Command Ring Stopped Command Completion Event.
+///
+/// **Note**: Setting both the Command Stop (CS) and Command Abort (CA) flags with a single
+/// write to the CRCR while CRR = ‘1’ shall be interpreted as a Command Abort (CA)
+/// by the xHC.
+///
+/// **Note**: The Command Ring is 64 byte aligned, so the low order 6 bits of the Command
+/// Ring Pointer shall always be ‘0’.
+///
+/// **Note**: The values of the internal xHC Command Ring CCS flag and Dequeue Pointer are
+/// undefined after hardware reset, so these fields shall be initialized before setting
+/// USBCMD Run/Stop (R/S) to ‘1’. Refer to section 4.6.1.
+///
+/// **Note**: After asserting Command Stop (CS) if the Command doorbell is rung before CRR
+/// = ‘0’, (i.e. the ring is not fully stopped), then the behavior is undefined, e.g. the
+/// Command Ring may not restart.
+///
+/// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=401)
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub struct Crcr(u64);
+
+impl Crcr {
+    /// # Ring Cycle State (RCS) - RW
+    /// This bit identifies the value of the xHC Consumer Cycle State (CCS)
+    /// flag for the TRB referenced by the Command Ring Pointer. Refer to section 4.9.3 for more
+    /// information.
+    ///
+    /// Writes to this flag are ignored if Command Ring Running (CRR) is ‘1’.
+    ///
+    /// If the CRCR is written while the Command Ring is stopped (CRR = ‘0’), then the value of this flag
+    /// shall be used to fetch the first Command TRB the next time the Host Controller Doorbell register
+    /// is written with the DB Reason field set to Host Controller Command.
+    ///
+    /// If the CRCR is not written while the Command Ring is stopped (CRR = ‘0’), then the Command
+    /// Ring shall begin fetching Command TRBs using the current value of the internal Command Ring
+    /// CCS flag.
+    ///
+    ///
+    /// Reading this flag always returns ‘0’.
+    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=402)
+    const RCS: Crcr = Crcr(1 << 0);
+
+    /// # Command Stop (CS) - RW1S
+    /// Default = ‘0’. Writing a ‘1’ to this bit shall stop the operation of the
+    /// Command Ring after the completion of the currently executing command, and generate a
+    /// Command Completion Event with the Completion Code set to Command Ring Stopped and the
+    /// Command TRB Pointer set to the current value of the Command Ring Dequeue Pointer. Refer to
+    /// section 4.6.1.1 for more information on stopping a command.
+    ///
+    /// The next write to the Host Controller Doorbell with DB Reason field set to Host Controller
+    /// Command shall restart the Command Ring operation.
+    ///
+    /// Writes to this flag are ignored by the xHC if Command Ring Running (CRR) = ‘0’.
+    ///
+    /// Reading this bit shall always return ‘0’.
+    ///
+    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=402)
+    const CS: Crcr = Crcr(1 << 1);
+
+    /// # Command Abort (CA) - RW1S
+    /// Default = ‘0’. Writing a ‘1’ to this bit shall immediately terminate
+    /// the currently executing command, stop the Command Ring, and generate a Command
+    /// Completion Event with the Completion Code set to Command Ring Stopped. Refer to section
+    /// 4.6.1.2 for more information on aborting a command.
+    ///
+    /// The next write to the Host Controller Doorbell with DB Reason field set to Host Controller
+    /// Command shall restart the Command Ring operation.
+    ///
+    /// Writes to this flag are ignored by the xHC if Command Ring Running (CRR) = ‘0’.
+    ///
+    /// Reading this bit always returns ‘0’.
+    ///
+    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=402)
+    const CA: Crcr = Crcr(1 << 2);
+
+    /// # Command Ring Running (CRR) - RO
+    /// Default = 0. This flag is set to ‘1’ if the Run/Stop (R/S) bit is
+    /// ‘1’ and the Host Controller Doorbell register is written with the DB Reason field set to Host
+    /// Controller Command. It is cleared to ‘0’ when the Command Ring is “stopped” after writing a ‘1’
+    /// to the Command Stop (CS) or Command Abort (CA) flags, or if the R/S bit is cleared to ‘0’.
+    ///
+    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=402)
+    const CRR: Crcr = Crcr(1 << 3);
+
+    /// # Command Ring Pointer - RW
+    /// Default = ‘0’. This field defines high order bits of the initial value
+    /// of the 64-bit Command Ring Dequeue Pointer.
+    ///
+    /// Writes to this field are ignored when Command Ring Running (CRR) = ‘1’.
+    ///
+    /// If the CRCR is written while the Command Ring is stopped (CRR = ‘0’), the value of this field shall
+    /// be used to fetch the first Command TRB the next time the Host Controller Doorbell register is
+    /// written with the DB Reason field set to Host Controller Command.
+    ///
+    /// If the CRCR is not written while the Command Ring is stopped (CRR = ‘0’) then the Command
+    /// Ring shall begin fetching Command TRBs at the current value of the internal xHC Command
+    /// Ring Dequeue Pointer.
+    ///
+    /// Reading this field always returns ‘0’.
+    ///
+    /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=403)
+    pub fn command_ring_pointer(&self) -> u64 {
+        0
+    }
+
+    /// [`Self::command_ring_pointer`]
+    pub fn set_command_ring_pointer(&mut self, value: u64) {
+        (*self).0 &= (1 << 6) - 1;
+        (*self).0 |= value << 6;
+    }
+
+    pub fn contains(&self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+
+    pub fn set(&mut self, other: Self, value: bool) {
+        if value {
+            (*self).0 |= other.0;
+        } else {
+            (*self).0 = self.0 & !other.0;
+        }
+    }
+}
+
+impl Debug for Crcr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Crcr")
+            .field("RCS", &self.contains(Crcr::RCS))
+            .field("CS", &self.contains(Crcr::CS))
+            .field("CA", &self.contains(Crcr::CA))
+            .field("CRR", &self.contains(Crcr::CRR))
+            .field("command_ring_pointer", &self.command_ring_pointer())
+            .finish()
     }
 }
