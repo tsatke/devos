@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 acpi.workspace = true
+bitfield.workspace = true
 bitflags.workspace = true
 bootloader_api.workspace = true
 conquer-once.workspace = true

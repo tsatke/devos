@@ -177,32 +177,6 @@ bitflags! {
     }
 }
 
-/// # Command Ring Control Register
-/// The Command Ring Control Register provides Command Ring control and status
-/// capabilities, and identifies the address and Cycle bit state of the Command Ring
-/// Dequeue Pointer.
-///
-/// **Note**: Refer to section 4.6 for more information on Command Ring Stop and Abort
-/// operation.
-///
-/// **Note**: Setting the Command Stop (CS) or Command Abort (CA) flags while CRR = `1`
-/// shall generate a Command Ring Stopped Command Completion Event.
-///
-/// **Note**: Setting both the Command Stop (CS) and Command Abort (CA) flags with a single
-/// write to the CRCR while CRR = `1` shall be interpreted as a Command Abort (CA)
-/// by the xHC.
-///
-/// **Note**: The Command Ring is 64 byte aligned, so the low order 6 bits of the Command
-/// Ring Pointer shall always be `0`.
-///
-/// **Note**: The values of the internal xHC Command Ring CCS flag and Dequeue Pointer are
-/// undefined after hardware reset, so these fields shall be initialized before setting
-/// USBCMD Run/Stop (R/S) to `1`. Refer to section 4.6.1.
-///
-/// **Note**: After asserting Command Stop (CS) if the Command doorbell is rung before CRR
-/// = `0`, (i.e. the ring is not fully stopped), then the behavior is undefined, e.g. the
-/// Command Ring may not restart.
-///
 /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=401)
 #[repr(transparent)]
 #[derive(Copy, Clone)]

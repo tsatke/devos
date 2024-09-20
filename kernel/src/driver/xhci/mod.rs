@@ -3,6 +3,7 @@ use crate::driver::xhci::error::XhciError;
 use crate::mem::virt::OwnedInterval;
 use crate::process::vmm;
 use crate::{map_page, unmap_page};
+use core::fmt::Debug;
 use core::num::NonZeroU8;
 use core::ops::Deref;
 use volatile::VolatilePtr;
@@ -117,4 +118,3 @@ impl XhciRegisters<'_> {
         }
     }
 }
-

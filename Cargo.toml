@@ -34,6 +34,7 @@ members = [
 
 [workspace.dependencies]
 acpi = "5.0.0"
+bitfield = "0.17.0"
 bitflags = "2.4.1"
 bootloader_api = "0.11.7"
 bresenham = "0.1.1"
