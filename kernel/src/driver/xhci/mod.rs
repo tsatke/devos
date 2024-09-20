@@ -3,26 +3,30 @@ use crate::driver::xhci::error::XhciError;
 use crate::mem::virt::OwnedInterval;
 use crate::process::vmm;
 use crate::{map_page, unmap_page};
+use core::num::NonZeroU8;
 use core::ops::Deref;
+use volatile::VolatilePtr;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
 pub use capabilities::*;
 pub use operational::*;
+pub use portsc::*;
 pub use registers::*;
 
 mod capabilities;
 mod error;
 mod operational;
+mod portsc;
 mod registers;
 
 #[derive(Debug)]
-pub struct Xhci<'a> {
+pub struct XhciRegisters<'a> {
     interval: OwnedInterval<'a>,
     registers: Registers<'a>,
 }
 
-impl<'a> Deref for Xhci<'a> {
+impl<'a> Deref for XhciRegisters<'a> {
     type Target = Registers<'a>;
 
     fn deref(&self) -> &Self::Target {
@@ -30,7 +34,7 @@ impl<'a> Deref for Xhci<'a> {
     }
 }
 
-impl TryFrom<PciStandardHeaderDevice> for Xhci<'_> {
+impl TryFrom<PciStandardHeaderDevice> for XhciRegisters<'_> {
     type Error = XhciError;
 
     fn try_from(pci_device: PciStandardHeaderDevice) -> Result<Self, Self::Error> {
@@ -72,7 +76,7 @@ impl TryFrom<PciStandardHeaderDevice> for Xhci<'_> {
     }
 }
 
-impl Drop for Xhci<'_> {
+impl Drop for XhciRegisters<'_> {
     fn drop(&mut self) {
         let start_addr = self.interval.start();
         (start_addr..(start_addr + (self.interval.size() - 1))).step_by(Size4KiB::SIZE as usize)
@@ -86,5 +90,17 @@ impl Drop for Xhci<'_> {
     }
 }
 
-impl Xhci<'_> {}
+impl XhciRegisters<'_> {
+    pub fn portsc(&self, port: NonZeroU8) -> VolatilePtr<'_, PortSc> {
+        let addr = unsafe {
+            self.operational.as_raw_ptr()
+                .add(0x400)
+                .add(0x10 * (port.get() - 1) as usize)
+                .cast()
+        };
+        unsafe {
+            VolatilePtr::new(addr)
+        }
+    }
+}
 
