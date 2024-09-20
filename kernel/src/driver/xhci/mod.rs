@@ -11,12 +11,14 @@ use x86_64::PhysAddr;
 
 pub use capabilities::*;
 pub use operational::*;
+pub use portpmsc::*;
 pub use portsc::*;
 pub use registers::*;
 
 mod capabilities;
 mod error;
 mod operational;
+mod portpmsc;
 mod portsc;
 mod registers;
 
@@ -95,6 +97,18 @@ impl XhciRegisters<'_> {
         let addr = unsafe {
             self.operational.as_raw_ptr()
                 .add(0x400)
+                .add(0x10 * (port.get() - 1) as usize)
+                .cast()
+        };
+        unsafe {
+            VolatilePtr::new(addr)
+        }
+    }
+
+    pub fn portpmsc<T: PortPmsc>(&self, port: NonZeroU8) -> VolatilePtr<'_, T> {
+        let addr = unsafe {
+            self.operational.as_raw_ptr()
+                .add(0x404)
                 .add(0x10 * (port.get() - 1) as usize)
                 .cast()
         };
