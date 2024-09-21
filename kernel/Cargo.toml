@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 acpi.workspace = true
+bitfield.workspace = true
 bitflags.workspace = true
 bootloader_api.workspace = true
 conquer-once.workspace = true
@@ -23,6 +24,7 @@ num_enum.workspace = true
 raw-cpuid.workspace = true
 spin.workspace = true
 uart_16550.workspace = true
+volatile.workspace = true
 x2apic.workspace = true
 x86_64.workspace = true
 

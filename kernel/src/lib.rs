@@ -5,7 +5,6 @@
 #![feature(arbitrary_self_types)]
 #![feature(array_chunks)]
 #![feature(assert_matches)]
-#![feature(const_mut_refs)]
 #![feature(iter_array_chunks)]
 #![feature(naked_functions)]
 #![feature(negative_impls)]

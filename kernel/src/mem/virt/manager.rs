@@ -5,6 +5,7 @@ use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::error::Error;
+use core::fmt::{Debug, Formatter};
 use core::ops::{Deref, DerefMut};
 
 use derive_more::{Constructor, Display};
@@ -16,10 +17,10 @@ use kernel_api::syscall::Errno;
 
 use crate::io::vfs::VfsNode;
 use crate::mem::physical::PhysicalMemoryManager;
+use crate::mem::virt::heap::heap_initialized;
 use crate::mem::virt::{
     FileBackedVmObject, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject, VmObject,
 };
-use crate::mem::virt::heap::heap_initialized;
 
 /// Represents a memory range in a given address space with ownership. Dropping an instance
 /// makes the represented memory range available for reallocation. The `OwnedInterval`
@@ -28,10 +29,17 @@ use crate::mem::virt::heap::heap_initialized;
 ///
 /// Note that the `OwnedInterval` always refers to the virtual memory manager that it was
 /// obtained from.
-#[derive(Debug)]
 pub struct OwnedInterval<'a> {
     interval: Interval,
     vmm: &'a VirtualMemoryManager,
+}
+
+impl Debug for OwnedInterval<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("OwnedInterval")
+            .field("interval", &self.interval)
+            .finish()
+    }
 }
 
 impl OwnedInterval<'_> {
