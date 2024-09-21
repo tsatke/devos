@@ -9,36 +9,36 @@ use volatile::VolatileFieldAccess;
 pub struct Capabilities {
     /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=381)
     #[access(ReadOnly)]
-    caplength: u8,
+    pub caplength: u8,
     #[access(NoAccess)]
-    rsvd: u8,
+    pub rsvd: u8,
     /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=381)
     #[access(ReadOnly)]
-    hciversion: u16,
+    pub hciversion: u16,
     /// [`HcsParams1`]
     #[access(ReadOnly)]
-    hcsparams1: HcsParams1,
+    pub hcsparams1: HcsParams1,
     /// [`HcsParams2`]
     #[access(ReadOnly)]
-    hcsparams2: HcsParams2,
+    pub hcsparams2: HcsParams2,
     /// [`HcsParams3`]
     #[access(ReadOnly)]
-    hcsparams3: HcsParams3,
+    pub hcsparams3: HcsParams3,
     /// [`HccParams1`]
     #[access(ReadOnly)]
-    hccparams1: HccParams1,
+    pub hccparams1: HccParams1,
     /// [`DbOff`]
     #[access(ReadOnly)]
-    dboff: DbOff,
+    pub dboff: DbOff,
     /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=388)
     #[access(ReadOnly)]
-    rtsoff: u32,
+    pub rtsoff: u32,
     /// [`HccParams2`]
     #[access(ReadOnly)]
-    hccparms2: HccParams2,
+    pub hccparms2: HccParams2,
     /// [`VtiosOff`]
     #[access(ReadOnly)]
-    vtiosoff: VtiosOff,
+    pub vtiosoff: VtiosOff,
 }
 
 bitfield! {

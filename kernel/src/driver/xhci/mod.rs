@@ -97,6 +97,7 @@ impl XhciRegisters<'_> {
     pub fn portsc(&self, port: NonZeroU8) -> VolatilePtr<'_, PortSc> {
         let addr = unsafe {
             self.operational.as_raw_ptr()
+                .cast::<u8>()
                 .add(0x400)
                 .add(0x10 * (port.get() - 1) as usize)
                 .cast()
@@ -109,6 +110,7 @@ impl XhciRegisters<'_> {
     pub fn portpmsc<T: PortPmsc>(&self, port: NonZeroU8) -> VolatilePtr<'_, T> {
         let addr = unsafe {
             self.operational.as_raw_ptr()
+                .cast::<u8>()
                 .add(0x404)
                 .add(0x10 * (port.get() - 1) as usize)
                 .cast()
