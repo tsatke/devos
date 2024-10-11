@@ -30,15 +30,15 @@ impl PmObject {
             PhysicalAllocationStrategy::AllocateNow => {
                 let num_frames = size.div_ceil(Size4KiB::SIZE as usize);
                 let mut res = Vec::with_capacity(num_frames);
-                let mut guard = PhysicalMemoryManager::lock();
                 for _ in 0..num_frames {
-                    let next_frame = guard.allocate_frame().ok_or(AllocationError::OutOfMemory);
+                    let next_frame =
+                        PhysicalMemoryManager::allocate_frame().ok_or(AllocationError::OutOfMemory);
                     match next_frame {
                         Ok(frame) => res.push(frame),
                         Err(e) => {
                             // if allocation fails, deallocate the frames we already allocated
                             for frame in res {
-                                guard.deallocate_frame(frame);
+                                PhysicalMemoryManager::deallocate_frame(frame);
                             }
                             return Err(e);
                         }
@@ -82,9 +82,8 @@ fn deallocate_pm_object(pm_object: &PmObject) {
     if !pm_object.should_deallocate_physical_memory_on_drop {
         return;
     }
-    
-    let mut guard = PhysicalMemoryManager::lock();
+
     for frame in &pm_object.phys_frames {
-        guard.deallocate_frame(*frame);
+        PhysicalMemoryManager::deallocate_frame(*frame);
     }
 }

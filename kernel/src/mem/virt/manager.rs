@@ -278,15 +278,14 @@ impl VirtualMemoryManager {
 
 fn allocate_phys_frames(num_frames: usize) -> Result<Vec<PhysFrame>, VmmError> {
     let mut res = Vec::with_capacity(num_frames);
-    let mut guard = PhysicalMemoryManager::lock();
     for _ in 0..num_frames {
-        let next_frame = guard.allocate_frame().ok_or(VmmError::OutOfMemory);
+        let next_frame = PhysicalMemoryManager::allocate_frame().ok_or(VmmError::OutOfMemory);
         match next_frame {
             Ok(frame) => res.push(frame),
             Err(e) => {
                 // if allocation fails, deallocate the frames we already allocated
                 for frame in res {
-                    guard.deallocate_frame(frame);
+                    PhysicalMemoryManager::deallocate_frame(frame);
                 }
                 return Err(e);
             }

@@ -40,7 +40,7 @@ impl MemoryMapPhysicalFrameAllocator {
 
         serial_println!(
             "memory manager stage 1 allocated {} physical frames, {} of which belong to the kernel heap",
-            unsafe { STAGE1_ALLOCATED_FRAMES.load(Relaxed) },
+            STAGE1_ALLOCATED_FRAMES.load(Relaxed),
             KERNEL_HEAP_LEN.bytes() / Size4KiB::SIZE as usize
         );
 
@@ -57,7 +57,7 @@ impl MemoryMapPhysicalFrameAllocator {
             });
 
         // mark the already allocated heap as 'allocated'
-        let stage1_allocated_frames = unsafe { STAGE1_ALLOCATED_FRAMES.load(Relaxed) };
+        let stage1_allocated_frames = STAGE1_ALLOCATED_FRAMES.load(Relaxed);
         regions
             .iter()
             .filter(|r| r.kind == MemoryRegionKind::Usable)

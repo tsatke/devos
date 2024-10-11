@@ -14,21 +14,19 @@ pub static KERNEL_HEAP_LEN: Size = Size::MiB(8);
 
 #[global_allocator]
 static ALLOCATOR: Allocator = Allocator::new();
-static mut INITIALIZED: AtomicBool = AtomicBool::new(false);
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 /// # Safety
 /// This function must be called only once.
 /// The caller must ensure that `heap_start` - `heap_start + heap_size is mapped and valid
 /// for reads and writes.
 pub unsafe fn init(heap_start: *mut u8, heap_size: usize) {
-    unsafe {
-        ALLOCATOR.init(heap_start, heap_size);
-        INITIALIZED.store(true, Relaxed);
-    }
+    ALLOCATOR.init(heap_start, heap_size);
+    INITIALIZED.store(true, Relaxed);
 }
 
 pub fn heap_initialized() -> bool {
-    unsafe { INITIALIZED.load(Relaxed) }
+    INITIALIZED.load(Relaxed)
 }
 
 /// Returns how much free memory is left in the heap in bytes.

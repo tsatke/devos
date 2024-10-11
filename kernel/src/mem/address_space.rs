@@ -1,18 +1,18 @@
 use core::ptr;
 
 use x86_64::registers::control::{Cr3, Cr3Flags};
+use x86_64::structures::paging::mapper::{
+    InvalidPageTable, MapToError, MapperFlush, TranslateResult, UnmapError,
+};
 use x86_64::structures::paging::{
     Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable, Size4KiB,
     Translate,
 };
-use x86_64::structures::paging::mapper::{
-    InvalidPageTable, MapperFlush, MapToError, TranslateResult, UnmapError,
-};
 use x86_64::VirtAddr;
 
-use crate::{KERNEL_CODE_ADDR, process};
 use crate::mem::physical::{FrameAllocatorDelegate, PhysicalMemoryManager};
 use crate::process::vmm;
+use crate::{process, KERNEL_CODE_ADDR};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct AddressSpace {
@@ -30,17 +30,15 @@ pub struct AddressSpace {
 
 // @dev AddressSpace must not be copy or clone, because it is essentially a pointer into
 // memory, so copying or cloning an address space is aliasing.
-impl ! Clone for AddressSpace {}
+impl !Clone for AddressSpace {}
 
 impl AddressSpace {
     pub fn allocate_new() -> Self {
         // allocate a new physical frame - this is valid for the entire machine
-        let pt_frame = PhysicalMemoryManager::lock().allocate_frame().unwrap();
+        let pt_frame = PhysicalMemoryManager::allocate_frame().unwrap();
         // reserve a page in the current process, as we need to create a new page table,
         // but we'll free the interval later, after we're done with the page table setup
-        let pt_interval = vmm()
-            .reserve(Size4KiB::SIZE as usize)
-            .unwrap();
+        let pt_interval = vmm().reserve(Size4KiB::SIZE as usize).unwrap();
         let pt_vaddr = pt_interval.start();
         let pt_page = Page::containing_address(pt_vaddr);
 
@@ -55,8 +53,8 @@ impl AddressSpace {
                 PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
             )
         }
-            .unwrap()
-            .flush();
+        .unwrap()
+        .flush();
 
         // create new page table
         let mut pt = PageTable::new();
@@ -171,7 +169,7 @@ impl AddressSpace {
             // Safety: we checked that the address is valid when this address space was created
             as_recursive_page_table(self.level4_table_virtual_addr)
         }
-            .expect("invalid page table vaddr")
+        .expect("invalid page table vaddr")
     }
 }
 

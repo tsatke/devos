@@ -1,11 +1,11 @@
 use bootloader_api::BootInfo;
-use spin::{Mutex, MutexGuard};
+use spin::Mutex;
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PhysFrame, Size4KiB};
 
 use crate::mem::physical::MemoryMapPhysicalFrameAllocator;
 use crate::mem::physical::TrivialPhysicalFrameAllocator;
 
-static mut MEMORY_MANAGER: Option<Mutex<PhysicalMemoryManager>> = None;
+static MEMORY_MANAGER: Mutex<Option<PhysicalMemoryManager>> = Mutex::new(None);
 
 // TODO: remove the two-stage approach
 // Currently, we need this, because the address space requires an initialized stage1 allocator
@@ -24,9 +24,7 @@ pub(in crate::mem) fn init_stage2(boot_info: &'static BootInfo) {
 
 fn init(stage: Allocator) {
     let mm = PhysicalMemoryManager { alloc: stage };
-    unsafe {
-        let _ = MEMORY_MANAGER.insert(Mutex::new(mm));
-    }
+    let _ = MEMORY_MANAGER.lock().insert(mm);
 }
 
 enum Allocator {
@@ -57,21 +55,18 @@ pub struct PhysicalMemoryManager {
 }
 
 impl PhysicalMemoryManager {
-    pub fn lock() -> MutexGuard<'static, Self> {
-        Self::ref_lock().lock()
+    pub fn allocate_frame() -> Option<PhysFrame> {
+        MEMORY_MANAGER
+            .lock()
+            .as_mut()
+            .map(|mm| mm.alloc.allocate_frame())
+            .flatten()
     }
 
-    fn ref_lock() -> &'static Mutex<Self> {
-        unsafe { MEMORY_MANAGER.as_ref() }.expect("memory manager not initialized yet")
-    }
-
-    pub fn allocate_frame(&mut self) -> Option<PhysFrame> {
-        self.alloc.allocate_frame()
-    }
-
-    #[allow(unused)] // TODO: remove this, we will use this eventually
-    pub fn deallocate_frame(&mut self, frame: PhysFrame) {
-        unsafe { self.alloc.deallocate_frame(frame) }
+    pub fn deallocate_frame(frame: PhysFrame) {
+        MEMORY_MANAGER.lock().as_mut().map(|mm| unsafe {
+            mm.alloc.deallocate_frame(frame);
+        });
     }
 }
 
@@ -80,6 +75,6 @@ pub(in crate::mem) struct FrameAllocatorDelegate;
 
 unsafe impl FrameAllocator<Size4KiB> for FrameAllocatorDelegate {
     fn allocate_frame(&mut self) -> Option<PhysFrame<Size4KiB>> {
-        PhysicalMemoryManager::lock().allocate_frame()
+        PhysicalMemoryManager::allocate_frame()
     }
 }

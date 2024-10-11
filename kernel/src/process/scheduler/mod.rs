@@ -8,12 +8,12 @@ use x86_64::instructions::hlt;
 
 pub use queues::Priority;
 
-use crate::process::{Process, process_tree, spawn_thread_in_current_process};
 use crate::process::attributes::ProcessId;
-use crate::process::Priority::{High, Low, Normal, Realtime};
 use crate::process::scheduler::lfill::LockFreeIntrusiveLinkedList;
 use crate::process::scheduler::queues::{AtomicPriority, Queues};
 use crate::process::scheduler::thread::{State, Thread};
+use crate::process::Priority::{High, Low, Normal, Realtime};
+use crate::process::{process_tree, spawn_thread_in_current_process, Process};
 use crate::serial_println;
 
 pub mod lfill;
@@ -47,7 +47,9 @@ extern "C" fn cleanup_finished_threads() {
         match FINISHED_THREADS.pop_front() {
             Some(thread) => {
                 let thread = *unsafe { Box::from_raw(thread) };
-                process_tree().write().remove_thread(thread.process().pid(), thread.id());
+                process_tree()
+                    .write()
+                    .remove_thread(thread.process().pid(), thread.id());
                 free_thread(thread);
             }
             None => {
@@ -58,10 +60,12 @@ extern "C" fn cleanup_finished_threads() {
     }
 }
 
+#[allow(static_mut_refs)] // we know what we're doing
 pub(in crate::process) unsafe fn scheduler() -> &'static Scheduler {
     SCHEDULER.as_ref().unwrap()
 }
 
+#[allow(static_mut_refs)] // we know what we're doing
 pub(in crate::process) unsafe fn scheduler_mut() -> &'static mut Scheduler {
     SCHEDULER.as_mut().unwrap()
 }
@@ -104,7 +108,11 @@ impl Scheduler {
             current_thread: Box::new(kernel_thread),
             current_thread_should_exit: AtomicBool::new(false),
             current_thread_prio: AtomicPriority::new(priority),
-            strategy: [Realtime, High, Normal, Realtime, High, Low, Realtime, High, Realtime, Normal].into_iter().cycle(),
+            strategy: [
+                Realtime, High, Normal, Realtime, High, Low, Realtime, High, Realtime, Normal,
+            ]
+            .into_iter()
+            .cycle(),
             ready: Queues::new(
                 LockFreeIntrusiveLinkedList::new(),
                 LockFreeIntrusiveLinkedList::new(),
@@ -168,7 +176,11 @@ fn free_thread(thread: Thread) {
             Some(p) => p,
         };
 
-        serial_println!("freeing process {} ({}) because it has no more threads", process.pid(), process.name());
+        serial_println!(
+            "freeing process {} ({}) because it has no more threads",
+            process.pid(),
+            process.name()
+        );
 
         // TODO: deallocate address space
 
