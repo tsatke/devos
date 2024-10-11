@@ -1,20 +1,19 @@
-use core::arch::asm;
 use core::mem::transmute;
 
 use conquer_once::spin::Lazy;
 use num_enum::IntoPrimitive;
 use x86_64::instructions::interrupts;
-use x86_64::PrivilegeLevel;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::structures::paging::PageTableFlags;
+use x86_64::PrivilegeLevel;
 
 use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 
-use crate::{process, serial_println};
 use crate::apic::LAPIC;
 use crate::arch::syscall::syscall_handler_impl;
 use crate::process::vmm;
 use crate::timer::notify_timer_interrupt;
+use crate::{process, serial_println};
 
 static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     let mut idt = InterruptDescriptorTable::new();
@@ -34,7 +33,10 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
             .set_handler_fn(double_fault_handler)
             .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
         idt[InterruptIndex::Syscall.into()]
-            .set_handler_fn(transmute::<*mut fn(), extern "x86-interrupt" fn(InterruptStackFrame)>(syscall_handler as *mut fn()))
+            .set_handler_fn(transmute::<
+                *mut fn(),
+                extern "x86-interrupt" fn(InterruptStackFrame),
+            >(syscall_handler as *mut fn()))
             .set_privilege_level(PrivilegeLevel::Ring3)
             /*
             TODO: verify
@@ -84,7 +86,7 @@ macro_rules! wrap {
         #[allow(clippy::missing_safety_doc)]
         #[naked]
         pub unsafe extern "sysv64" fn $w() {
-            asm!(
+            core::arch::naked_asm!(
                 "push rax",
                 "push rcx",
                 "push rdx",
@@ -108,8 +110,7 @@ macro_rules! wrap {
                 "pop rcx",
                 "pop rax",
                 "iretq",
-                sym $fn,
-                options(noreturn)
+                sym $fn
             );
         }
     };

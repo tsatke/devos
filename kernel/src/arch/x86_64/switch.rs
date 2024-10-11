@@ -1,5 +1,3 @@
-use core::arch::asm;
-
 macro_rules! push_context {
     () => {
         concat!(
@@ -97,7 +95,7 @@ pub unsafe extern "C" fn switch(
     // $rsi -> new_stack
     // $rdx -> new_cr3_value
 
-    asm!(
+    core::arch::naked_asm!(
         push_context!(),
         "mov [rdi], rsp", // write the stack pointer rsp at *_old_stack
         "mov rsp, rsi",   // write _new_stack into rsp
@@ -105,7 +103,6 @@ pub unsafe extern "C" fn switch(
         "mov cr3, rdx", // write _new_cr3_value into cr3
         pop_context!(),
         "sti", // enable interrupts
-        "ret",
-        options(noreturn)
+        "ret"
     )
 }
