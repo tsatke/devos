@@ -84,7 +84,7 @@ b rust_begin_unwind"#
     // add an xhci controller
     cmd.arg("-device").arg("qemu-xhci");
 
-    // add a usb keyboard (instead of the PS/2 keyboard
+    // add a usb keyboard (instead of the PS/2 keyboard)
     cmd.arg("-device").arg("usb-kbd");
 
     if args.verbose {

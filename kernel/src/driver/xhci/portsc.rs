@@ -20,7 +20,7 @@ bitfield! {
     pub pr, set_pr: 4;
 
     /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=408)
-    pub u8, pls, set_pls: 5;
+    pub u8, pls, set_pls: 8, 5;
 
     /// [USB xHCI spec](https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/extensible-host-controler-interface-usb-xhci.pdf#page=409)
     pub pp, set_pp: 9;

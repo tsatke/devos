@@ -3,6 +3,7 @@
 
 extern crate alloc;
 
+use core::num::NonZeroU8;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
@@ -46,14 +47,48 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         .map(|d| XhciRegisters::try_from(d).unwrap())
         .next()
         .unwrap();
-    serial_println!("capabilities: {:#?}", xhci.capabilities.read());
-    serial_println!("usb status: {:#?}", xhci.operational.read());
+
+    let capabilities = xhci.capabilities.read();
+    xhci.extended_capabilities().for_each(|excap| {
+        let extended_capabilities = excap.read();
+        let name = match extended_capabilities.id() {
+            0x0 => "Reserved",
+            0x1 => "Legacy Support",
+            0x2 => "Supported Protocol",
+            0x3 => "Extended Power Management",
+            0x4 => "IO Virtualization",
+            0x5 => "Message Interrupt",
+            0x6 => "Local Memory",
+            0x7..=0x9 => "Reserved",
+            0xA => "USB Debug Capability",
+            0xB..=0x10 => "Reserved",
+            0x11 => "Extended Message Interrupt",
+            0x12..=0xBF => "Reserved",
+            0xC0..=0xFF => "Vendor Specific",
+        };
+        serial_println!("extended capability {}: {}", extended_capabilities.id(), name);
+    });
+
+    let num_ports = capabilities.hcsparams1.max_ports();
+    for i in 1..=num_ports {
+        let port = NonZeroU8::new(i).unwrap();
+        let portsc = xhci.portsc(port).read();
+        let current_connect_status = portsc.ccs();
+        if !current_connect_status {
+            continue;
+        }
+        serial_println!("port {} is connected", i);
+        let speed = portsc.port_speed();
+        serial_println!("port {} speed: {:?}", i, speed);
+    }
+
 
     change_thread_priority(Priority::Low);
 
     panic!("kernel_main returned");
 }
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
     serial_println!(

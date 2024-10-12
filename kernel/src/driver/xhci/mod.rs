@@ -10,6 +10,7 @@ use volatile::VolatilePtr;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
+use crate::driver::xhci::extended::ExtendedCapabilities;
 pub use capabilities::*;
 pub use operational::*;
 pub use portpmsc::*;
@@ -18,6 +19,7 @@ pub use registers::*;
 
 mod capabilities;
 mod error;
+mod extended;
 mod operational;
 mod portpmsc;
 mod portsc;
@@ -118,5 +120,55 @@ impl XhciRegisters<'_> {
         unsafe {
             VolatilePtr::new(addr)
         }
+    }
+
+    pub fn extended_capabilities(&self) -> ExtendedCapabilitiesIter<'_> {
+        ExtendedCapabilitiesIter {
+            xhci: self,
+            next: None,
+            fused_finished: false,
+        }
+    }
+}
+
+pub struct ExtendedCapabilitiesIter<'a> {
+    xhci: &'a XhciRegisters<'a>,
+    next: Option<VolatilePtr<'a, ExtendedCapabilities>>,
+    fused_finished: bool,
+}
+
+impl<'a> Iterator for ExtendedCapabilitiesIter<'a> {
+    type Item = VolatilePtr<'a, ExtendedCapabilities>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.fused_finished {
+            return None;
+        }
+
+        let next = unsafe {
+            VolatilePtr::new(
+                if let Some(next) = self.next {
+                    let next_offset = next.read().next_raw();
+                    if next_offset == 0 {
+                        self.fused_finished = true;
+                        return None;
+                    }
+                    next.as_raw_ptr()
+                        .cast::<u8>()
+                        .add((next_offset as usize) << 2)
+                        .cast()
+                } else {
+                    self.xhci.capabilities
+                        .as_raw_ptr()
+                        .cast::<u8>()
+                        .add(
+                            (self.xhci.capabilities.read().hccparams1.xecp() as usize) << 2
+                        )
+                        .cast()
+                }
+            )
+        };
+        self.next = Some(next);
+        self.next
     }
 }
