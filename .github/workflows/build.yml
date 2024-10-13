@@ -39,6 +39,7 @@ jobs:
           rustup target add x86_64-unknown-none
       - name: Install e2fsprogs
         run: |
+          sudo apt update
           sudo apt install -y e2fsprogs
       - name: Clippy
         run: |
@@ -70,6 +71,7 @@ jobs:
           rustup target add x86_64-unknown-none
       - name: Install e2fsprogs and qemu
         run: |
+          sudo apt update
           sudo apt install -y e2fsprogs qemu-system
       - name: Test
         run: |
@@ -103,6 +105,7 @@ jobs:
           rustup target add x86_64-unknown-none
       - name: Install e2fsprogs
         run: |
+          sudo apt update
           sudo apt install -y e2fsprogs
       - name: Build
         run: |
