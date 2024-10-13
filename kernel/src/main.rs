@@ -8,13 +8,13 @@ use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
-
 use kernel::arch::panic::handle_panic;
 use kernel::driver::pci;
 use kernel::driver::pci::{PciDeviceClass, PciStandardHeaderDevice, SerialBusSubClass};
-use kernel::driver::xhci::XhciRegisters;
+use kernel::driver::xhci::{Psi, SupportedProtocolCapability, XhciRegisters};
 use kernel::process::{change_thread_priority, Priority, Process};
 use kernel::{bootloader_config, kernel_init, process, serial_println};
+use volatile::VolatilePtr;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -42,7 +42,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     );
 
     let xhci = pci::devices()
-        .filter(|d| matches!(d.class(), PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)) && d.prog_if() == 0x30)
+        .filter(|d| {
+            matches!(
+                d.class(),
+                PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)
+            ) && d.prog_if() == 0x30
+        })
         .map(|d| PciStandardHeaderDevice::new(d.clone()).unwrap())
         .map(|d| XhciRegisters::try_from(d).unwrap())
         .next()
@@ -50,23 +55,47 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     let capabilities = xhci.capabilities.read();
     xhci.extended_capabilities().for_each(|excap| {
-        let extended_capabilities = excap.read();
-        let name = match extended_capabilities.id() {
-            0x0 => "Reserved",
-            0x1 => "Legacy Support",
-            0x2 => "Supported Protocol",
-            0x3 => "Extended Power Management",
-            0x4 => "IO Virtualization",
-            0x5 => "Message Interrupt",
-            0x6 => "Local Memory",
-            0x7..=0x9 => "Reserved",
-            0xA => "USB Debug Capability",
-            0xB..=0x10 => "Reserved",
-            0x11 => "Extended Message Interrupt",
-            0x12..=0xBF => "Reserved",
-            0xC0..=0xFF => "Vendor Specific",
-        };
-        serial_println!("extended capability {}: {}", extended_capabilities.id(), name);
+        if excap.read().id() == 2 {
+            // we have Supported Protocol
+            let spc_ptr = unsafe {
+                VolatilePtr::new(excap.as_raw_ptr().cast::<SupportedProtocolCapability>())
+            };
+            let spc = spc_ptr.read();
+            serial_println!("Supported Protocol Capability: {:#?}", spc);
+
+            let psic = spc.psic();
+            if psic > 0 {
+                for i in 0..psic {
+                    let psi = unsafe {
+                        VolatilePtr::new(
+                            spc_ptr
+                                .as_raw_ptr()
+                                .add(1) // end of the struct, start of the first PSI
+                                .cast::<Psi>()
+                                .add(usize::from(i)),
+                        )
+                    };
+                    let psi = psi.read();
+                    let exponent = psi.psie() / 3;
+                    let bit_rate = usize::from(psi.psim()) * (10_usize.pow(u32::from(exponent)));
+
+                    serial_println!(
+                        "psi {} is {} operating at {} bits per second",
+                        psi.psiv(),
+                        match psi.lp() {
+                            0 => "SuperSpeed",
+                            1 => "SuperSpeedPlus",
+                            2..=3 => "Reserved",
+                            _ => "Unknown",
+                        },
+                        bit_rate,
+                    );
+                    serial_println!("psi: {:#?}", psi);
+                }
+            } else {
+                serial_println!("no PSIs, default speeds apply for this protocol");
+            }
+        }
     });
 
     let num_ports = capabilities.hcsparams1.max_ports();
@@ -81,7 +110,6 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         let speed = portsc.port_speed();
         serial_println!("port {} speed: {:?}", i, speed);
     }
-
 
     change_thread_priority(Priority::Low);
 
