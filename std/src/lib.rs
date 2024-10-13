@@ -5,8 +5,8 @@ extern crate alloc;
 use crate::syscall::sys_exit;
 
 pub mod arch;
-pub mod rt;
 pub mod print;
+pub mod rt;
 pub mod syscall;
 
 #[cfg(not(test))]

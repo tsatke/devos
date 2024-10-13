@@ -89,7 +89,10 @@ pub trait FileSystem: Send + Sync {
     /// Some files may not be backed by disk storage or virtual memory, but by physical memory.
     /// This method allows the file system to expose the physical memory backing the file in case
     /// it needs to be mmapped (such as frame buffers or other device-specific memory).
-    fn physical_memory(&self, _handle: VfsHandle) -> Result<Option<Box<dyn Iterator<Item=PhysFrame> + '_>>> {
+    fn physical_memory(
+        &self,
+        _handle: VfsHandle,
+    ) -> Result<Option<Box<dyn Iterator<Item = PhysFrame> + '_>>> {
         Ok(None)
     }
 }

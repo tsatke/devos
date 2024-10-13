@@ -24,7 +24,7 @@ macro_rules! next {
             panic!("can't get next because the node ptr is null")
         }
         unsafe { (*t).next() }
-    }}
+    }};
 }
 
 macro_rules! previous {
@@ -34,7 +34,7 @@ macro_rules! previous {
             panic!("can't get previous because the node ptr is null")
         }
         unsafe { (*t).previous() }
-    }}
+    }};
 }
 
 impl<T: IntrusiveNode> LockFreeIntrusiveLinkedList<T> {
@@ -50,14 +50,24 @@ impl<T: IntrusiveNode> LockFreeIntrusiveLinkedList<T> {
         assert_eq!(null_mut(), next!(t).load(Relaxed));
 
         loop {
-            if self.head.compare_exchange(null_mut(), t, Release, Relaxed).is_ok() {
-                self.tail.compare_exchange(null_mut(), t, Release, Relaxed).ok();
+            if self
+                .head
+                .compare_exchange(null_mut(), t, Release, Relaxed)
+                .is_ok()
+            {
+                self.tail
+                    .compare_exchange(null_mut(), t, Release, Relaxed)
+                    .ok();
                 return;
             }
 
             let ltail = self.tail.load(Relaxed);
             previous!(t).store(ltail, Relaxed);
-            if self.tail.compare_exchange(ltail, t, Release, Relaxed).is_ok() {
+            if self
+                .tail
+                .compare_exchange(ltail, t, Release, Relaxed)
+                .is_ok()
+            {
                 next!(ltail).store(t, Release);
                 return;
             }
@@ -72,9 +82,15 @@ impl<T: IntrusiveNode> LockFreeIntrusiveLinkedList<T> {
             }
 
             let lnext = next!(lhead).load(Relaxed);
-            if self.head.compare_exchange(lhead, lnext, Release, Relaxed).is_ok() {
+            if self
+                .head
+                .compare_exchange(lhead, lnext, Release, Relaxed)
+                .is_ok()
+            {
                 if lnext.is_null() {
-                    self.tail.compare_exchange(lhead, null_mut(), Release, Relaxed).ok();
+                    self.tail
+                        .compare_exchange(lhead, null_mut(), Release, Relaxed)
+                        .ok();
                 } else {
                     previous!(lnext).store(null_mut(), Release);
                 }
@@ -103,21 +119,39 @@ impl<T: IntrusiveNode> LockFreeIntrusiveLinkedList<T> {
             // If the other list's tail changed after we "took" the whole content, that means
             // that someone else added something to the list, and we trust them to have updated
             // the tail pointer.
-            other.tail.compare_exchange(other_tail, null_mut(), Release, Relaxed).ok();
+            other
+                .tail
+                .compare_exchange(other_tail, null_mut(), Release, Relaxed)
+                .ok();
 
             loop {
                 let old_tail = self.tail.load(Relaxed);
                 if old_tail.is_null() {
-                    if self.tail.compare_exchange(old_tail, other_tail, Release, Relaxed).is_ok() {
+                    if self
+                        .tail
+                        .compare_exchange(old_tail, other_tail, Release, Relaxed)
+                        .is_ok()
+                    {
                         // If the tail was null, the head was null as well, so we need to update that.
                         // If the head changed, that means that someone else added something
                         // to the list, and we trust them to have updated the head pointer.
-                        self.head.compare_exchange(null_mut(), other_head, Release, Relaxed).ok();
+                        self.head
+                            .compare_exchange(null_mut(), other_head, Release, Relaxed)
+                            .ok();
                         return;
                     }
-                } else if unsafe { (*old_tail).next() }.compare_exchange(null_mut(), other_head, Release, Relaxed).is_ok()
-                    && self.tail.compare_exchange(old_tail, other_tail, Release, Relaxed).is_ok() {
-                    if unsafe { (*other_head).previous() }.compare_exchange(null_mut(), old_tail, Release, Relaxed).is_err() {
+                } else if unsafe { (*old_tail).next() }
+                    .compare_exchange(null_mut(), other_head, Release, Relaxed)
+                    .is_ok()
+                    && self
+                        .tail
+                        .compare_exchange(old_tail, other_tail, Release, Relaxed)
+                        .is_ok()
+                {
+                    if unsafe { (*other_head).previous() }
+                        .compare_exchange(null_mut(), old_tail, Release, Relaxed)
+                        .is_err()
+                    {
                         continue 'outer;
                     }
                     return;
@@ -161,32 +195,38 @@ mod tests {
             next: AtomicPtr::default(),
             previous: AtomicPtr::default(),
             value: 0,
-        }.into_mut_ptr();
+        }
+        .into_mut_ptr();
         let node2 = Node {
             next: AtomicPtr::default(),
             previous: AtomicPtr::default(),
             value: 1,
-        }.into_mut_ptr();
+        }
+        .into_mut_ptr();
         let node3 = Node {
             next: AtomicPtr::default(),
             previous: AtomicPtr::default(),
             value: 2,
-        }.into_mut_ptr();
+        }
+        .into_mut_ptr();
         let node4 = Node {
             next: AtomicPtr::default(),
             previous: AtomicPtr::default(),
             value: 3,
-        }.into_mut_ptr();
+        }
+        .into_mut_ptr();
         let node5 = Node {
             next: AtomicPtr::default(),
             previous: AtomicPtr::default(),
             value: 4,
-        }.into_mut_ptr();
+        }
+        .into_mut_ptr();
         let node6 = Node {
             next: AtomicPtr::default(),
             previous: AtomicPtr::default(),
             value: 5,
-        }.into_mut_ptr();
+        }
+        .into_mut_ptr();
 
         let list1 = LockFreeIntrusiveLinkedList::new();
         list1.push_back(node1);

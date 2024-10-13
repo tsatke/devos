@@ -14,8 +14,8 @@ use file::Ext2Inode;
 use kernel_api::syscall::Stat;
 
 use crate::io::path::{Component, Path};
-use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, VfsHandle};
 use crate::io::vfs::error::{Result, VfsError};
+use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, VfsHandle};
 
 mod file;
 

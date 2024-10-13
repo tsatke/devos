@@ -5,12 +5,12 @@ use core::panic::PanicInfo;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
-use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
+use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::instructions::hlt;
 
-use kernel::{bootloader_config, kernel_init, process, serial_print, serial_println};
 use kernel::process::Priority;
 use kernel::qemu::ExitCode;
+use kernel::{bootloader_config, kernel_init, process, serial_print, serial_println};
 
 const CONFIG: BootloaderConfig = bootloader_config();
 

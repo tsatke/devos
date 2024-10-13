@@ -18,8 +18,8 @@ pub use tree::*;
 
 use crate::io::path::{OwnedPath, Path};
 use crate::io::vfs::{vfs, VfsError, VfsNode};
-use crate::mem::{AddressSpace, Size};
 use crate::mem::virt::{MapAt, VirtualMemoryManager};
+use crate::mem::{AddressSpace, Size};
 use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId};
 use crate::process::elf::ElfLoader;
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
@@ -34,7 +34,9 @@ mod tree;
 pub fn init(address_space: AddressSpace) {
     let root_process = Process::create_kernel(address_space);
     let current_thread = unsafe { Thread::kernel_thread(root_process.clone()) };
-    process_tree().write().add_thread(root_process.pid(), current_thread.id());
+    process_tree()
+        .write()
+        .add_thread(root_process.pid(), current_thread.id());
 
     scheduler::init(current_thread);
 }
@@ -51,11 +53,20 @@ pub fn current_thread() -> &'static Thread {
     unsafe { scheduler() }.current_thread()
 }
 
-pub fn spawn_thread_in_current_process(name: impl Into<String>, priority: Priority, func: extern "C" fn()) {
+pub fn spawn_thread_in_current_process(
+    name: impl Into<String>,
+    priority: Priority,
+    func: extern "C" fn(),
+) {
     spawn_thread(name, current(), priority, func)
 }
 
-pub fn spawn_thread(name: impl Into<String>, process: &Process, priority: Priority, func: extern "C" fn()) {
+pub fn spawn_thread(
+    name: impl Into<String>,
+    process: &Process,
+    priority: Priority,
+    func: extern "C" fn(),
+) {
     let thread = Thread::new_ready(process, name, priority, func);
     debug_assert_eq!(thread.state(), State::Ready);
     spawn(thread)
@@ -93,20 +104,26 @@ extern "C" fn trampoline() {
     let executable_file = proc.executable_file.as_ref().unwrap().as_path();
 
     let elf_data = {
-        let file = vfs().open(executable_file).expect("failed to open executable file");
+        let file = vfs()
+            .open(executable_file)
+            .expect("failed to open executable file");
 
         let mut stat = Stat::default();
-        vfs().stat(&file, &mut stat).expect("failed to stat executable file");
+        vfs()
+            .stat(&file, &mut stat)
+            .expect("failed to stat executable file");
 
         let size = stat.size as usize;
-        let addr = vmm().allocate_file_backed_vm_object(
-            format!("executable '{}' (len={})", executable_file, size),
-            file,
-            0,
-            MapAt::Anywhere,
-            size,
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-        ).expect("failed to create file-backed vm object for executable");
+        let addr = vmm()
+            .allocate_file_backed_vm_object(
+                format!("executable '{}' (len={})", executable_file, size),
+                file,
+                0,
+                MapAt::Anywhere,
+                size,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+            )
+            .expect("failed to create file-backed vm object for executable");
         unsafe { from_raw_parts(addr.as_ptr::<u8>(), size) }
     };
 
@@ -251,7 +268,9 @@ impl Process {
             attributes,
             executable_file,
         };
-        process_tree().write().insert_process(parent.clone(), res.clone());
+        process_tree()
+            .write()
+            .insert_process(parent.clone(), res.clone());
         res
     }
 

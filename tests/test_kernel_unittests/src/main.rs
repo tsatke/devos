@@ -3,10 +3,10 @@
 
 use core::panic::PanicInfo;
 
-use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
+use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 
-use kernel::{bootloader_config, kernel_init, serial_print, serial_println};
 use kernel::qemu::ExitCode;
+use kernel::{bootloader_config, kernel_init, serial_print, serial_println};
 
 const CONFIG: BootloaderConfig = bootloader_config();
 

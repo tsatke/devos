@@ -11,9 +11,9 @@ use x86_64::structures::paging::PhysFrame;
 use kernel_api::syscall::Stat;
 
 use crate::io::path::Path;
-use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, VfsHandle};
 use crate::io::vfs::devfs::zero::Zero;
 use crate::io::vfs::error::{Result, VfsError};
+use crate::io::vfs::{DirEntry, FileSystem, FileType, FsId, VfsHandle};
 
 mod fb;
 mod stdio;
@@ -33,7 +33,7 @@ pub trait DevFile: Send + Sync {
 
     fn stat(&self, stat: &mut Stat) -> Result<()>;
 
-    fn physical_memory(&self) -> Result<Option<Box<dyn Iterator<Item=PhysFrame> + '_>>> {
+    fn physical_memory(&self) -> Result<Option<Box<dyn Iterator<Item = PhysFrame> + '_>>> {
         Ok(None)
     }
 }
@@ -67,8 +67,13 @@ impl<'a> VirtualDevFs<'a> {
         res
     }
 
-    pub fn register_file<F: Fn() -> Box<dyn DevFile> + 'a + Send + Sync>(&mut self, path: impl AsRef<str>, open_fn: F) {
-        self.open_functions.insert(path.as_ref().to_string(), Box::new(open_fn));
+    pub fn register_file<F: Fn() -> Box<dyn DevFile> + 'a + Send + Sync>(
+        &mut self,
+        path: impl AsRef<str>,
+        open_fn: F,
+    ) {
+        self.open_functions
+            .insert(path.as_ref().to_string(), Box::new(open_fn));
     }
 }
 
@@ -94,10 +99,10 @@ impl FileSystem for VirtualDevFs<'_> {
     }
 
     fn open(&mut self, path: &Path) -> Result<VfsHandle> {
-        let implementation = self.open_functions
+        let implementation = self
+            .open_functions
             .get(path.to_string().as_str())
-            .ok_or(VfsError::NoSuchFile)?
-            ();
+            .ok_or(VfsError::NoSuchFile)?();
         let handle = next_handle();
         self.handles.insert(handle, implementation);
         Ok(handle)
@@ -153,7 +158,10 @@ impl FileSystem for VirtualDevFs<'_> {
         Err(VfsError::Unsupported)
     }
 
-    fn physical_memory(&self, handle: VfsHandle) -> Result<Option<Box<dyn Iterator<Item=PhysFrame> + '_>>> {
+    fn physical_memory(
+        &self,
+        handle: VfsHandle,
+    ) -> Result<Option<Box<dyn Iterator<Item = PhysFrame> + '_>>> {
         self.get_impl(handle)?.physical_memory()
     }
 }

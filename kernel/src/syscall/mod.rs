@@ -11,13 +11,13 @@ pub use dispatch::*;
 pub use error::*;
 use kernel_api::syscall::{Errno, FfiSockAddr, FileMode, SocketDomain, SocketType, Stat};
 
-use crate::{process, serial_println};
 use crate::io::path::Path;
 use crate::io::socket::create_socket;
 use crate::io::vfs::vfs;
 use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::process::fd::Fileno;
 use crate::process::vmm;
+use crate::{process, serial_println};
 
 mod convert;
 mod dispatch;
@@ -109,7 +109,10 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Result<()> {
         return Err(Errno::ENOSYS);
     }
 
-    vfs().stat_path(path, &mut Stat::default()).map_err(Into::into).map(|_| ())
+    vfs()
+        .stat_path(path, &mut Stat::default())
+        .map_err(Into::into)
+        .map(|_| ())
 }
 
 pub fn sys_close(fd: Fileno) -> Result<()> {
@@ -181,7 +184,11 @@ pub fn sys_mmap(
         offset
     );
 
-    let addr = if addr.is_null() { MapAt::Anywhere } else { MapAt::Fixed(addr) };
+    let addr = if addr.is_null() {
+        MapAt::Anywhere
+    } else {
+        MapAt::Fixed(addr)
+    };
 
     let mut flags = PageTableFlags::empty();
     if prot.contains(Prot::Read) {
@@ -215,7 +222,9 @@ pub fn sys_mmap(
             .clone();
 
         let mut stat = Stat::default();
-        vfs().stat_path(node.path(), &mut stat).map_err(Into::<Errno>::into)?;
+        vfs()
+            .stat_path(node.path(), &mut stat)
+            .map_err(Into::<Errno>::into)?;
 
         if stat.mode.is_regular_file() {
             vmm()
@@ -230,8 +239,7 @@ pub fn sys_mmap(
                 .map_err(|_| Errno::ENOMEM)?
         } else {
             // check whether the file is a device and needs special handling
-            if let Some(phys_frames) = node.fs().read()
-                .physical_memory(node.handle())? {
+            if let Some(phys_frames) = node.fs().read().physical_memory(node.handle())? {
                 let frames = phys_frames.collect::<Vec<_>>();
                 vmm()
                     .allocate_memory_backed_vmobject(
@@ -244,7 +252,10 @@ pub fn sys_mmap(
                     .map_err(|_| Errno::ENOMEM)?
             } else {
                 // we have some non-regular file that doesn't have physical memory, what?
-                panic!("mmap unsupported file type: {:#?} (doesn't have physical memory)", stat.mode.bitand(FileMode::S_IFMT));
+                panic!(
+                    "mmap unsupported file type: {:#?} (doesn't have physical memory)",
+                    stat.mode.bitand(FileMode::S_IFMT)
+                );
             }
         }
     };

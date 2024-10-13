@@ -94,15 +94,51 @@ impl Display for FileMode {
             FileMode::S_IFIFO => 'p',
             _ => '?',
         });
-        s.push(if self.contains(FileMode::S_IRUSR) { 'r' } else { '-' });
-        s.push(if self.contains(FileMode::S_IWUSR) { 'w' } else { '-' });
-        s.push(if self.contains(FileMode::S_IXUSR) { 'x' } else { '-' });
-        s.push(if self.contains(FileMode::S_IRGRP) { 'r' } else { '-' });
-        s.push(if self.contains(FileMode::S_IWGRP) { 'w' } else { '-' });
-        s.push(if self.contains(FileMode::S_IXGRP) { 'x' } else { '-' });
-        s.push(if self.contains(FileMode::S_IROTH) { 'r' } else { '-' });
-        s.push(if self.contains(FileMode::S_IWOTH) { 'w' } else { '-' });
-        s.push(if self.contains(FileMode::S_IXOTH) { 'x' } else { '-' });
+        s.push(if self.contains(FileMode::S_IRUSR) {
+            'r'
+        } else {
+            '-'
+        });
+        s.push(if self.contains(FileMode::S_IWUSR) {
+            'w'
+        } else {
+            '-'
+        });
+        s.push(if self.contains(FileMode::S_IXUSR) {
+            'x'
+        } else {
+            '-'
+        });
+        s.push(if self.contains(FileMode::S_IRGRP) {
+            'r'
+        } else {
+            '-'
+        });
+        s.push(if self.contains(FileMode::S_IWGRP) {
+            'w'
+        } else {
+            '-'
+        });
+        s.push(if self.contains(FileMode::S_IXGRP) {
+            'x'
+        } else {
+            '-'
+        });
+        s.push(if self.contains(FileMode::S_IROTH) {
+            'r'
+        } else {
+            '-'
+        });
+        s.push(if self.contains(FileMode::S_IWOTH) {
+            'w'
+        } else {
+            '-'
+        });
+        s.push(if self.contains(FileMode::S_IXOTH) {
+            'x'
+        } else {
+            '-'
+        });
         write!(f, "{}", s)
     }
 }

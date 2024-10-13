@@ -15,7 +15,7 @@ mod raw;
 
 static DEVICES: OnceCell<Devices> = OnceCell::uninit();
 
-pub fn devices() -> impl Iterator<Item=&'static PciDevice> {
+pub fn devices() -> impl Iterator<Item = &'static PciDevice> {
     DEVICES
         .get_or_init(|| {
             let mut devices = Vec::new();

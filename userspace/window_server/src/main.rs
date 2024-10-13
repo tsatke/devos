@@ -7,7 +7,9 @@ use alloc::string::ToString;
 use core::slice::from_raw_parts_mut;
 
 use kernel_api::syscall::{FfiSockAddr, SocketDomain, SocketType, Stat};
-use std::syscall::{sys_bind, sys_close, sys_exit, sys_mmap, sys_open, sys_socket, sys_stat, Errno};
+use std::syscall::{
+    sys_bind, sys_close, sys_exit, sys_mmap, sys_open, sys_socket, sys_stat, Errno,
+};
 use std::{println, rt};
 
 #[no_mangle]
@@ -61,8 +63,7 @@ fn main() {
 
     for v in (0x00..0xFF).chain((0x00..0xFF).rev()).cycle() {
         for _ in 0..5 {
-            fb
-                .chunks_exact_mut(WIDTH)
+            fb.chunks_exact_mut(WIDTH)
                 .skip(200)
                 .take(80)
                 .flat_map(|row| row.iter_mut().skip(400).take(80))

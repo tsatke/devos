@@ -36,8 +36,7 @@ pub fn init() {
         .expect("we need at least one additional IDE drive for now")
         .clone();
     let root_drive_cache = CachingBlockDevice::new(
-        root_drive,
-        204_800, // 100 MB
+        root_drive, 204_800, // 100 MB
     );
 
     let ext2fs = VirtualExt2Fs::new(
@@ -107,7 +106,7 @@ impl Vfs {
         Ok(VfsNode::new(path.into(), handle, fs))
     }
 
-    pub fn read_dir<P>(&self, path: P) -> Result<impl Iterator<Item=DirEntry>>
+    pub fn read_dir<P>(&self, path: P) -> Result<impl Iterator<Item = DirEntry>>
     where
         P: AsRef<Path>,
     {

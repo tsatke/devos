@@ -4,9 +4,9 @@ use alloc::string::String;
 use spin::RwLock;
 use x86_64::structures::paging::PageTableFlags;
 
-use crate::process::{current, Process};
 use crate::process::attributes::ProcessId;
 use crate::process::scheduler::thread::ThreadId;
+use crate::process::{current, Process};
 use crate::serial_println;
 
 static PROCESS_TREE: RwLock<ProcessTree> = RwLock::new(ProcessTree::new());
@@ -93,7 +93,7 @@ impl ProcessTree {
             .remove(thread_id);
     }
 
-    pub fn threads(&self, process_id: &ProcessId) -> Option<impl Iterator<Item=&ThreadId>> {
+    pub fn threads(&self, process_id: &ProcessId) -> Option<impl Iterator<Item = &ThreadId>> {
         self.threads.get(process_id).map(|threads| threads.iter())
     }
 

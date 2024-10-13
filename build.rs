@@ -37,7 +37,7 @@ fn main() {
         .filter(|e| {
             e.is_dir()
                 && e.file_name()
-                .is_some_and(|f| f.to_str().unwrap().starts_with("test_kernel_"))
+                    .is_some_and(|f| f.to_str().unwrap().starts_with("test_kernel_"))
         })
         .map(|e| {
             e.file_name()
@@ -51,7 +51,7 @@ fn main() {
                 test_kernel.to_uppercase(),
                 test_kernel
             ))
-                .unwrap(),
+            .unwrap(),
         );
         let test_kernel_path = out_dir.join(format!("{test_kernel}.img"));
         bootloader::UefiBoot::new(&test_kernel_binary_path)
@@ -140,8 +140,8 @@ fn build_os_disk(out_dir: &Path) -> PathBuf {
 }
 
 fn copy_artifact_into_dir<P>(destination: P, artifact_file: P) -> Result<(), Error>
-    where
-        P: AsRef<Path>,
+where
+    P: AsRef<Path>,
 {
     let dir = destination.as_ref();
     assert!(dir.exists());

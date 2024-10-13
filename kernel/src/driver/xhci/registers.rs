@@ -17,25 +17,41 @@ pub struct Registers<'a> {
 
 impl Registers<'_> {
     pub fn new(base: VirtAddr) -> Self {
-        let capabilities = unsafe { VolatilePtr::new(NonNull::new(base.as_mut_ptr::<Capabilities>()).unwrap()) };
+        let capabilities =
+            unsafe { VolatilePtr::new(NonNull::new(base.as_mut_ptr::<Capabilities>()).unwrap()) };
 
         let caplength = capabilities.caplength().read();
         let operational_base = base + caplength as u64;
-        assert!(base + size_of::<Capabilities>() < operational_base, "capabilities registers should not overlap into operational registers");
-        let operational = unsafe { VolatilePtr::new(NonNull::new(operational_base.as_mut_ptr::<Operational>()).unwrap()) };
+        assert!(
+            base + size_of::<Capabilities>() < operational_base,
+            "capabilities registers should not overlap into operational registers"
+        );
+        let operational = unsafe {
+            VolatilePtr::new(NonNull::new(operational_base.as_mut_ptr::<Operational>()).unwrap())
+        };
 
         let port_base = operational_base + 0x400_usize;
-        assert!(operational_base + size_of::<Operational>() < port_base, "operational registers should not overlap into port registers");
-        let port = unsafe { VolatilePtr::new(NonNull::new(port_base.as_mut_ptr::<Port>()).unwrap()) };
+        assert!(
+            operational_base + size_of::<Operational>() < port_base,
+            "operational registers should not overlap into port registers"
+        );
+        let port =
+            unsafe { VolatilePtr::new(NonNull::new(port_base.as_mut_ptr::<Port>()).unwrap()) };
 
         let rtsoff = capabilities.rtsoff().read();
         let runtime_base = base + rtsoff as u64;
-        let runtime = unsafe { VolatilePtr::new(NonNull::new(runtime_base.as_mut_ptr::<Runtime>()).unwrap()) };
+        let runtime = unsafe {
+            VolatilePtr::new(NonNull::new(runtime_base.as_mut_ptr::<Runtime>()).unwrap())
+        };
 
-        Self { capabilities, operational, port, runtime }
+        Self {
+            capabilities,
+            operational,
+            port,
+            runtime,
+        }
     }
 }
-
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, VolatileFieldAccess)]
@@ -64,4 +80,3 @@ pub struct Interrupter {
     #[access(ReadWrite)]
     erdp: u64,
 }
-

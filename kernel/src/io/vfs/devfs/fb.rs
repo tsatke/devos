@@ -4,7 +4,9 @@ use alloc::vec::Vec;
 use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
-use crate::driver::pci::{BaseAddressRegister, DisplaySubClass, PciDeviceClass, PciStandardHeaderDevice};
+use crate::driver::pci::{
+    BaseAddressRegister, DisplaySubClass, PciDeviceClass, PciStandardHeaderDevice,
+};
 use kernel_api::syscall::{FileMode, Stat};
 
 use crate::io::vfs::devfs::DevFile;
@@ -36,23 +38,21 @@ impl DevFile for Fb {
         Ok(())
     }
 
-    fn physical_memory(&self) -> Result<Option<Box<dyn Iterator<Item=PhysFrame> + '_>>> {
+    fn physical_memory(&self) -> Result<Option<Box<dyn Iterator<Item = PhysFrame> + '_>>> {
         Ok(Some(Box::new(self.frames.iter().cloned())))
     }
 }
 
-pub fn find_fbs() -> impl Iterator<Item=Fb> {
+pub fn find_fbs() -> impl Iterator<Item = Fb> {
     find_vga_fbs()
 }
 
-fn find_vga_fbs() -> impl Iterator<Item=Fb> {
+fn find_vga_fbs() -> impl Iterator<Item = Fb> {
     crate::driver::pci::devices()
         .find(|device| {
             matches!(
                 device.class(),
-                PciDeviceClass::DisplayController(
-                    DisplaySubClass::VGACompatibleController
-                )
+                PciDeviceClass::DisplayController(DisplaySubClass::VGACompatibleController)
             )
         })
         .map(|device| PciStandardHeaderDevice::new(device.clone()).unwrap())

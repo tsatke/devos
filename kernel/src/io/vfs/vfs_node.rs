@@ -32,7 +32,7 @@ pub struct Inner {
     fs: Arc<RwLock<dyn FileSystem>>,
 }
 
-impl ! Clone for Inner {}
+impl !Clone for Inner {}
 
 impl Debug for VfsNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {

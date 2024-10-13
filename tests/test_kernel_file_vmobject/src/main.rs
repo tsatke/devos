@@ -6,14 +6,14 @@ extern crate alloc;
 use alloc::string::ToString;
 use core::panic::PanicInfo;
 
-use bootloader_api::{BootInfo, BootloaderConfig, entry_point};
+use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use x86_64::structures::paging::PageTableFlags;
 
-use kernel::{bootloader_config, kernel_init, serial_print, serial_println};
 use kernel::io::vfs::vfs;
 use kernel::mem::virt::MapAt;
 use kernel::process::vmm;
 use kernel::qemu::ExitCode;
+use kernel::{bootloader_config, kernel_init, serial_print, serial_println};
 use kernel_api::syscall::Stat;
 
 const CONFIG: BootloaderConfig = bootloader_config();

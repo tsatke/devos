@@ -7,7 +7,11 @@ pub const KERNEL_BINARY: &str = env!("KERNEL_BINARY");
 pub const OS_DISK: &str = env!("OS_DISK");
 
 pub fn create_qcow_image(os_disk: &str) -> String {
-    let name = rand::thread_rng().sample_iter(&Alphanumeric).take(10).map(char::from).collect::<String>();
+    let name = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(10)
+        .map(char::from)
+        .collect::<String>();
     let disk_image = format!("{}/{}.qcow2", env!("OUT_DIR"), name);
 
     let output = std::process::Command::new("qemu-img")

@@ -52,14 +52,18 @@ impl VmObject for FileBackedVmObject {
 
                 vfs()
                     /*
-                     We need to align_down the offset to the page size, since we want to read the
-                     content of the page, not one page from whatever offset is being accessed within
-                     the page.
-                     To be more clear:
-                     If the page size is 4096, and page-offset 7 is being accessed, we want to read
-                     the content for the full page, from offset 0 to 4095, not from 7 to 4102.
-                     */
-                    .read(&self.node, slice, align_down(file_offset, page.size() as usize))
+                    We need to align_down the offset to the page size, since we want to read the
+                    content of the page, not one page from whatever offset is being accessed within
+                    the page.
+                    To be more clear:
+                    If the page size is 4096, and page-offset 7 is being accessed, we want to read
+                    the content for the full page, from offset 0 to 4095, not from 7 to 4102.
+                    */
+                    .read(
+                        &self.node,
+                        slice,
+                        align_down(file_offset, page.size() as usize),
+                    )
                     .map_err(|_| AllocationError::IoError)?;
                 Ok(())
             })

@@ -39,12 +39,7 @@ pub struct Queues<T> {
 }
 
 impl<T> Queues<T> {
-    pub fn new(
-        low: T,
-        normal: T,
-        high: T,
-        realtime: T,
-    ) -> Self {
+    pub fn new(low: T, normal: T, high: T, realtime: T) -> Self {
         Self {
             queues: [low, normal, high, realtime],
         }

@@ -6,7 +6,9 @@ use core::fmt::{Debug, Formatter};
 use crate::driver::ide::channel::IdeChannel;
 use crate::driver::ide::drive::IdeDrive;
 use crate::driver::ide::is_bit_set;
-use crate::driver::pci::{InterruptPin, MassStorageSubClass, PciDeviceClass, PciStandardHeaderDevice};
+use crate::driver::pci::{
+    InterruptPin, MassStorageSubClass, PciDeviceClass, PciStandardHeaderDevice,
+};
 use spin::RwLock;
 
 pub struct IdeController {

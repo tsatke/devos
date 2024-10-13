@@ -6,8 +6,8 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
+use std::syscall::{sys_close, sys_exit, sys_open, sys_read, Errno};
 use std::{println, rt};
-use std::syscall::{Errno, sys_close, sys_exit, sys_open, sys_read};
 
 #[no_mangle]
 pub fn _start() -> isize {
@@ -35,7 +35,10 @@ fn main() {
     let mut data = vec![0_u8; 13];
     let n_read = must(sys_read(greeting, &mut data[0..13]));
     assert_eq!(n_read, 13);
-    println!("hello.txt contained: '{}'", core::str::from_utf8(&data).unwrap());
+    println!(
+        "hello.txt contained: '{}'",
+        core::str::from_utf8(&data).unwrap()
+    );
 
     sys_close(greeting);
 }

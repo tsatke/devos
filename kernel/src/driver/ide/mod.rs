@@ -17,7 +17,7 @@ mod drive;
 
 static IDE_DEVICES: OnceCell<Vec<IdeBlockDevice>> = OnceCell::uninit();
 
-pub fn drives() -> impl Iterator<Item=&'static IdeBlockDevice> {
+pub fn drives() -> impl Iterator<Item = &'static IdeBlockDevice> {
     IDE_DEVICES.get_or_init(collect_devices).iter()
 }
 

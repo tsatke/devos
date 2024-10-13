@@ -1,5 +1,5 @@
-use alloc::collections::{BTreeMap, VecDeque};
 use alloc::collections::btree_map::Entry::{Occupied, Vacant};
+use alloc::collections::{BTreeMap, VecDeque};
 use alloc::vec;
 use alloc::vec::Vec;
 
@@ -22,18 +22,15 @@ struct Inner<T> {
     accessed_sectors: VecDeque<usize>,
 }
 
-impl<T> CachingBlockDevice<T>
-{
+impl<T> CachingBlockDevice<T> {
     pub fn new(device: T, max_sector_count: usize) -> Self {
         CachingBlockDevice {
-            inner: RwLock::new(
-                Inner {
-                    max_sector_count,
-                    device,
-                    cached_sectors: Default::default(),
-                    accessed_sectors: Default::default(),
-                }
-            ),
+            inner: RwLock::new(Inner {
+                max_sector_count,
+                device,
+                cached_sectors: Default::default(),
+                accessed_sectors: Default::default(),
+            }),
         }
     }
 }
@@ -63,12 +60,15 @@ where
     }
 }
 
-
 impl<T> Inner<T>
 where
     T: BlockDevice,
 {
-    fn read_sector(&mut self, sector_index: usize, buf: &mut [u8]) -> Result<usize, <CachingBlockDevice<T> as BlockDevice>::Error> {
+    fn read_sector(
+        &mut self,
+        sector_index: usize,
+        buf: &mut [u8],
+    ) -> Result<usize, <CachingBlockDevice<T> as BlockDevice>::Error> {
         if let Vacant(e) = self.cached_sectors.entry(sector_index) {
             // we don't have the sector in cache, so we need to load it from the device
             let mut sector = CachedSector {
@@ -97,7 +97,11 @@ where
         Ok(buf.len())
     }
 
-    fn write_sector(&mut self, sector_index: usize, buf: &[u8]) -> Result<usize, <CachingBlockDevice<T> as BlockDevice>::Error> {
+    fn write_sector(
+        &mut self,
+        sector_index: usize,
+        buf: &[u8],
+    ) -> Result<usize, <CachingBlockDevice<T> as BlockDevice>::Error> {
         match self.cached_sectors.entry(sector_index) {
             Vacant(e) => {
                 // The sector is not in the cache, so we create a new one. We don't need to
@@ -127,7 +131,10 @@ where
 
     fn evict_if_necessary(&mut self) -> Result<(), <CachingBlockDevice<T> as BlockDevice>::Error> {
         while self.accessed_sectors.len() > self.max_sector_count {
-            let to_remove = self.accessed_sectors.pop_back().expect("accessed_sectors is empty");
+            let to_remove = self
+                .accessed_sectors
+                .pop_back()
+                .expect("accessed_sectors is empty");
             let sector = self.cached_sectors.remove(&to_remove).unwrap();
             if sector.dirty {
                 // If the removed sector is dirty, write it back to the device

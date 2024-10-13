@@ -2,16 +2,19 @@ use core::ffi::CStr;
 use core::ptr;
 use core::slice::from_raw_parts;
 
-use kernel_api::PATH_MAX;
 use kernel_api::syscall::{Errno, FfiSockAddr, SocketDomain, SocketType, Stat, Syscall};
+use kernel_api::PATH_MAX;
 
 use crate::process::fd::Fileno;
-use crate::syscall::{MapFlags, Prot, sys_access, sys_bind, sys_close, sys_exit, sys_mmap, sys_read, sys_socket, sys_stat, sys_write};
-use crate::syscall::{AMode, sys_open};
 use crate::syscall::convert::{
     TryFromUserspaceAddress, TryFromUserspaceRange, UserspaceAddress, UserspaceRange,
 };
 use crate::syscall::error::Result;
+use crate::syscall::{
+    sys_access, sys_bind, sys_close, sys_exit, sys_mmap, sys_read, sys_socket, sys_stat, sys_write,
+    MapFlags, Prot,
+};
+use crate::syscall::{sys_open, AMode};
 
 fn check_is_userspace(arg: usize) -> Result<()> {
     UserspaceAddress::try_from(arg).map_err(|_| Errno::EINVAL)?;

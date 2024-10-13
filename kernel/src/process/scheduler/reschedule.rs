@@ -5,9 +5,9 @@ use core::sync::atomic::Ordering::{Relaxed, Release};
 use x86_64::instructions::interrupts;
 
 use crate::arch::switch::switch;
-use crate::process::{IN_RESCHEDULE, Priority, Scheduler};
 use crate::process::scheduler::{FINISHED_THREADS, NEW_THREADS};
 use crate::process::thread::{State, Thread};
+use crate::process::{Priority, Scheduler, IN_RESCHEDULE};
 
 impl Scheduler {
     /// Reschedules to another thread.
@@ -24,7 +24,10 @@ impl Scheduler {
     ///
     /// Only call this on timer interrupts and if you know what you're doing.
     pub unsafe fn reschedule(&mut self) {
-        if IN_RESCHEDULE.compare_exchange(false, true, Release, Relaxed).is_err() {
+        if IN_RESCHEDULE
+            .compare_exchange(false, true, Release, Relaxed)
+            .is_err()
+        {
             return;
         }
 
@@ -78,7 +81,9 @@ impl Scheduler {
         let mut next_thread = next_thread;
         next_thread.set_state(State::Running);
         assert_eq!(self.current_thread.state(), next_thread.state());
-        let new_priority_for_old_task = self.current_thread_prio.swap(next_thread.priority(), Relaxed);
+        let new_priority_for_old_task = self
+            .current_thread_prio
+            .swap(next_thread.priority(), Relaxed);
 
         swap(self.current_thread.as_mut(), &mut next_thread);
         (new_priority_for_old_task, next_thread)

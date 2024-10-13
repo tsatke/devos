@@ -18,7 +18,11 @@ enum AccessMode<'a> {
 }
 
 impl IdeBlockDevice {
-    fn access_disk(&self, sector: usize, access_mode: AccessMode) -> Result<usize, <IdeBlockDevice as BlockDevice>::Error> {
+    fn access_disk(
+        &self,
+        sector: usize,
+        access_mode: AccessMode,
+    ) -> Result<usize, <IdeBlockDevice as BlockDevice>::Error> {
         match &access_mode {
             AccessMode::Read(buf) => assert_eq!(buf.len(), self.sector_size()),
             AccessMode::Write(buf) => assert_eq!(buf.len(), self.sector_size()),

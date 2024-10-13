@@ -5,16 +5,16 @@ use alloc::vec::Vec;
 use core::fmt::{Debug, Formatter};
 use core::mem::size_of;
 use core::pin::Pin;
-use core::sync::atomic::{AtomicPtr, AtomicU64};
 use core::sync::atomic::Ordering::Relaxed;
+use core::sync::atomic::{AtomicPtr, AtomicU64};
 
 use derive_more::Display;
 use x86_64::registers::rflags::RFlags;
 
 use crate::mem::Size;
 use crate::process;
-use crate::process::{Priority, Process, process_tree};
 use crate::process::scheduler::lfill::IntrusiveNode;
+use crate::process::{process_tree, Priority, Process};
 
 const STACK_SIZE: usize = Size::KiB(32).bytes();
 
@@ -30,7 +30,7 @@ where
     }
 }
 
-impl ! Default for ThreadId {}
+impl !Default for ThreadId {}
 
 impl ThreadId {
     pub fn new() -> Self {
@@ -186,7 +186,9 @@ impl Thread {
             state: State::Ready,
         };
         thread.setup_stack(entry_point);
-        process_tree().write().add_thread(process.pid(), thread.id());
+        process_tree()
+            .write()
+            .add_thread(process.pid(), thread.id());
         thread
     }
 

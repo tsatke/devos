@@ -1,6 +1,6 @@
 extern crate devos;
 
-use devos::{OS_DISK, run_test_kernel};
+use devos::{run_test_kernel, OS_DISK};
 
 #[test]
 fn test_kernel_unittests() {
