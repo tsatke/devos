@@ -51,11 +51,12 @@ impl Display for Size {
     }
 }
 
-#[cfg(test)]
+#[cfg(feature = "kernel_test")]
 mod tests {
     use super::*;
+    use kernel_test_framework::kernel_test;
 
-    #[test_case]
+    #[kernel_test]
     fn test_ord() {
         let _1k = Size::KiB(1);
         let _2k = Size::KiB(2);
@@ -74,7 +75,7 @@ mod tests {
         assert!(_1t < _2t);
     }
 
-    #[test_case]
+    #[kernel_test]
     fn test_eq() {
         assert_eq!(Size::KiB(1), Size::KiB(1));
         assert_eq!(Size::MiB(1), Size::MiB(1));
