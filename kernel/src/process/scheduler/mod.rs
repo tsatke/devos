@@ -1,6 +1,8 @@
 use alloc::boxed::Box;
 use core::array::IntoIter;
+use core::ffi::c_void;
 use core::iter::Cycle;
+use core::ptr;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
@@ -34,7 +36,12 @@ pub fn init(kernel_thread: Thread) {
     unsafe { SCHEDULER = Some(Scheduler::new(kernel_thread)) };
 
     // now that the finish queue is initialized, we can spawn the cleanup thread
-    spawn_thread_in_current_process("cleanup_finished_threads", Low, cleanup_finished_threads);
+    spawn_thread_in_current_process(
+        "cleanup_finished_threads",
+        Low,
+        cleanup_finished_threads,
+        ptr::null_mut(),
+    );
 }
 
 pub(crate) fn spawn(thread: Thread) {
@@ -42,7 +49,7 @@ pub(crate) fn spawn(thread: Thread) {
     NEW_THREADS.push_back(Box::into_raw(Box::new(thread)))
 }
 
-extern "C" fn cleanup_finished_threads() {
+extern "C" fn cleanup_finished_threads(_: *mut c_void) {
     loop {
         match FINISHED_THREADS.pop_front() {
             Some(thread) => {

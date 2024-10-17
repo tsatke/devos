@@ -3,6 +3,8 @@ use alloc::collections::BTreeMap;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
+use core::ffi::c_void;
+use core::ptr;
 use core::slice::from_raw_parts;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
@@ -56,18 +58,20 @@ pub fn current_thread() -> &'static Thread {
 pub fn spawn_thread_in_current_process(
     name: impl Into<String>,
     priority: Priority,
-    func: extern "C" fn(),
+    func: extern "C" fn(*mut c_void),
+    arg: *mut c_void,
 ) {
-    spawn_thread(name, current(), priority, func)
+    spawn_thread(name, current(), priority, func, arg)
 }
 
 pub fn spawn_thread(
     name: impl Into<String>,
     process: &Process,
     priority: Priority,
-    func: extern "C" fn(),
+    func: extern "C" fn(*mut c_void),
+    arg: *mut c_void,
 ) {
-    let thread = Thread::new_ready(process, name, priority, func);
+    let thread = Thread::new_ready(process, name, priority, func, arg);
     debug_assert_eq!(thread.state(), State::Ready);
     spawn(thread)
 }
@@ -96,7 +100,7 @@ pub struct Process {
     executable_file: Option<OwnedPath>,
 }
 
-extern "C" fn trampoline() {
+extern "C" fn trampoline(_: *mut c_void) {
     let proc = current();
     if proc.executable_file.is_none() {
         panic!("trampoline called for a process without an executable file");
@@ -186,7 +190,7 @@ impl Process {
         let path = path.as_ref();
 
         let proc = Self::create_user(parent, Some(path.to_owned()), path.to_string(), uid, gid);
-        spawn_thread("main", &proc, priority, trampoline);
+        spawn_thread("main", &proc, priority, trampoline, ptr::null_mut());
 
         proc
     }

@@ -2,6 +2,7 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
+use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
 use core::mem::size_of;
 use core::pin::Pin;
@@ -172,7 +173,8 @@ impl Thread {
         process: &Process,
         name: impl Into<String>,
         priority: Priority,
-        entry_point: extern "C" fn(),
+        entry_point: extern "C" fn(*mut c_void),
+        arg: *mut c_void,
     ) -> Thread {
         let mut thread = Self {
             id: ThreadId::new(),
@@ -185,14 +187,14 @@ impl Thread {
             prev: AtomicPtr::default(),
             state: State::Ready,
         };
-        thread.setup_stack(entry_point);
+        thread.setup_stack(entry_point, arg);
         process_tree()
             .write()
             .add_thread(process.pid(), thread.id());
         thread
     }
 
-    fn setup_stack(&mut self, entry_point: extern "C" fn()) {
+    fn setup_stack(&mut self, entry_point: extern "C" fn(*mut c_void), arg: *mut c_void) {
         let entry_point = entry_point as *const () as *const usize;
         let stack = self
             .stack
@@ -214,7 +216,7 @@ impl Thread {
         let rsp = writer.data.as_ptr() as u64 + writer.i as u64; // the stack starts before the thread state struct in memory (stack grows backwards)
         writer.write_thread_state(ThreadState {
             rsp, // stack pointer points to the state (stack grows backwards)
-            // rbp: rsp + size_of::<u64>() as u64, // base pointer points to the stack pointer
+            rdi: arg as u64,
             rbp: rsp,                // base pointer points to the stack pointer
             rip: entry_point as u64, // push the entry point as the instruction pointer
             rflags: (RFlags::IOPL_LOW | RFlags::INTERRUPT_FLAG).bits(),
