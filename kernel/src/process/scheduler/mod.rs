@@ -1,24 +1,26 @@
 use alloc::boxed::Box;
+use conquer_once::spin::OnceCell;
+use cordyceps::mpsc_queue::Links;
+use cordyceps::MpscQueue;
 use core::array::IntoIter;
 use core::ffi::c_void;
 use core::iter::Cycle;
+use core::pin::Pin;
 use core::ptr;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
-
 use x86_64::instructions::hlt;
 
 pub use queues::Priority;
 
 use crate::process::attributes::ProcessId;
-use crate::process::scheduler::lfill::LockFreeIntrusiveLinkedList;
 use crate::process::scheduler::queues::{AtomicPriority, Queues};
 use crate::process::scheduler::thread::{State, Thread};
+use crate::process::thread::ThreadId;
 use crate::process::Priority::{High, Low, Normal, Realtime};
 use crate::process::{process_tree, spawn_thread_in_current_process, Process};
 use crate::serial_println;
 
-pub mod lfill;
 mod queues;
 mod reschedule;
 pub mod thread;
@@ -28,11 +30,37 @@ static mut SCHEDULER: Option<Scheduler> = None;
 pub static IN_RESCHEDULE: AtomicBool = AtomicBool::new(false);
 
 // this needs to be a lock-free, allocation-free list, because the scheduler appends to it
-static FINISHED_THREADS: LockFreeIntrusiveLinkedList<Thread> = LockFreeIntrusiveLinkedList::new();
+static FINISHED_THREADS: OnceCell<MpscQueue<Thread>> = OnceCell::uninit();
 // this needs to be a lock-free, allocation-free list, because the scheduler reads from it
-static NEW_THREADS: LockFreeIntrusiveLinkedList<Thread> = LockFreeIntrusiveLinkedList::new();
+static NEW_THREADS: OnceCell<MpscQueue<Thread>> = OnceCell::uninit();
+
+fn finished_threads() -> &'static MpscQueue<Thread> {
+    FINISHED_THREADS
+        .get()
+        .expect("finished thread queue not initialized")
+}
+
+fn new_threads() -> &'static MpscQueue<Thread> {
+    NEW_THREADS.get().expect("new thread queue not initialized")
+}
+
+fn create_stub_thread() -> Pin<Box<Thread>> {
+    Box::pin(Thread {
+        id: ThreadId::new(),
+        name: "".into(),
+        process: process_tree().read().root_process().clone(),
+        priority: Low,
+        last_stack_ptr: Box::pin(0),
+        stack: None,
+        links: Links::default(),
+        state: State::Ready,
+    })
+}
 
 pub fn init(kernel_thread: Thread) {
+    FINISHED_THREADS.init_once(|| MpscQueue::new_with_stub(create_stub_thread()));
+    NEW_THREADS.init_once(|| MpscQueue::new_with_stub(create_stub_thread()));
+
     unsafe { SCHEDULER = Some(Scheduler::new(kernel_thread)) };
 
     // now that the finish queue is initialized, we can spawn the cleanup thread
@@ -46,24 +74,23 @@ pub fn init(kernel_thread: Thread) {
 
 pub(crate) fn spawn(thread: Thread) {
     assert_eq!(thread.state(), State::Ready);
-    NEW_THREADS.push_back(Box::into_raw(Box::new(thread)))
+    new_threads().enqueue(Box::pin(thread));
 }
 
 extern "C" fn cleanup_finished_threads(_: *mut c_void) {
     loop {
-        match FINISHED_THREADS.pop_front() {
-            Some(thread) => {
-                let thread = *unsafe { Box::from_raw(thread) };
+        match finished_threads().try_dequeue() {
+            Ok(thread) => {
+                let thread = Box::into_inner(Pin::into_inner(thread));
                 process_tree()
                     .write()
                     .remove_thread(thread.process().pid(), thread.id());
                 free_thread(thread);
             }
-            None => {
-                hlt();
-                continue;
+            Err(_) => {
+                hlt(); // use our "own" spin backoff
             }
-        }
+        };
     }
 }
 
@@ -99,7 +126,7 @@ pub struct Scheduler {
     current_thread_should_exit: AtomicBool,
     current_thread_prio: AtomicPriority,
     strategy: Cycle<IntoIter<Priority, STRATEGY_LENGTH>>,
-    ready: Queues<LockFreeIntrusiveLinkedList<Thread>>,
+    ready: Queues<MpscQueue<Thread>>,
     _dummy_last_stack_ptr: usize,
 }
 
@@ -121,10 +148,10 @@ impl Scheduler {
             .into_iter()
             .cycle(),
             ready: Queues::new(
-                LockFreeIntrusiveLinkedList::new(),
-                LockFreeIntrusiveLinkedList::new(),
-                LockFreeIntrusiveLinkedList::new(),
-                LockFreeIntrusiveLinkedList::new(),
+                MpscQueue::new_with_stub(create_stub_thread()),
+                MpscQueue::new_with_stub(create_stub_thread()),
+                MpscQueue::new_with_stub(create_stub_thread()),
+                MpscQueue::new_with_stub(create_stub_thread()),
             ),
             _dummy_last_stack_ptr: 0,
         }
@@ -164,8 +191,6 @@ fn free_thread(thread: Thread) {
     );
 
     // TODO: unwind
-
-    // TODO: deallocate stack
 
     let mut process_tree = process_tree().write();
     let pid = *thread.process().pid();

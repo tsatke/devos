@@ -54,6 +54,10 @@ impl ProcessTree {
         self.processes_by_id.insert(process_id, process);
     }
 
+    pub fn root_process(&self) -> &Process {
+        self.processes_by_id.get(&self.root_pid.unwrap()).unwrap()
+    }
+
     pub fn insert_process(&mut self, parent: Process, process: Process) {
         let parent_process_id = *parent.pid();
         let child_process_id = *process.pid();

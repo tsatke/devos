@@ -2,19 +2,20 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
+use cordyceps::mpsc_queue::Links;
+use cordyceps::Linked;
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
 use core::mem::size_of;
 use core::pin::Pin;
+use core::ptr::NonNull;
+use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
-use core::sync::atomic::{AtomicPtr, AtomicU64};
-
 use derive_more::Display;
 use x86_64::registers::rflags::RFlags;
 
 use crate::mem::Size;
 use crate::process;
-use crate::process::scheduler::lfill::IntrusiveNode;
 use crate::process::{process_tree, Priority, Process};
 
 const STACK_SIZE: usize = Size::KiB(32).bytes();
@@ -48,17 +49,16 @@ pub enum State {
 }
 
 pub struct Thread {
-    id: ThreadId,
-    name: String,
-    process: Process,
-    priority: Priority, // TODO: move priority into this module
-    last_stack_ptr: Pin<Box<usize>>,
-    stack: Option<Vec<u8>>,
+    pub(in crate::process::scheduler) id: ThreadId,
+    pub(in crate::process::scheduler) name: String,
+    pub(in crate::process::scheduler) process: Process,
+    pub(in crate::process::scheduler) priority: Priority, // TODO: move priority into this module
+    pub(in crate::process::scheduler) last_stack_ptr: Pin<Box<usize>>,
+    pub(in crate::process::scheduler) stack: Option<Vec<u8>>,
 
-    next: AtomicPtr<Thread>,
-    prev: AtomicPtr<Thread>,
+    pub(in crate::process::scheduler) links: Links<Self>,
 
-    state: State,
+    pub(in crate::process::scheduler) state: State,
 }
 
 impl Debug for Thread {
@@ -70,20 +70,28 @@ impl Debug for Thread {
             .field("last_stack_ptr", &self.last_stack_ptr)
             .field("stack_ptr", &self.stack.as_ref().map(|s| s.as_ptr()))
             .field("stack_len", &self.stack.as_ref().map(|s| s.len()))
-            .field("next", &self.next.load(Relaxed))
-            .field("prev", &self.prev.load(Relaxed))
+            .field("links", &self.links)
             .field("state", &self.state)
             .finish()
     }
 }
 
-impl IntrusiveNode for Thread {
-    fn next(&self) -> &AtomicPtr<Self> {
-        &self.next
+impl Unpin for Thread {}
+
+unsafe impl Linked<Links<Self>> for Thread {
+    type Handle = Pin<Box<Self>>;
+
+    fn into_ptr(r: Self::Handle) -> NonNull<Self> {
+        NonNull::from(Box::leak(Pin::into_inner(r)))
     }
 
-    fn previous(&self) -> &AtomicPtr<Self> {
-        &self.prev
+    unsafe fn from_ptr(ptr: NonNull<Self>) -> Self::Handle {
+        unsafe { Pin::new(Box::from_raw(ptr.as_ptr())) }
+    }
+
+    unsafe fn links(ptr: NonNull<Self>) -> NonNull<Links<Self>> {
+        let links = unsafe { &raw mut (*ptr.as_ptr()).links };
+        NonNull::new_unchecked(links)
     }
 }
 
@@ -183,8 +191,7 @@ impl Thread {
             priority,
             last_stack_ptr: Box::pin(0), // will be set correctly in [`setup_stack`]
             stack: Some(vec![0; STACK_SIZE]),
-            next: AtomicPtr::default(),
-            prev: AtomicPtr::default(),
+            links: Links::default(),
             state: State::Ready,
         };
         thread.setup_stack(entry_point, arg);
@@ -263,8 +270,7 @@ impl Thread {
             priority: Priority::Normal,
             last_stack_ptr: Box::pin(0), // will be set correctly during the next `reschedule`
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)
-            next: AtomicPtr::default(),
-            prev: AtomicPtr::default(),
+            links: Links::default(),
             state: State::Running,
         }
     }

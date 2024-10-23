@@ -5,12 +5,12 @@
 #![feature(arbitrary_self_types)]
 #![feature(array_chunks)]
 #![feature(assert_matches)]
+#![feature(box_into_inner)]
 #![feature(const_option)]
 #![feature(iter_array_chunks)]
 #![feature(naked_functions)]
 #![feature(negative_impls)]
 #![feature(never_type)]
-
 extern crate alloc;
 
 use bootloader_api::config::Mapping;

@@ -11,6 +11,7 @@ bitfield.workspace = true
 bitflags.workspace = true
 bootloader_api.workspace = true
 conquer-once.workspace = true
+cordyceps.workspace = true
 crossbeam-queue.workspace = true
 derive_more.workspace = true
 elfloader.workspace = true

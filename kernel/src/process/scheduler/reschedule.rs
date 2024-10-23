@@ -1,11 +1,12 @@
 use alloc::boxed::Box;
 use core::mem::swap;
+use core::pin::Pin;
 use core::sync::atomic::Ordering::{Relaxed, Release};
 
 use x86_64::instructions::interrupts;
 
 use crate::arch::switch::switch;
-use crate::process::scheduler::{FINISHED_THREADS, NEW_THREADS};
+use crate::process::scheduler::{finished_threads, new_threads};
 use crate::process::thread::{State, Thread};
 use crate::process::{Priority, Scheduler, IN_RESCHEDULE};
 
@@ -60,12 +61,12 @@ impl Scheduler {
         let should_exit = self.current_thread_should_exit.swap(false, Relaxed);
         let old_stack_ptr = if should_exit {
             old_thread.set_state(State::Finished);
-            FINISHED_THREADS.push_back(Box::into_raw(old_thread));
+            finished_threads().enqueue(Box::into_pin(old_thread));
             &mut self._dummy_last_stack_ptr as *mut usize
         } else {
             old_thread.set_state(State::Ready);
             let last_stack_ptr = old_thread.last_stack_ptr_mut().as_mut().get_mut() as *mut usize;
-            self.ready[priority].push_back(Box::into_raw(old_thread));
+            self.ready[priority].enqueue(Box::into_pin(old_thread));
             last_stack_ptr
         };
 
@@ -94,8 +95,8 @@ impl Scheduler {
             // this loop terminates because we must have at least the idle thread in a ready queue
             // (which is the old kernel task, that is in a hlt-loop)
             loop {
-                if let Some(thread) = self.ready[self.strategy.next().unwrap()].pop_front() {
-                    break unsafe { Box::from_raw(thread) };
+                if let Some(thread) = self.ready[self.strategy.next().unwrap()].dequeue() {
+                    break Pin::into_inner(thread);
                 }
             }
         };
@@ -103,9 +104,12 @@ impl Scheduler {
     }
 
     fn take_new_threads(&mut self) {
-        while let Some(thread) = NEW_THREADS.pop_front() {
-            let thread = unsafe { Box::from_raw(thread) };
-            self.ready[thread.priority()].push_back(Box::into_raw(thread));
+        // We don't care about the err case, whether it is because the queue is empty,
+        // in an inconsistent state or busy, we try again anyway. We don't want to way,
+        // which is why we use `try_dequeue` instead of `dequeue`, since the latter
+        // contains an implicit exponential backoff.
+        while let Ok(thread) = new_threads().try_dequeue() {
+            self.ready[thread.priority()].enqueue(thread);
         }
     }
 }
