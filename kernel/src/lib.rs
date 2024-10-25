@@ -6,7 +6,6 @@
 #![feature(array_chunks)]
 #![feature(assert_matches)]
 #![feature(box_into_inner)]
-#![feature(const_option)]
 #![feature(iter_array_chunks)]
 #![feature(naked_functions)]
 #![feature(negative_impls)]
