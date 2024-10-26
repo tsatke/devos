@@ -1,3 +1,4 @@
+use core::alloc::AllocError;
 use derive_more::Deref;
 
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Deref)]
@@ -45,6 +46,12 @@ impl From<usize> for Errno {
 impl From<Errno> for isize {
     fn from(value: Errno) -> Self {
         value.as_isize()
+    }
+}
+
+impl From<AllocError> for Errno {
+    fn from(_: AllocError) -> Self {
+        Errno::ENOMEM
     }
 }
 

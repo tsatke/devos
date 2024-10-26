@@ -299,7 +299,7 @@ pub fn sys_write(fd: Fileno, buf: &[u8]) -> Result<usize> {
 
 pub fn sys_socket(domain: SocketDomain, typ: SocketType, protocol: usize) -> Result<usize> {
     serial_println!("sys_socket({:?}, {:?}, {})", domain, typ, protocol);
-    let socket_id = create_socket();
+    let socket_id = create_socket()?;
 
     Ok(socket_id.into_usize())
 }

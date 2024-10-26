@@ -2,14 +2,14 @@
 #![no_main]
 #![feature(abi_x86_interrupt)]
 #![feature(allocator_api)]
-#![feature(arbitrary_self_types)]
-#![feature(array_chunks)]
 #![feature(assert_matches)]
 #![feature(box_into_inner)]
+#![feature(extend_one_unchecked)]
 #![feature(iter_array_chunks)]
 #![feature(naked_functions)]
 #![feature(negative_impls)]
 #![feature(never_type)]
+#![feature(vec_push_within_capacity)]
 extern crate alloc;
 
 use bootloader_api::config::Mapping;
@@ -33,6 +33,7 @@ pub mod apic;
 pub mod arch;
 pub mod driver;
 mod error;
+pub mod foundation;
 pub mod io;
 pub mod mem;
 pub mod process;
@@ -75,7 +76,7 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     gdt::init();
     idt::init();
     syscall::init();
-    mem::init(boot_info)?;
+    mem::init(boot_info)?; // sets up address space, thus implies process::init and scheduler::init
     acpi::init(boot_info)?;
     apic::init()?;
     vfs::init();
