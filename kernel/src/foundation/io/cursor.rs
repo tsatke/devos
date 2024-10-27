@@ -1,5 +1,5 @@
 use crate::foundation::io::{
-    Read, ReadError, ReadResult, Seek, SeekError, SeekFrom, Write, WriteError, WriteResult,
+    Bytes, Read, ReadError, ReadResult, Seek, SeekError, SeekFrom, Write, WriteError, WriteResult,
 };
 use core::num::NonZeroUsize;
 
@@ -11,6 +11,24 @@ pub struct Cursor<T> {
 impl<T> Cursor<T> {
     pub const fn new(data: T) -> Self {
         Self { index: 0, data }
+    }
+}
+
+impl<T: Clone> Clone for Cursor<T> {
+    fn clone(&self) -> Self {
+        Self {
+            index: self.index,
+            data: self.data.clone(),
+        }
+    }
+}
+
+impl<T> Cursor<T>
+where
+    T: AsRef<[u8]>,
+{
+    pub fn bytes(self) -> Bytes<Self> {
+        Bytes::new(self)
     }
 }
 
@@ -106,5 +124,25 @@ where
             }
         };
         Ok(self.index)
+    }
+}
+
+#[cfg(feature = "kernel_test")]
+mod tests {
+    use super::*;
+    use kernel_test_framework::kernel_test;
+
+    #[kernel_test]
+    fn test_cursor_iter() {
+        let data = b"Hello, World!";
+        let cursor = Cursor::new(data);
+        let bytes = cursor.bytes();
+
+        let mut read = 0;
+        for (i, b) in bytes.enumerate() {
+            read += 1;
+            assert_eq!(b.unwrap(), data[i]);
+        }
+        assert_eq!(read, data.len());
     }
 }
