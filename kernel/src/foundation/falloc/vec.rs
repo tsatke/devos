@@ -9,7 +9,7 @@ pub struct FVec<T> {
     inner: Vec<T>,
 }
 
-impl Debug for FVec<u8> {
+impl<T: Debug> Debug for FVec<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         Debug::fmt(&self.inner, f)
     }

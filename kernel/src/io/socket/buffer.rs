@@ -1,10 +1,11 @@
+use crate::foundation::io::{Read, ReadError, ReadResult, Write, WriteError, WriteResult};
 use crate::foundation::mem::RingBuffer;
 use core::alloc::AllocError;
 use spin::Mutex;
 
 /// A ring buffer for socket communication.
 pub struct SocketBuffer {
-    inner: Mutex<RingBuffer>,
+    inner: Mutex<RingBuffer<u8>>,
 }
 
 impl SocketBuffer {
@@ -17,12 +18,16 @@ impl SocketBuffer {
             inner: Mutex::new(RingBuffer::try_with_size(size)?),
         })
     }
+}
 
-    pub fn read(&self, buf: &mut [u8]) -> usize {
+impl Read<u8> for SocketBuffer {
+    fn read(&mut self, buf: &mut [u8]) -> Result<ReadResult, ReadError> {
         self.inner.lock().read(buf)
     }
+}
 
-    pub fn write(&self, buf: &[u8]) -> usize {
+impl Write<u8> for SocketBuffer {
+    fn write(&mut self, buf: &[u8]) -> Result<WriteResult, WriteError> {
         self.inner.lock().write(buf)
     }
 }
