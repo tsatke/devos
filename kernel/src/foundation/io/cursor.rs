@@ -1,7 +1,4 @@
-use crate::foundation::io::{
-    Bytes, Read, ReadError, ReadResult, Seek, SeekError, SeekFrom, Write, WriteError, WriteResult,
-};
-use core::num::NonZeroUsize;
+use crate::foundation::io::{Bytes, Read, ReadError, Seek, SeekError, SeekFrom, Write, WriteError};
 
 pub struct Cursor<T> {
     index: usize,
@@ -37,11 +34,11 @@ where
     T: AsRef<[E]>,
     E: Copy,
 {
-    fn read(&mut self, buf: &mut [E]) -> Result<ReadResult, ReadError> {
+    fn read(&mut self, buf: &mut [E]) -> Result<usize, ReadError> {
         let data = self.data.as_ref();
 
         if self.index == data.len() {
-            return Ok(ReadResult::EndOfStream);
+            return Err(ReadError::EndOfStream);
         }
 
         let start = self.index;
@@ -49,14 +46,7 @@ where
         let len = end - start;
         buf[..len].copy_from_slice(&data[start..end]);
         self.index = end;
-        let len = unsafe {
-            debug_assert!(
-                len > 0,
-                "if len is zero, this should have returned early already"
-            );
-            NonZeroUsize::new_unchecked(len)
-        };
-        Ok(ReadResult::Read(len))
+        Ok(len)
     }
 }
 
@@ -65,11 +55,11 @@ where
     T: AsMut<[E]>,
     E: Copy,
 {
-    fn write(&mut self, buf: &[E]) -> Result<WriteResult, WriteError> {
+    fn write(&mut self, buf: &[E]) -> Result<usize, WriteError> {
         let data = self.data.as_mut();
 
         if self.index == data.len() {
-            return Ok(WriteResult::NoMoreSpace);
+            return Err(WriteError::EndOfStream);
         }
 
         let start = self.index;
@@ -77,14 +67,7 @@ where
         let len = end - start;
         data[start..end].copy_from_slice(&buf[..len]);
         self.index = end;
-        let len = unsafe {
-            debug_assert!(
-                len > 0,
-                "if len is zero, this should have returned early already"
-            );
-            NonZeroUsize::new_unchecked(len)
-        };
-        Ok(WriteResult::Written(len))
+        Ok(len)
     }
 }
 

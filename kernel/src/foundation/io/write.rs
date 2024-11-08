@@ -1,43 +1,52 @@
 use crate::foundation::io::seek::seek_do_restore;
 use crate::foundation::io::{Seek, SeekError};
+use alloc::boxed::Box;
 use core::error::Error;
 use core::hint::spin_loop;
-use core::num::NonZeroUsize;
 use derive_more::Display;
 
 pub trait Write<T> {
-    fn write(&mut self, buf: &[T]) -> Result<WriteResult, WriteError>;
+    fn write(&mut self, buf: &[T]) -> Result<usize, WriteError>;
 
     fn write_exact(&mut self, buf: &[T]) -> Result<(), WriteExactError> {
         let mut buf = buf;
         while !buf.is_empty() {
             match self.write(buf) {
-                Ok(WriteResult::Written(n)) => buf = &buf[n.get()..],
-                Ok(WriteResult::TryAgain) => {
+                Ok(0) | Err(WriteError::TryAgain) => {
                     spin_loop();
                     continue;
                 }
-                Ok(WriteResult::NoMoreSpace) => return Err(WriteExactError::IncompleteWrite),
-                Err(e) => return Err(WriteExactError::Write(e)),
+                Ok(n) => buf = &buf[n..],
+                Err(WriteError::EndOfStream) => return Err(WriteExactError::IncompleteWrite),
             };
         }
         Ok(())
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
-pub enum WriteResult {
-    /// The indicated amount of elements has been written.
-    Written(NonZeroUsize),
-    /// Currently, no elements can be written, but the operation
-    /// may be successful later. Try again.
-    TryAgain,
-    /// There is no more space that could accommodate more elements.
-    NoMoreSpace,
+impl<T, U> Write<T> for &'_ mut U
+where
+    U: Write<T>,
+{
+    fn write(&mut self, buf: &[T]) -> Result<usize, WriteError> {
+        (*self).write(buf)
+    }
+}
+
+impl<T, U> Write<T> for Box<U>
+where
+    U: Write<T> + ?Sized,
+{
+    fn write(&mut self, buf: &[T]) -> Result<usize, WriteError> {
+        (*self).write(buf)
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
-pub enum WriteError {}
+pub enum WriteError {
+    TryAgain,
+    EndOfStream,
+}
 
 impl Error for WriteError {}
 
@@ -63,7 +72,7 @@ impl From<WriteError> for WriteExactError {
 }
 
 pub trait WriteAt<T> {
-    fn write_at(&mut self, buf: &[T], offset: usize) -> Result<WriteResult, WriteAtError>;
+    fn write_at(&mut self, buf: &[T], offset: usize) -> Result<usize, WriteAtError>;
 
     fn write_at_exact(&mut self, buf: &[T], offset: usize) -> Result<(), WriteAtExactError>;
 }
@@ -126,11 +135,15 @@ impl<T, E> WriteAt<E> for T
 where
     T: Write<E> + Seek,
 {
-    fn write_at(&mut self, buf: &[E], offset: usize) -> Result<WriteResult, WriteAtError> {
+    fn write_at(&mut self, buf: &[E], offset: usize) -> Result<usize, WriteAtError> {
         seek_do_restore(self, buf, offset, Write::write)
     }
 
     fn write_at_exact(&mut self, buf: &[E], offset: usize) -> Result<(), WriteAtExactError> {
         seek_do_restore(self, buf, offset, Write::write_exact)
     }
+}
+
+pub trait WriteInto<E> {
+    fn write_into(&self, out: &mut impl Write<E>) -> Result<(), WriteExactError>;
 }

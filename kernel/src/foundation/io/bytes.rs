@@ -1,4 +1,4 @@
-use crate::foundation::io::{Read, ReadError, ReadResult};
+use crate::foundation::io::{Read, ReadError};
 use core::slice;
 
 pub struct Bytes<R> {
@@ -18,13 +18,12 @@ impl<R: Read<u8>> Iterator for Bytes<R> {
         let mut byte = 0;
         loop {
             match self.reader.read(slice::from_mut(&mut byte)) {
-                Ok(ReadResult::Read(n)) => {
-                    debug_assert_eq!(1, n.get());
+                Ok(n) => {
+                    debug_assert_eq!(1, n);
                     return Some(Ok(byte));
                 }
-                Ok(ReadResult::TryAgain) => continue,
-                Ok(ReadResult::EndOfStream) => return None,
-                Err(e) => return Some(Err(e)),
+                Err(ReadError::TryAgain) => continue,
+                Err(ReadError::EndOfStream) => return None,
             }
         }
     }

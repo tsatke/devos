@@ -2,7 +2,6 @@ use crate::foundation::io::seek::seek_do_restore;
 use crate::foundation::io::seek::{Seek, SeekError};
 use core::error::Error;
 use core::hint::spin_loop;
-use core::num::NonZeroUsize;
 use derive_more::Display;
 
 pub trait Read<T> {
@@ -13,7 +12,7 @@ pub trait Read<T> {
     ///
     /// An implementation may perform short reads. To make sure that
     /// the entire buffer is filled with one call, use [`Read::read_exact`].
-    fn read(&mut self, buf: &mut [T]) -> Result<ReadResult, ReadError>;
+    fn read(&mut self, buf: &mut [T]) -> Result<usize, ReadError>;
 
     /// Reads from the current position into the provided buffer, filling the buffer
     /// completely. If successful, `buf.len()` bytes have been read and moved into
@@ -26,13 +25,12 @@ pub trait Read<T> {
         let mut buf = buf;
         while !buf.is_empty() {
             match self.read(buf) {
-                Ok(ReadResult::Read(n)) => buf = &mut buf[n.get()..],
-                Ok(ReadResult::TryAgain) => {
+                Ok(0) | Err(ReadError::TryAgain) => {
                     spin_loop();
                     continue;
                 }
-                Ok(ReadResult::EndOfStream) => return Err(ReadExactError::IncompleteRead),
-                Err(e) => return Err(ReadExactError::Read(e)),
+                Ok(n) => buf = &mut buf[n..],
+                Err(ReadError::EndOfStream) => return Err(ReadExactError::IncompleteRead),
             };
         }
         Ok(())
@@ -40,9 +38,7 @@ pub trait Read<T> {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
-pub enum ReadResult {
-    /// The indicated amount of elements has been read.
-    Read(NonZeroUsize),
+pub enum ReadError {
     /// No elements have been read, but more might become
     /// available. Try again.
     TryAgain,
@@ -50,9 +46,6 @@ pub enum ReadResult {
     /// The stream has reached the end.
     EndOfStream,
 }
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
-pub enum ReadError {}
 
 impl Error for ReadError {}
 
@@ -83,7 +76,7 @@ pub trait ReadAt<T> {
     /// Reads at the given absolute offset.
     ///
     /// See [`Read::read`].
-    fn read_at(&mut self, buf: &mut [T], offset: usize) -> Result<ReadResult, ReadAtError>;
+    fn read_at(&mut self, buf: &mut [T], offset: usize) -> Result<usize, ReadAtError>;
 
     /// Reads ath the given absolute offset and fills the entire buffer.
     ///
@@ -149,7 +142,7 @@ impl<T, E> ReadAt<E> for T
 where
     T: Read<E> + Seek,
 {
-    fn read_at(&mut self, buf: &mut [E], offset: usize) -> Result<ReadResult, ReadAtError> {
+    fn read_at(&mut self, buf: &mut [E], offset: usize) -> Result<usize, ReadAtError> {
         seek_do_restore(self, buf, offset, Read::read)
     }
 

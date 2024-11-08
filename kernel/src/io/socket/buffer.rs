@@ -1,4 +1,4 @@
-use crate::foundation::io::{Read, ReadError, ReadResult, Write, WriteError, WriteResult};
+use crate::foundation::io::{Read, ReadError, Write, WriteError};
 use crate::foundation::mem::RingBuffer;
 use core::alloc::AllocError;
 use spin::Mutex;
@@ -21,13 +21,13 @@ impl SocketBuffer {
 }
 
 impl Read<u8> for SocketBuffer {
-    fn read(&mut self, buf: &mut [u8]) -> Result<ReadResult, ReadError> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, ReadError> {
         self.inner.lock().read(buf)
     }
 }
 
 impl Write<u8> for SocketBuffer {
-    fn write(&mut self, buf: &[u8]) -> Result<WriteResult, WriteError> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, WriteError> {
         self.inner.lock().write(buf)
     }
 }
