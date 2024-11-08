@@ -1,7 +1,9 @@
+use crate::foundation::io::{Write, WriteError};
 use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
+use core::borrow::{Borrow, BorrowMut};
 use core::fmt::Debug;
-use core::ops::{Index, IndexMut};
+use core::ops::{Deref, DerefMut, Index, IndexMut};
 use core::slice::SliceIndex;
 use delegate::delegate;
 
@@ -18,6 +20,44 @@ impl<T: Debug> Debug for FVec<T> {
 impl<T> From<Vec<T>> for FVec<T> {
     fn from(value: Vec<T>) -> Self {
         Self { inner: value }
+    }
+}
+
+impl<T> AsRef<[T]> for FVec<T> {
+    fn as_ref(&self) -> &[T] {
+        self
+    }
+}
+
+impl<T> AsMut<[T]> for FVec<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        &mut self.inner
+    }
+}
+
+impl<T> Deref for FVec<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        self
+    }
+}
+
+impl<T> DerefMut for FVec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self
+    }
+}
+
+impl<T> Borrow<[T]> for FVec<T> {
+    fn borrow(&self) -> &[T] {
+        &self[..]
+    }
+}
+
+impl<T> BorrowMut<[T]> for FVec<T> {
+    fn borrow_mut(&mut self) -> &mut [T] {
+        &mut self[..]
     }
 }
 
@@ -41,6 +81,18 @@ where
     }
 }
 
+impl<T> FVec<T>
+where
+    T: Default + Clone,
+{
+    pub fn try_with_len(len: usize) -> Result<FVec<T>, TryReserveError> {
+        let mut v = Vec::new();
+        v.try_reserve(len)?;
+        v.resize(len, T::default());
+        Ok(v.into())
+    }
+}
+
 impl<T> FVec<T> {
     delegate! {
         to Vec {
@@ -57,6 +109,12 @@ impl<T> FVec<T> {
             pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError>;
             pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), TryReserveError>;
         }
+    }
+
+    pub fn try_with_capacity(capacity: usize) -> Result<FVec<T>, TryReserveError> {
+        let mut r = Self::new();
+        r.try_reserve(capacity)?;
+        Ok(r)
     }
 
     pub fn try_push(&mut self, t: T) -> Result<(), T> {
@@ -92,5 +150,22 @@ impl<T> FVec<T> {
         }
         self.inner.resize_with(new_len, f); // will not allocate
         Ok(())
+    }
+}
+
+impl<T> Write<T> for FVec<T>
+where
+    T: Clone,
+{
+    fn write(&mut self, buf: &[T]) -> Result<usize, WriteError> {
+        if buf.len() == 0 {
+            return Ok(0);
+        }
+
+        for t in buf {
+            self.try_push(t.clone())
+                .map_err(|_| WriteError::EndOfStream)?;
+        }
+        Ok(buf.len())
     }
 }

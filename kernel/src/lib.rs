@@ -9,6 +9,7 @@
 #![feature(naked_functions)]
 #![feature(negative_impls)]
 #![feature(never_type)]
+#![feature(try_with_capacity)]
 #![feature(vec_push_within_capacity)]
 extern crate alloc;
 
