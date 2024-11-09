@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 kernel_api = { path = "../../kernel/api" }
-std = { version = "0.1.0", path = "../../std" }
+std = { version = "0.1.0", path = "../std" }

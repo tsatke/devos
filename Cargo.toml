@@ -26,10 +26,10 @@ members = [
     "kernel",
     "kernel/api",
     "kernel/foundation",
-    "std",
     "kernel_test_framework",
     "kernel_test_framework/derive",
     "userspace/hello_world",
+    "userspace/std",
     "userspace/window_server",
 ]
 default-members = [

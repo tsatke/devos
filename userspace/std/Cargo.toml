@@ -7,5 +7,5 @@ description = "The standard library for DevOS."
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-kernel_api = { path = "../kernel/api" }
+kernel_api = { path = "../../kernel/api" }
 linked_list_allocator.workspace = true
