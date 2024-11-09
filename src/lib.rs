@@ -1,5 +1,7 @@
-use rand::distributions::Alphanumeric;
+use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
+use rand::distr::Alphanumeric;
 use rand::Rng;
+use std::path::PathBuf;
 
 // these are set in build.rs at build time
 pub const UEFI_PATH: &str = env!("UEFI_PATH");
@@ -33,7 +35,10 @@ pub fn run_test_kernel(kernel: &str, os_disk: &str) {
     let mut cmd = std::process::Command::new("qemu-system-x86_64");
     cmd.arg("--no-reboot");
     cmd.arg("-d").arg("guest_errors");
-    cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
+    cmd.arg("-drive").arg(format!(
+        "if=pflash,file={},format=raw",
+        ovmf_prebuilt().display()
+    ));
     cmd.arg("-drive").arg(format!("format=raw,file={kernel}"));
     cmd.arg("-drive")
         .arg(format!("file={},if=ide,format=qcow2", os_disk));
@@ -51,4 +56,10 @@ pub fn run_test_kernel(kernel: &str, os_disk: &str) {
     ); // 33=success, 35=failed
 
     println!("{}", String::from_utf8_lossy(&output.stdout));
+}
+
+pub fn ovmf_prebuilt() -> PathBuf {
+    let prebuilt =
+        Prebuilt::fetch(Source::LATEST, "target/ovmf").expect("failed to update prebuilt");
+    prebuilt.get_file(Arch::X64, FileType::Code)
 }

@@ -18,8 +18,8 @@ window_server = { path = "userspace/window_server", artifact = "bin", target = "
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 # used for UEFI booting in QEMU
-ovmf-prebuilt = "0.1.0-alpha.1"
-rand = "0.8.5"
+ovmf-prebuilt = "0.2.1"
+rand = "0.9.0-alpha.2"
 
 [workspace]
 members = [
