@@ -18,13 +18,13 @@ mod vm_object;
 
 #[derive(Display, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum AllocationError {
-    #[display = "out of memory"]
+    #[display("out of memory")]
     OutOfMemory,
-    #[display = "page already mapped"]
+    #[display("page already mapped")]
     PageAlreadyMapped,
-    #[display = "page already mapped in huge page"]
+    #[display("page already mapped in huge page")]
     PageAlreadyMappedInHugePage,
-    #[display = "io error"]
+    #[display("io error")]
     IoError,
 }
 

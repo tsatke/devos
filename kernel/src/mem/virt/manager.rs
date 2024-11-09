@@ -86,9 +86,9 @@ impl Interval {
 
 #[derive(Display, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VmmError {
-    #[display = "requested memory is already allocated"]
+    #[display("requested memory is already allocated")]
     AlreadyAllocated,
-    #[display = "out of memory"]
+    #[display("out of memory")]
     OutOfMemory,
 }
 

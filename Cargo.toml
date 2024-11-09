@@ -26,6 +26,7 @@ members = [
     "kernel",
     "kernel/api",
     "kernel/foundation",
+    "kernel/netstack",
     "kernel_test_framework",
     "kernel_test_framework/derive",
     "userspace/hello_world",
@@ -36,6 +37,7 @@ default-members = [
     ".",
     "kernel/api",
     "kernel/foundation",
+    "kernel/netstack",
 ]
 
 [workspace.dependencies]
@@ -46,11 +48,12 @@ bootloader_api = "0.11.7"
 bresenham = "0.1.1"
 conquer-once = { version = "0.4.0", default-features = false }
 cordyceps = "0.3.2"
-crossbeam-queue = { version = "0.3.8", default-features = false, features = ["alloc"] }
+crossbeam = { version = "0.8.4", default-features = false, features = ["alloc", "nightly", "crossbeam-queue"] }
 delegate = "0.13.1"
-derive_more = "0.99.17"
+derive_more = { version = "1.0.0", default-features = false, features = ["display", "error", "from", "deref", "constructor"] }
 elfloader = "0.16.0"
 foundation = { path = "kernel/foundation" }
+futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 kernel_api = { path = "kernel/api" }
 kernel_test_framework = { path = "kernel_test_framework" }
 linked_list_allocator = "0.10.5"

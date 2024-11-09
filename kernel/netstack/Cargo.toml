@@ -1,0 +1,10 @@
+[package]
+name = "netstack"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+crossbeam.workspace = true
+derive_more.workspace = true
+futures.workspace = true
+spin.workspace = true
