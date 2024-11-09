@@ -3,7 +3,7 @@ extern crate devos;
 
 use clap::Parser;
 
-use devos::{create_qcow_image, ovmf_prebuilt, KERNEL_BINARY, OS_DISK, UEFI_PATH};
+use devos::{create_qcow_image, KERNEL_BINARY, OS_DISK, UEFI_PATH};
 
 #[derive(Parser, Debug)]
 #[clap(author, version, about, long_about = "The boot tool for DevOS.")]
@@ -65,10 +65,7 @@ b rust_begin_unwind"#
     if args.debug {
         cmd.arg("-S");
     }
-    cmd.arg("-drive").arg(format!(
-        "if=pflash,file={},format=raw",
-        ovmf_prebuilt().display()
-    ));
+    cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
     cmd.arg("-drive")
         .arg(format!("format=raw,file={UEFI_PATH}"));
 
