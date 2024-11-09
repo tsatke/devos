@@ -1,0 +1,8 @@
+[package]
+name = "foundation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+delegate.workspace = true
+derive_more.workspace = true

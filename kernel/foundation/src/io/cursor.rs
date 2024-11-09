@@ -1,4 +1,4 @@
-use crate::foundation::io::{Bytes, Read, ReadError, Seek, SeekError, SeekFrom, Write, WriteError};
+use crate::io::{Bytes, Read, ReadError, Seek, SeekError, SeekFrom, Write, WriteError};
 
 pub struct Cursor<T> {
     index: usize,
@@ -110,12 +110,11 @@ where
     }
 }
 
-#[cfg(feature = "kernel_test")]
+#[cfg(test)]
 mod tests {
     use super::*;
-    use kernel_test_framework::kernel_test;
 
-    #[kernel_test]
+    #[test]
     fn test_cursor_iter() {
         let data = b"Hello, World!";
         let cursor = Cursor::new(data);

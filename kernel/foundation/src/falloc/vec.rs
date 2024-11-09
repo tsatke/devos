@@ -1,4 +1,4 @@
-use crate::foundation::io::{Write, WriteError};
+use crate::io::{Write, WriteError};
 use alloc::collections::TryReserveError;
 use alloc::vec::Vec;
 use core::borrow::{Borrow, BorrowMut};
@@ -39,13 +39,13 @@ impl<T> Deref for FVec<T> {
     type Target = [T];
 
     fn deref(&self) -> &Self::Target {
-        self
+        self.borrow()
     }
 }
 
 impl<T> DerefMut for FVec<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self
+        self.borrow_mut()
     }
 }
 

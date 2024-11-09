@@ -1,5 +1,5 @@
-use crate::foundation::falloc::vec::FVec;
-use crate::foundation::io::{Read, ReadError, Write, WriteError};
+use crate::falloc::vec::FVec;
+use crate::io::{Read, ReadError, Write, WriteError};
 use core::alloc::AllocError;
 
 #[derive(Debug)]
@@ -78,13 +78,14 @@ impl<T: Copy> Write<T> for RingBuffer<T> {
     }
 }
 
-#[cfg(feature = "kernel_test")]
+#[cfg(test)]
 mod tests {
-    use crate::foundation::io::{Read, ReadError, Write};
-    use crate::foundation::mem::ring_buffer::RingBuffer;
-    use kernel_test_framework::kernel_test;
+    use super::*;
 
-    #[kernel_test]
+    use crate::io::ReadError;
+    use crate::mem::RingBuffer;
+
+    #[test]
     fn test_ring_buffer() {
         let mut buf = RingBuffer::try_with_size(15).unwrap();
         assert_eq!(buf.write(b"Hello, World!").unwrap(), 13);

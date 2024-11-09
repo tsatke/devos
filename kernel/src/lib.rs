@@ -34,7 +34,6 @@ pub mod apic;
 pub mod arch;
 pub mod driver;
 mod error;
-pub mod foundation;
 pub mod io;
 pub mod mem;
 pub mod process;

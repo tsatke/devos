@@ -1,5 +1,4 @@
-use crate::foundation::io::seek::seek_do_restore;
-use crate::foundation::io::seek::{Seek, SeekError};
+use crate::io::{seek_do_restore, Seek, SeekError};
 use core::error::Error;
 use core::hint::spin_loop;
 use derive_more::Display;

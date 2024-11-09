@@ -1,4 +1,4 @@
-use crate::foundation::io::{Read, ReadError};
+use crate::io::{Read, ReadError};
 use core::slice;
 
 pub struct Bytes<R> {

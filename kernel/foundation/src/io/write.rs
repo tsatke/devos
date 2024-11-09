@@ -1,5 +1,4 @@
-use crate::foundation::io::seek::seek_do_restore;
-use crate::foundation::io::{Seek, SeekError};
+use crate::io::{seek_do_restore, Seek, SeekError};
 use alloc::boxed::Box;
 use core::error::Error;
 use core::hint::spin_loop;
@@ -38,7 +37,7 @@ where
     U: Write<T> + ?Sized,
 {
     fn write(&mut self, buf: &[T]) -> Result<usize, WriteError> {
-        (*self).write(buf)
+        self.as_mut().write(buf)
     }
 }
 

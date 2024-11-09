@@ -1,6 +1,6 @@
-use crate::foundation::io::{Read, ReadError, Write, WriteError};
-use crate::foundation::mem::RingBuffer;
 use core::alloc::AllocError;
+use foundation::io::{Read, ReadError, Write, WriteError};
+use foundation::mem::RingBuffer;
 use spin::Mutex;
 
 /// A ring buffer for socket communication.
