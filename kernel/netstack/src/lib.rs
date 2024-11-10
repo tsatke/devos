@@ -2,23 +2,22 @@
 #![feature(allocator_api)]
 extern crate alloc;
 
-use crate::executor::{ExecuteResult, Executor};
 use crate::net::ethernet::{EtherType, EthernetFrame};
 use crate::net::{Arp, ArpPacket, DataLinkProtocol, Device, Frame, Interface, IpCidr};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use core::hint::spin_loop;
 use derive_more::From;
 use foundation::falloc::vec::FVec;
+use foundation::future::executor::{ExecuteResult, Executor};
+use foundation::future::lock::FutureMutex;
 use futures::StreamExt;
-use spin::Mutex;
 
-mod async_queue;
-pub mod executor;
 mod net;
 
 pub struct NetStack {
     executor: Executor,
-    routing: Mutex<FVec<Route>>,
+    routing: FutureMutex<FVec<Route>>,
     protocols: Arc<Protocols>,
 }
 
@@ -58,7 +57,13 @@ impl NetStack {
         let frame_stream = interface.frames().map_err(|_| ())?;
 
         let route = Route(cidr, interface);
-        self.routing.lock().try_push(route).map_err(|_| ())?;
+        loop {
+            if let Some(mut routing) = self.routing.try_lock() {
+                routing.try_push(route).map_err(|_| ())?;
+                break;
+            }
+            spin_loop();
+        }
 
         self.executor.spawn({
             let mut frame_stream = frame_stream.fuse();

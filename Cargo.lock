@@ -612,8 +612,11 @@ checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 name = "foundation"
 version = "0.1.0"
 dependencies = [
+ "crossbeam",
  "delegate",
  "derive_more",
+ "futures",
+ "spin",
 ]
 
 [[package]]
@@ -1046,7 +1049,6 @@ dependencies = [
  "derive_more",
  "foundation",
  "futures",
- "spin",
 ]
 
 [[package]]

@@ -8,4 +8,3 @@ crossbeam.workspace = true
 derive_more.workspace = true
 foundation.workspace = true
 futures.workspace = true
-spin.workspace = true

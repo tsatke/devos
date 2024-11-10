@@ -6,9 +6,9 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 use derive_more::Constructor;
 use foundation::falloc::vec::FVec;
+use foundation::future::lock::FutureMutex;
 use foundation::io::ReadError;
 use futures::Stream;
-use spin::Mutex;
 
 #[derive(Constructor)]
 pub struct Frame(DataLinkProtocol, FVec<u8>);
@@ -24,7 +24,7 @@ impl Frame {
 }
 
 pub struct Interface {
-    device: Arc<Mutex<Box<dyn Device>>>,
+    device: Arc<FutureMutex<Box<dyn Device>>>,
     mac_addr: MacAddr,
     protocol: DataLinkProtocol,
 }
@@ -33,7 +33,7 @@ impl Interface {
     pub fn new(device: Box<dyn Device>) -> Interface {
         let mac_addr = device.mac_addr();
         let protocol = device.protocol();
-        let device = Arc::new(Mutex::new(device));
+        let device = Arc::new(FutureMutex::new(device));
         Self {
             device,
             mac_addr,
@@ -58,7 +58,7 @@ impl Interface {
 }
 
 pub struct FrameStream {
-    device: Arc<Mutex<Box<dyn Device>>>,
+    device: Arc<FutureMutex<Box<dyn Device>>>,
     protocol: DataLinkProtocol,
 }
 
@@ -66,8 +66,6 @@ impl Stream for FrameStream {
     type Item = Frame;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let mut guard = self.device.lock();
-
         // TODO: does this size make sense?
         let mut frame = match FVec::try_with_capacity(2048) {
             Ok(v) => v,
@@ -75,6 +73,11 @@ impl Stream for FrameStream {
                 cx.waker().wake_by_ref();
                 return Poll::Pending;
             }
+        };
+
+        let Some(mut guard) = self.device.try_lock() else {
+            cx.waker().wake_by_ref();
+            return Poll::Pending;
         };
 
         let mut buf = [0_u8; 2048];

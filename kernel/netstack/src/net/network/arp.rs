@@ -3,7 +3,7 @@ use alloc::collections::BTreeMap;
 use core::net::Ipv4Addr;
 use core::task::Waker;
 use crossbeam::queue::SegQueue;
-use spin::Mutex;
+use foundation::future::lock::FutureMutex;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ArpOperation {
@@ -100,7 +100,7 @@ impl TryFrom<&[u8]> for ArpPacket {
 
 pub struct Arp {
     wakers: SegQueue<Waker>,
-    cache: Mutex<BTreeMap<Ipv4Addr, MacAddr>>,
+    cache: FutureMutex<BTreeMap<Ipv4Addr, MacAddr>>,
 }
 
 impl Arp {
@@ -128,8 +128,7 @@ impl Arp {
         let mac = packet.srchaddr;
         let ip = Ipv4Addr::from(packet.srcpaddr);
 
-        // FIXME: use a future-safe lock
-        self.cache.lock().insert(ip, packet.dsthaddr);
+        self.cache.lock().await.insert(ip, packet.dsthaddr);
 
         while let Some(waker) = self.wakers.pop() {
             waker.wake();
