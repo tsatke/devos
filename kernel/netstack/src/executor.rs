@@ -1,6 +1,7 @@
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::future::Future;
+use core::hint::spin_loop;
 use core::pin::Pin;
 use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
@@ -75,7 +76,10 @@ impl Executor {
 
     pub fn run_active_tasks_to_completion(&self) {
         while self.active_tasks() > 0 {
-            self.execute_task();
+            match self.execute_task() {
+                ExecuteResult::Idled => spin_loop(),
+                ExecuteResult::Worked => {}
+            }
         }
     }
 

@@ -3,17 +3,15 @@
 extern crate alloc;
 
 use crate::executor::{ExecuteResult, Executor};
-use crate::net::{Buffer, Interface, IpCidr};
+use crate::net::{Buffer, Device, Interface, IpCidr};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use crossbeam::queue::ArrayQueue;
 use derive_more::From;
-use device::Device;
 use foundation::falloc::vec::FVec;
 use futures::StreamExt;
 use spin::Mutex;
 
-mod device;
 pub mod executor;
 mod net;
 
