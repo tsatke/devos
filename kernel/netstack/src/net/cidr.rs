@@ -1,3 +1,4 @@
+use core::fmt::Formatter;
 use core::net::{Ipv4Addr, Ipv6Addr};
 use derive_more::{Display, Error};
 
@@ -10,8 +11,23 @@ pub enum IpCidr {
     V6(Ipv6Cidr),
 }
 
+impl Display for IpCidr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        match self {
+            IpCidr::V4(cidr) => cidr.fmt(f),
+            IpCidr::V6(cidr) => cidr.fmt(f),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Ipv4Cidr(Ipv4Addr, u8);
+
+impl Display for Ipv4Cidr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}/{}", self.0, self.1)
+    }
+}
 
 impl Ipv4Cidr {
     const MAX_NET_LEN: u8 = 32;
@@ -39,6 +55,12 @@ impl Ipv4Cidr {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Ipv6Cidr(Ipv6Addr, u8);
+
+impl Display for Ipv6Cidr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}/{}", self.0, self.1)
+    }
+}
 
 impl Ipv6Cidr {
     const MAX_NET_LEN: u8 = 128;

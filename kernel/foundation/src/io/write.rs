@@ -11,7 +11,7 @@ pub trait Write<T> {
         let mut buf = buf;
         while !buf.is_empty() {
             match self.write(buf) {
-                Ok(0) | Err(WriteError::TryAgain) => {
+                Ok(0) | Err(WriteError::WouldBlock) => {
                     spin_loop();
                     continue;
                 }
@@ -43,7 +43,7 @@ where
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
 pub enum WriteError {
-    TryAgain,
+    WouldBlock,
     EndOfStream,
 }
 

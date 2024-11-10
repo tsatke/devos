@@ -1,7 +1,9 @@
 pub use cidr::*;
-pub use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+pub use interface::*;
+pub use link::*;
 pub use mac::*;
 
 mod cidr;
+mod interface;
+mod link;
 mod mac;
-mod phy;

@@ -1,7 +1,7 @@
 use crate::io::{seek_do_restore, Seek, SeekError};
-use core::error::Error;
+use alloc::boxed::Box;
 use core::hint::spin_loop;
-use derive_more::Display;
+use derive_more::{Display, Error, From};
 
 pub trait Read<T> {
     /// Read from the current position into the provided buffer.
@@ -24,7 +24,7 @@ pub trait Read<T> {
         let mut buf = buf;
         while !buf.is_empty() {
             match self.read(buf) {
-                Ok(0) | Err(ReadError::TryAgain) => {
+                Ok(0) | Err(ReadError::WouldBlock) => {
                     spin_loop();
                     continue;
                 }
@@ -36,11 +36,29 @@ pub trait Read<T> {
     }
 }
 
+impl<T, U> Read<T> for &'_ mut U
+where
+    U: Read<T>,
+{
+    fn read(&mut self, buf: &mut [T]) -> Result<usize, ReadError> {
+        (*self).read(buf)
+    }
+}
+
+impl<T, U> Read<T> for Box<U>
+where
+    U: Read<T> + ?Sized,
+{
+    fn read(&mut self, buf: &mut [T]) -> Result<usize, ReadError> {
+        self.as_mut().read(buf)
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
 pub enum ReadError {
     /// No elements have been read, but more might become
     /// available. Try again.
-    TryAgain,
+    WouldBlock,
     /// No more elements is or will become available.
     /// The stream has reached the end.
     EndOfStream,

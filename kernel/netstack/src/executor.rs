@@ -73,6 +73,12 @@ impl Executor {
         ExecuteResult::Worked
     }
 
+    pub fn run_active_tasks_to_completion(&self) {
+        while self.active_tasks() > 0 {
+            self.execute_task();
+        }
+    }
+
     pub fn active_tasks(&self) -> usize {
         self.active_tasks.load(SeqCst)
     }

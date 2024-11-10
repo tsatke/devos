@@ -22,7 +22,7 @@ impl<R: Read<u8>> Iterator for Bytes<R> {
                     debug_assert_eq!(1, n);
                     return Some(Ok(byte));
                 }
-                Err(ReadError::TryAgain) => continue,
+                Err(ReadError::WouldBlock) => continue,
                 Err(ReadError::EndOfStream) => return None,
             }
         }

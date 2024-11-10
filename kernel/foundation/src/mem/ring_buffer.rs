@@ -9,6 +9,16 @@ pub struct RingBuffer<T> {
     write_pos: usize,
 }
 
+impl<T> From<FVec<T>> for RingBuffer<T> {
+    fn from(value: FVec<T>) -> Self {
+        Self {
+            data: value,
+            read_pos: 0,
+            write_pos: 0,
+        }
+    }
+}
+
 impl<T: Default> RingBuffer<T> {
     pub fn try_with_size(size: usize) -> Result<Self, AllocError> {
         Self::try_with_size_with(size, T::default)
@@ -30,6 +40,17 @@ impl<T> RingBuffer<T> {
             write_pos: 0,
         })
     }
+
+    pub fn current(&self) -> (&[T], Option<&[T]>) {
+        if self.read_pos <= self.write_pos {
+            (&self.data[self.read_pos..self.write_pos], None)
+        } else {
+            (
+                &self.data[self.read_pos..],
+                Some(&self.data[..self.write_pos]),
+            )
+        }
+    }
 }
 
 impl<T: Copy> Read<T> for RingBuffer<T> {
@@ -48,7 +69,7 @@ impl<T: Copy> Read<T> for RingBuffer<T> {
             read += 1;
         }
         if read == 0 {
-            Err(ReadError::TryAgain)
+            Err(ReadError::WouldBlock)
         } else {
             Ok(read)
         }
@@ -71,7 +92,7 @@ impl<T: Copy> Write<T> for RingBuffer<T> {
             written += 1;
         }
         if written == 0 {
-            Err(WriteError::TryAgain)
+            Err(WriteError::WouldBlock)
         } else {
             Ok(written)
         }
@@ -102,7 +123,7 @@ mod tests {
         assert_eq!(buf.read(&mut read_buf).unwrap(), 3);
         assert_eq!(&read_buf, b"ld!or"); // "ld!" is left in the buffer, "or" is from the previous read
 
-        assert_eq!(buf.read(&mut read_buf), Err(ReadError::TryAgain));
+        assert_eq!(buf.read(&mut read_buf), Err(ReadError::WouldBlock));
         assert_eq!(&read_buf, b"ld!or"); // buffer doesn't change when there's no data to read
         assert_eq!(buf.write_pos, 13);
         assert_eq!(buf.read_pos, 13);
@@ -115,5 +136,16 @@ mod tests {
         assert_eq!(buf.read(&mut read_buf).unwrap(), 13);
         assert_eq!(&read_buf[0..13], b"Hello, World!");
         assert_eq!(&read_buf[13..15], [0, 0]);
+    }
+
+    #[test]
+    fn test_current() {
+        let mut buf = RingBuffer::try_with_size(12).unwrap();
+        buf.write_exact(b"hello").unwrap();
+        buf.read_exact(&mut [0; 5]).unwrap();
+        buf.write_exact(b"hellohello").unwrap();
+        let first: &[u8] = b"hellohe";
+        let second: &[u8] = b"llo";
+        assert_eq!((first, Some(second)), buf.current());
     }
 }
