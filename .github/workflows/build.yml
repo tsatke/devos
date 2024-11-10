@@ -77,11 +77,46 @@ jobs:
         run: |
           cargo test
           cargo test --release
-            
 
+  miri:
+    name: "Miri"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package: [ foundation, netstack ]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+            !target/release/build/devos-*
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install latest nightly
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy, llvm-tools-preview, rust-src, miri
+      - name: Miri Setup
+        run: |
+          cargo miri setup
+      - name: Miri
+        run: |
+          cargo miri test -p ${{ matrix.package }} --many-seeds=0..16
+  
+  
+  
   build:
     name: "Build and upload artifacts"
     runs-on: ubuntu-latest
+    needs:
+      - test
+      - miri
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v3
