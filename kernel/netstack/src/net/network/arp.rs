@@ -1,6 +1,15 @@
-use crate::async_queue::AsyncArrayQueue;
 use crate::net::MacAddr;
-use alloc::sync::Arc;
+use alloc::collections::BTreeMap;
+use core::net::Ipv4Addr;
+use core::task::Waker;
+use crossbeam::queue::SegQueue;
+use spin::Mutex;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ArpOperation {
+    Request,
+    Reply,
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ArpPacket {
@@ -8,7 +17,7 @@ pub struct ArpPacket {
     ptype: u16,
     hlen: u8,
     plen: u8,
-    operation: u16,
+    operation: ArpOperation,
     srchaddr: MacAddr,
     srcpaddr: [u8; 4],
     dsthaddr: MacAddr,
@@ -32,7 +41,7 @@ impl ArpPacket {
         self.plen
     }
 
-    pub fn operation(&self) -> u16 {
+    pub fn operation(&self) -> ArpOperation {
         self.operation
     }
 
@@ -65,7 +74,11 @@ impl TryFrom<&[u8]> for ArpPacket {
         let ptype = u16::from_be_bytes([value[2], value[3]]);
         let hlen = value[4];
         let plen = value[5];
-        let operation = u16::from_be_bytes([value[6], value[7]]);
+        let operation = match u16::from_be_bytes([value[6], value[7]]) {
+            1 => ArpOperation::Request,
+            2 => ArpOperation::Reply,
+            _ => return Err(()),
+        };
         let srchaddr = MacAddr::from(TryInto::<[u8; 6]>::try_into(&value[8..14]).unwrap());
         let srcpaddr = TryInto::<[u8; 4]>::try_into(&value[14..18]).unwrap();
         let dsthaddr = MacAddr::from(TryInto::<[u8; 6]>::try_into(&value[18..24]).unwrap());
@@ -86,11 +99,40 @@ impl TryFrom<&[u8]> for ArpPacket {
 }
 
 pub struct Arp {
-    incoming_packets: Arc<AsyncArrayQueue<ArpPacket>>,
+    wakers: SegQueue<Waker>,
+    cache: Mutex<BTreeMap<Ipv4Addr, MacAddr>>,
 }
 
 impl Arp {
-    pub async fn receive_packet(&self, incoming_packet: ArpPacket) {
-        self.incoming_packets.push(incoming_packet).await;
+    pub async fn process_packet(&self, packet: ArpPacket) {
+        if packet.ptype != 0x0800 {
+            // ignore non-ipv4 packets
+            return;
+        }
+
+        if packet.hlen != 6 {
+            // we only know hardware addresses with 6 bytes
+            return;
+        }
+
+        if packet.plen != 4 {
+            // ipv4 packets (which we have because of the ptype) should have
+            // an address length of 4, so this is an invalid packet
+            return;
+        }
+
+        if packet.operation == ArpOperation::Request {
+            todo!("reply to arp requests");
+        }
+
+        let mac = packet.srchaddr;
+        let ip = Ipv4Addr::from(packet.srcpaddr);
+
+        // FIXME: use a future-safe lock
+        self.cache.lock().insert(ip, packet.dsthaddr);
+
+        while let Some(waker) = self.wakers.pop() {
+            waker.wake();
+        }
     }
 }

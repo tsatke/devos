@@ -1,6 +1,6 @@
 use crate::io::{Write, WriteError};
 use alloc::collections::TryReserveError;
-use alloc::vec::Vec;
+use alloc::vec::{IntoIter, Vec};
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::Debug;
 use core::ops::{Deref, DerefMut, Index, IndexMut};
@@ -108,6 +108,7 @@ impl<T> FVec<T> {
             pub fn push_within_capacity(&mut self, t: T) -> Result<(), T>;
             pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError>;
             pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), TryReserveError>;
+            pub fn into_iter(self) -> IntoIter<T>;
         }
     }
 

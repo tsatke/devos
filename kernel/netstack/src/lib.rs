@@ -45,7 +45,7 @@ impl Protocols {
             }
             EtherType::Arp => {
                 let packet = ArpPacket::try_from(frame.payload())?;
-                self.arp.receive_packet(packet).await;
+                self.arp.process_packet(packet).await;
             }
         }
         Ok(())
