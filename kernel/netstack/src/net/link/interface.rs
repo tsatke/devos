@@ -4,14 +4,24 @@ use alloc::sync::Arc;
 use core::alloc::AllocError;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use derive_more::{Deref, From};
+use derive_more::Constructor;
 use foundation::falloc::vec::FVec;
 use foundation::io::ReadError;
 use futures::Stream;
 use spin::Mutex;
 
-#[derive(From, Deref)]
-pub struct Buffer(FVec<u8>);
+#[derive(Constructor)]
+pub struct Frame(DataLinkProtocol, FVec<u8>);
+
+impl Frame {
+    pub fn protocol(&self) -> DataLinkProtocol {
+        self.0
+    }
+
+    pub fn into_data(self) -> FVec<u8> {
+        self.1
+    }
+}
 
 pub struct Interface {
     device: Arc<Mutex<Box<dyn Device>>>,
@@ -42,16 +52,18 @@ impl Interface {
     pub fn frames(&self) -> Result<FrameStream, AllocError> {
         Ok(FrameStream {
             device: self.device.clone(),
+            protocol: self.protocol,
         })
     }
 }
 
 pub struct FrameStream {
     device: Arc<Mutex<Box<dyn Device>>>,
+    protocol: DataLinkProtocol,
 }
 
 impl Stream for FrameStream {
-    type Item = Buffer;
+    type Item = Frame;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let mut guard = self.device.lock();
@@ -75,7 +87,7 @@ impl Stream for FrameStream {
                 Ok(ReadFrameResult::Complete(n)) => {
                     // TODO: log packet loss if this errors
                     let _ = frame.try_extend(buf.iter().copied().take(n));
-                    return Poll::Ready(Some(frame.into()));
+                    return Poll::Ready(Some(Frame::new(self.protocol, frame)));
                 }
                 Err(ReadError::WouldBlock) => {
                     guard.wake_upon_data_available(cx.waker());

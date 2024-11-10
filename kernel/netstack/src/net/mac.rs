@@ -1,6 +1,7 @@
 use core::fmt::{Display, Formatter};
+use derive_more::From;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, From)]
 pub struct MacAddr([u8; 6]);
 
 impl Display for MacAddr {

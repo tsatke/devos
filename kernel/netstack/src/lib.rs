@@ -3,22 +3,53 @@
 extern crate alloc;
 
 use crate::executor::{ExecuteResult, Executor};
-use crate::net::{Buffer, Device, Interface, IpCidr};
+use crate::net::ethernet::{EtherType, EthernetFrame};
+use crate::net::{Arp, ArpPacket, DataLinkProtocol, Device, Frame, Interface, IpCidr};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use crossbeam::queue::ArrayQueue;
 use derive_more::From;
 use foundation::falloc::vec::FVec;
 use futures::StreamExt;
 use spin::Mutex;
 
+mod async_queue;
 pub mod executor;
 mod net;
 
 pub struct NetStack {
     executor: Executor,
     routing: Mutex<FVec<Route>>,
-    rx_queue: Arc<ArrayQueue<Buffer>>,
+    protocols: Arc<Protocols>,
+}
+
+struct Protocols {
+    arp: Arp,
+}
+
+impl Protocols {
+    async fn route_link_frame(&self, frame: Frame) -> Result<(), ()> {
+        let protocol = frame.protocol();
+        let data = frame.into_data();
+        match protocol {
+            DataLinkProtocol::Ethernet => {
+                let frame = EthernetFrame::try_from(data.as_ref())?;
+                self.route_ethernet_frame(&frame).await
+            }
+        }
+    }
+
+    async fn route_ethernet_frame(&self, frame: &EthernetFrame<'_>) -> Result<(), ()> {
+        match frame.ether_type() {
+            EtherType::Ipv4 => {
+                todo!()
+            }
+            EtherType::Arp => {
+                let packet = ArpPacket::try_from(frame.payload())?;
+                self.arp.receive_packet(packet).await;
+            }
+        }
+        Ok(())
+    }
 }
 
 impl NetStack {
@@ -30,16 +61,13 @@ impl NetStack {
         self.routing.lock().try_push(route).map_err(|_| ())?;
 
         self.executor.spawn({
-            let rx_queue = self.rx_queue.clone();
             let mut frame_stream = frame_stream.fuse();
+            let protocols = self.protocols.clone();
             async move {
-                while let Some(buf) = frame_stream.next().await {
-                    match rx_queue.push(buf) {
-                        Err(_) => {
-                            // FIXME: log that we dropped a frame and move on
-                            panic!("dropping a packet - we should just log this and continue")
-                        }
-                        _ => {}
+                while let Some(frame) = frame_stream.next().await {
+                    match protocols.route_link_frame(frame).await {
+                        Ok(_) => {}
+                        Err(_) => panic!("failed to route packet"), // FIXME: just log an error and continue
                     }
                 }
                 // no more frames will come from this device, so we can exit the task
