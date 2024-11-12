@@ -9,7 +9,6 @@ use crossbeam::queue::SegQueue;
 use waker::TaskWaker;
 
 pub use join::*;
-pub use waker::*;
 
 mod join;
 mod waker;

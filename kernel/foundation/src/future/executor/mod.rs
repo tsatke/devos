@@ -9,7 +9,12 @@ use core::sync::atomic::AtomicUsize;
 use core::sync::atomic::Ordering::SeqCst;
 use core::task::{Context, Poll};
 use crossbeam::queue::SegQueue;
+use futures::channel::oneshot;
 use spin::Mutex;
+
+pub use single::{block_on, RelaxStrategy, Spin};
+
+mod single;
 
 pub struct Executor {
     ready_queue: Arc<SegQueue<TaskId>>,
@@ -31,11 +36,11 @@ impl Executor {
         F: Future<Output = T> + Send + Sync + 'static,
         T: Send + Sync + 'static,
     {
-        let handle = JoinHandle::default();
+        let (tx, rx) = oneshot::channel();
+        let handle = JoinHandle::new(rx);
 
-        let out = handle.result();
         let wrapper = async move {
-            let _ = out.lock().insert(future.await);
+            let _ = tx.send(future.await); // we don't care if the receiver was dropped
         };
         let wrapper = Box::pin(wrapper);
 

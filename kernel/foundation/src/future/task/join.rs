@@ -1,25 +1,28 @@
-use alloc::sync::Arc;
-use spin::Mutex;
+use alloc::boxed::Box;
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
+use futures::channel::oneshot;
 
 pub struct JoinHandle<T> {
-    // TODO: use something like oneshot::channel::<T>() instead of a Mutex<Option<T>>
-    result: Arc<Mutex<Option<T>>>,
+    receiver: Pin<Box<oneshot::Receiver<T>>>,
 }
 
-impl<T> Default for JoinHandle<T> {
-    fn default() -> Self {
+impl<T> JoinHandle<T> {
+    pub(crate) fn new(receiver: oneshot::Receiver<T>) -> Self {
         Self {
-            result: Arc::new(Mutex::new(None)),
+            receiver: Box::pin(receiver),
         }
     }
 }
 
-impl<T> JoinHandle<T> {
-    pub(crate) fn result(&self) -> Arc<Mutex<Option<T>>> {
-        self.result.clone()
-    }
+impl<T> Future for JoinHandle<T> {
+    type Output = T;
 
-    pub fn get_result(&self) -> Option<T> {
-        self.result.lock().take()
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.receiver.as_mut().poll(cx) {
+            Poll::Ready(v) => Poll::Ready(v.unwrap()), // we must never drop the sender
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
