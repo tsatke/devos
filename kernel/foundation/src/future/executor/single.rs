@@ -1,37 +1,25 @@
+use crate::future::lock::{RelaxStrategy, Spin};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use alloc::task::Wake;
 use core::future::Future;
-use core::hint::spin_loop;
 use core::pin::Pin;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::SeqCst;
 use core::task::{Context, Poll, Waker};
 
-pub trait RelaxStrategy {
-    fn relax();
-}
-
-pub struct Spin;
-
-impl RelaxStrategy for Spin {
-    fn relax() {
-        spin_loop();
-    }
-}
-
-pub fn block_on<T, R: RelaxStrategy>(fut: impl Future<Output = T> + 'static) -> T {
-    SingleTaskExecutor::new(fut).execute::<R>()
+pub fn block_on<T>(fut: impl Future<Output=T> + 'static) -> T {
+    SingleTaskExecutor::new(fut).execute::<Spin>()
 }
 
 pub struct SingleTaskExecutor<T> {
     waker: Waker,
-    task: Pin<Box<dyn Future<Output = T>>>,
+    task: Pin<Box<dyn Future<Output=T>>>,
     sleeping: Arc<AtomicBool>,
 }
 
 impl<T> SingleTaskExecutor<T> {
-    pub fn new(fut: impl Future<Output = T> + 'static) -> Self {
+    pub fn new(fut: impl Future<Output=T> + 'static) -> Self {
         let sleeping = Arc::new(AtomicBool::new(false));
         let waker = Waker::from(Arc::new(SingleTaskWaker {
             executor_sleeping: sleeping.clone(),
@@ -101,6 +89,6 @@ mod tests {
             current: AtomicUsize::new(0),
             res: "hello",
         };
-        assert_eq!(block_on::<_, Spin>(async { t.await }), "hello");
+        assert_eq!(block_on(async { t.await }), "hello");
     }
 }

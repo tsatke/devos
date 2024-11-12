@@ -29,14 +29,14 @@ impl<T> Future for JoinHandle<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::future::executor::{block_on, Executor, Spin};
+    use crate::future::executor::{block_on, Executor};
 
     #[test]
     fn test_join_handle_no_panic_on_executor_drop() {
         let exec = Executor::new();
         let handle = exec.spawn(async { 1 }).unwrap();
         drop(exec);
-        assert_eq!(None, block_on::<_, Spin>(handle));
+        assert_eq!(None, block_on(handle));
     }
 
     #[test]
@@ -62,7 +62,7 @@ mod tests {
 
         exec.run_active_tasks_to_completion();
 
-        let result = block_on::<_, Spin>(actual_result).unwrap();
+        let result = block_on(actual_result).unwrap();
         assert_eq!(result, 7);
     }
 }

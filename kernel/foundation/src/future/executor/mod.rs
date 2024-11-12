@@ -12,7 +12,7 @@ use crossbeam::queue::SegQueue;
 use futures::channel::oneshot;
 use spin::Mutex;
 
-pub use single::{block_on, RelaxStrategy, Spin};
+pub use single::block_on;
 
 mod single;
 
@@ -33,7 +33,7 @@ impl Executor {
 
     pub fn spawn<F, T>(&self, future: F) -> Result<JoinHandle<T>, ()>
     where
-        F: Future<Output = T> + Send + Sync + 'static,
+        F: Future<Output=T> + Send + Sync + 'static,
         T: Send + Sync + 'static,
     {
         let (tx, rx) = oneshot::channel();

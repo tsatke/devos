@@ -8,15 +8,15 @@ use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 use core::task::{Context, Poll, Waker};
 use crossbeam::queue::SegQueue;
 
-pub trait RelaxStrategy: Default {
-    fn relax(&mut self);
+pub trait RelaxStrategy {
+    fn relax();
 }
 
 #[derive(Default)]
 pub struct Spin;
 
 impl RelaxStrategy for Spin {
-    fn relax(&mut self) {
+    fn relax() {
         spin_loop();
     }
 }
@@ -71,12 +71,11 @@ impl<T> FutureMutex<T> {
     }
 
     pub fn lock_sync<R: RelaxStrategy>(&self) -> FutureMutexGuard<'_, T> {
-        let mut relax_strategy = R::default();
         loop {
             if let Some(guard) = self.try_lock() {
                 break guard;
             }
-            relax_strategy.relax();
+            R::relax();
         }
     }
 }
