@@ -2,8 +2,8 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::future::Future;
 use core::pin::Pin;
-use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::Relaxed;
+use core::sync::atomic::Ordering::{Acquire, Relaxed};
+use core::sync::atomic::{AtomicBool, AtomicUsize};
 use core::task::Waker;
 use crossbeam::queue::SegQueue;
 use waker::TaskWaker;
@@ -26,17 +26,25 @@ impl TaskId {
 pub struct Task {
     id: TaskId,
     waker: Waker,
-    future: Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>,
+    future: Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>,
+    should_cancel: Arc<AtomicBool>,
+    active_tasks: Arc<AtomicUsize>,
 }
 
 impl Task {
     pub(crate) fn new(
         ready_queue: Arc<SegQueue<TaskId>>,
-        future: Pin<Box<impl Future<Output = ()> + Send + Sync + 'static>>,
+        future: Pin<Box<impl Future<Output=()> + Send + Sync + 'static>>,
+        should_cancel: Arc<AtomicBool>,
+        active_tasks: Arc<AtomicUsize>,
     ) -> Self {
         let id = TaskId::new();
         let waker = TaskWaker::new(id, ready_queue);
-        Self { id, waker, future }
+        Self { id, waker, future, should_cancel, active_tasks }
+    }
+
+    pub fn should_cancel(&self) -> bool {
+        self.should_cancel.load(Acquire)
     }
 
     pub fn id(&self) -> TaskId {
@@ -47,7 +55,13 @@ impl Task {
         &self.waker
     }
 
-    pub fn future(&mut self) -> Pin<&mut (dyn Future<Output = ()> + Send + Sync)> {
+    pub fn future(&mut self) -> Pin<&mut (dyn Future<Output=()> + Send + Sync)> {
         self.future.as_mut()
+    }
+}
+
+impl Drop for Task {
+    fn drop(&mut self) {
+        self.active_tasks.fetch_sub(1, Acquire);
     }
 }

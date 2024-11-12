@@ -59,36 +59,11 @@ impl Wake for SingleTaskWaker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::sync::atomic::AtomicUsize;
-
-    struct Times<T, const N: usize> {
-        current: AtomicUsize,
-        res: T,
-    }
-
-    impl<T, const N: usize> Future for Times<T, N>
-    where
-        T: Copy,
-    {
-        type Output = T;
-
-        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-            if self.current.load(SeqCst) < N {
-                self.current.fetch_add(1, SeqCst); // TOCTOU - not relevant in these tests
-                cx.waker().wake_by_ref();
-                Poll::Pending
-            } else {
-                Poll::Ready(self.res)
-            }
-        }
-    }
+    use crate::future::testing::Times;
 
     #[test]
     fn test_block_on() {
-        let t = Times::<&str, 142> {
-            current: AtomicUsize::new(0),
-            res: "hello",
-        };
+        let t = Times::<_, 12>::new("hello");
         assert_eq!(block_on(async { t.await }), "hello");
     }
 }

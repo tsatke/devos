@@ -168,8 +168,7 @@ mod tests {
                         let mut guard = mutex.lock().await;
                         *guard += 1;
                     }
-                })
-                .unwrap();
+                });
         }
 
         assert_eq!(*guard, 0);
