@@ -48,6 +48,9 @@ jobs:
   test:
     name: "Test"
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        strategy: [ debug, release ]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/cache@v3
@@ -75,8 +78,7 @@ jobs:
           sudo apt install -y e2fsprogs qemu-system
       - name: Test
         run: |
-          cargo test
-          cargo test --release
+          cargo test $(if [[ "${{ matrix.strategy }}" == "release" ]]; then echo "--release"; fi)
 
   miri:
     name: "Miri"
