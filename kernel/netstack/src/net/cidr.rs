@@ -131,7 +131,11 @@ mod tests {
             let addr = Ipv6Addr::new(123, 45, 67, 89, 10, 11, 12, i);
             assert!(cidr.contains(addr), "should contain {:?}", addr);
         }
-        for i in 1 << 8..=u16::MAX {
+        #[cfg(not(miri))]
+        let excluded_range = 1 << 8..=u16::MAX;
+        #[cfg(miri)]
+        let excluded_range = (1 << 8..=u16::MAX).step_by(1 << 8);
+        for i in excluded_range {
             let addr = Ipv6Addr::new(123, 45, 67, 89, 10, 11, 12, i);
             assert!(!cidr.contains(addr), "should not contain {:?}", addr);
         }
