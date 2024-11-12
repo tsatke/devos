@@ -77,7 +77,7 @@ impl NetStack {
                 }
                 // no more frames will come from this device, so we can exit the task
             }
-        })?;
+        });
 
         Ok(())
     }

@@ -1,25 +1,25 @@
-use crate::future::task::JoinHandle;
-use crate::future::task::{Task, TaskId};
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use core::future::Future;
 use core::hint::spin_loop;
-use core::sync::atomic::AtomicUsize;
-use core::sync::atomic::Ordering::SeqCst;
+use core::sync::atomic::Ordering::{Acquire, SeqCst};
+use core::sync::atomic::{AtomicBool, AtomicUsize};
 use core::task::{Context, Poll};
 use crossbeam::queue::SegQueue;
 use futures::channel::oneshot;
 use spin::Mutex;
+use task::{JoinHandle, Task, TaskId};
 
 pub use single::block_on;
 
 mod single;
+mod task;
 
 pub struct Executor {
     ready_queue: Arc<SegQueue<TaskId>>,
     ready_tasks: Mutex<BTreeMap<TaskId, Task>>,
-    active_tasks: AtomicUsize,
+    active_tasks: Arc<AtomicUsize>,
 }
 
 impl Executor {
@@ -27,31 +27,32 @@ impl Executor {
         Self {
             ready_queue: Arc::new(SegQueue::new()),
             ready_tasks: Mutex::new(BTreeMap::new()),
-            active_tasks: AtomicUsize::new(0),
+            active_tasks: Arc::new(AtomicUsize::new(0)),
         }
     }
 
-    pub fn spawn<F, T>(&self, future: F) -> Result<JoinHandle<T>, ()>
+    pub fn spawn<F, T>(&self, future: F) -> JoinHandle<T>
     where
         F: Future<Output=T> + Send + Sync + 'static,
         T: Send + Sync + 'static,
     {
         let (tx, rx) = oneshot::channel();
-        let handle = JoinHandle::new(rx);
+        let should_cancel = Arc::new(AtomicBool::new(false));
+        let handle = JoinHandle::new(rx, should_cancel.clone());
 
         let wrapper = async move {
             let _ = tx.send(future.await); // we don't care if the receiver was dropped
         };
         let wrapper = Box::pin(wrapper);
 
-        let task = Task::new(self.ready_queue.clone(), wrapper);
+        let task = Task::new(self.ready_queue.clone(), wrapper, should_cancel, self.active_tasks.clone());
         let task_id = task.id();
 
         self.ready_tasks.lock().insert(task_id, task);
         self.active_tasks.fetch_add(1, SeqCst);
         self.ready_queue.push(task_id);
 
-        Ok(handle)
+        handle
     }
 
     /// Execute a single task from the currently active
@@ -68,9 +69,19 @@ impl Executor {
 
             // If we can't find a task, that means that the task is currently
             // being executed on another thread. We'll continue with the next one.
-            if let Some(task) = self.ready_tasks.lock().remove(&next_task_id) {
-                break task;
+            let Some(task) = self.ready_tasks.lock().remove(&next_task_id) else {
+                continue;
+            };
+
+            if task.should_cancel() {
+                // Dropping the task will also drop the sender that sends the
+                // result to the JoinHandler. This will cause the JoinHandler
+                // to return None when polled.
+                drop(task);
+                continue;
             }
+
+            break task;
         };
 
         // The task is now no longer in the active task list, but we own it here,
@@ -83,7 +94,6 @@ impl Executor {
         match task.future().poll(&mut context) {
             Poll::Ready(()) => {
                 // task is done, no need to re-insert the task
-                self.active_tasks.fetch_sub(1, SeqCst);
             }
             Poll::Pending => {
                 // task is not done yet, we need to re-insert the task
@@ -108,7 +118,7 @@ impl Executor {
     }
 
     pub fn active_tasks(&self) -> usize {
-        self.ready_tasks.lock().len()
+        self.active_tasks.load(Acquire)
     }
 }
 
