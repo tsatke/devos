@@ -8,18 +8,21 @@ use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::SeqCst;
 use core::task::{Context, Poll, Waker};
 
-pub fn block_on<T>(fut: impl Future<Output=T> + 'static) -> T {
+pub fn block_on<T>(fut: impl Future<Output=T>) -> T {
     SingleTaskExecutor::new(fut).execute::<Spin>()
 }
 
 pub struct SingleTaskExecutor<T> {
     waker: Waker,
-    task: Pin<Box<dyn Future<Output=T>>>,
+    task: Pin<Box<T>>,
     sleeping: Arc<AtomicBool>,
 }
 
-impl<T> SingleTaskExecutor<T> {
-    pub fn new(fut: impl Future<Output=T> + 'static) -> Self {
+impl<F, T> SingleTaskExecutor<F>
+where
+    F: Future<Output=T>,
+{
+    pub fn new(fut: F) -> Self {
         let sleeping = Arc::new(AtomicBool::new(false));
         let waker = Waker::from(Arc::new(SingleTaskWaker {
             executor_sleeping: sleeping.clone(),
