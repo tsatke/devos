@@ -29,8 +29,12 @@ impl<T> AsyncBoundedQueue<T> {
         poll_fn(|cx| self.poll_for_pop(cx)).await
     }
 
+    pub fn pop_now(&self) -> Option<T> {
+        self.queue.pop()
+    }
+
     fn poll_for_pop(&self, cx: &mut Context) -> Poll<T> {
-        if let Some(t) = self.queue.pop() {
+        if let Some(t) = self.pop_now() {
             self.wake_all_push_wakers();
             Poll::Ready(t)
         } else {
@@ -56,7 +60,7 @@ impl<T> AsyncBoundedQueue<T> {
             let mut t_slot = Some(t);
             move |cx| {
                 if let Some(t) = t_slot.take() {
-                    match self.queue.push(t) {
+                    match self.push_now(t) {
                         Ok(()) => {
                             self.wake_all_pop_wakers();
                             Poll::Ready(())
@@ -73,14 +77,19 @@ impl<T> AsyncBoundedQueue<T> {
                     Poll::Ready(())
                 }
             }
-        }).await
+        })
+        .await
+    }
+
+    pub fn push_now(&self, t: T) -> Result<(), T> {
+        self.queue.push(t)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::future::executor::{block_on, ExecuteResult, Executor};
+    use crate::future::executor::{block_on, Executor, TickResult};
     use alloc::sync::Arc;
     use core::sync::atomic::AtomicBool;
     use core::sync::atomic::Ordering::SeqCst;
@@ -96,22 +105,20 @@ mod tests {
         assert_eq!(1, queue.len());
         exec.spawn({
             let queue = queue.clone();
-            async move {
-                queue.push(10).await
-            }
+            async move { queue.push(10).await }
         });
 
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(1, queue.len());
-        assert_eq!(ExecuteResult::Idled, exec.execute_task());
+        assert_eq!(TickResult::Idled, exec.execute_task());
         assert_eq!(1, queue.len());
 
         block_on(queue.pop());
         assert_eq!(0, queue.len());
 
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(1, queue.len());
-        assert_eq!(ExecuteResult::Idled, exec.execute_task());
+        assert_eq!(TickResult::Idled, exec.execute_task());
         assert_eq!(1, queue.len());
 
         assert_eq!(10, block_on(queue.pop()));
@@ -136,16 +143,16 @@ mod tests {
             }
         });
 
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(0, queue.len());
-        assert_eq!(ExecuteResult::Idled, exec.execute_task());
+        assert_eq!(TickResult::Idled, exec.execute_task());
         assert_eq!(0, queue.len());
 
         block_on(queue.push(5));
         assert_eq!(1, queue.len());
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(0, queue.len());
-        assert_eq!(ExecuteResult::Idled, exec.execute_task());
+        assert_eq!(TickResult::Idled, exec.execute_task());
         assert_eq!(0, queue.len());
 
         assert!(popped.load(SeqCst));

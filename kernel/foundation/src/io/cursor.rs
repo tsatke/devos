@@ -1,4 +1,6 @@
+use crate::falloc::vec::FVec;
 use crate::io::{Bytes, Read, ReadError, Seek, SeekError, SeekFrom, Write, WriteError};
+use alloc::vec::Vec;
 
 pub struct Cursor<T> {
     index: usize,
@@ -38,7 +40,7 @@ where
         let data = self.data.as_ref();
 
         if self.index == data.len() {
-            return Err(ReadError::EndOfStream);
+            return Err(ReadError::ResourceExhausted);
         }
 
         let start = self.index;
@@ -50,24 +52,31 @@ where
     }
 }
 
-impl<T, E> Write<E> for Cursor<T>
+impl<T> Write<T> for Cursor<&'_ mut Vec<T>>
 where
-    T: AsMut<[E]>,
-    E: Copy,
+    T: Copy,
 {
-    fn write(&mut self, buf: &[E]) -> Result<usize, WriteError> {
-        let data = self.data.as_mut();
+    fn write(&mut self, buf: &[T]) -> Result<usize, WriteError> {
+        self.data
+            .try_reserve(buf.len())
+            .map_err(|_| WriteError::ResourceExhausted)?;
+        self.data.extend(buf);
+        Ok(buf.len())
+    }
+}
 
-        if self.index == data.len() {
-            return Err(WriteError::EndOfStream);
-        }
-
-        let start = self.index;
-        let end = data.len().min(self.index + buf.len());
-        let len = end - start;
-        data[start..end].copy_from_slice(&buf[..len]);
-        self.index = end;
-        Ok(len)
+impl<T> Write<T> for Cursor<&'_ mut FVec<T>>
+where
+    T: Copy,
+{
+    fn write(&mut self, buf: &[T]) -> Result<usize, WriteError> {
+        self.data
+            .try_reserve(buf.len())
+            .map_err(|_| WriteError::ResourceExhausted)?;
+        self.data
+            .try_extend(buf.iter().copied())
+            .map_err(|_| WriteError::ResourceExhausted)?;
+        Ok(buf.len())
     }
 }
 

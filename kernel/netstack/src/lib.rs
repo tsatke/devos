@@ -2,21 +2,22 @@
 #![feature(allocator_api)]
 extern crate alloc;
 
-use crate::net::ethernet::{EtherType, EthernetFrame};
-use crate::net::{Arp, ArpPacket, DataLinkProtocol, Device, Frame, Interface, IpCidr};
+use crate::net::ethernet::{EtherType, EthernetFrame, InvalidEthernetFrame};
+use crate::net::{
+    Arp, ArpPacket, DataLinkProtocol, Device, Frame, Interface, InvalidArpPacket, IpCidr,
+    RoutingTable,
+};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::net::IpAddr;
 use derive_more::From;
-use foundation::falloc::vec::FVec;
-use foundation::future::executor::{block_on, ExecuteResult, Executor};
-use foundation::future::lock::FutureMutex;
+use foundation::future::executor::{block_on, Executor, Tick, TickResult};
+use net::Route;
 
 mod net;
 
 pub struct NetStack {
     executor: Executor<'static>,
-    routing: FutureMutex<FVec<Route>>,
+    routing: Arc<RoutingTable>,
     protocols: Arc<Protocols>,
 }
 
@@ -24,25 +25,47 @@ struct Protocols {
     arp: Arp,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, From)]
+pub enum NoRoute {
+    InvalidFrame(InvalidFrame),
+    ProtocolError(ProtocolError),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, From)]
+pub enum InvalidFrame {
+    Ethernet(InvalidEthernetFrame),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, From)]
+pub enum ProtocolError {
+    InvalidPacket(InvalidPacket),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, From)]
+pub enum InvalidPacket {
+    Arp(InvalidArpPacket),
+}
+
 impl Protocols {
-    async fn route_link_frame(&self, frame: Frame) -> Result<(), ()> {
+    async fn route_link_frame(&self, frame: Frame) -> Result<(), NoRoute> {
         let protocol = frame.protocol();
         let data = frame.into_data();
-        match protocol {
+        Ok(match protocol {
             DataLinkProtocol::Ethernet => {
-                let frame = EthernetFrame::try_from(data.as_ref())?;
-                self.route_ethernet_frame(&frame).await
+                let frame =
+                    EthernetFrame::try_from(data.as_ref()).map_err(InvalidFrame::Ethernet)?;
+                self.route_ethernet_frame(&frame).await?
             }
-        }
+        })
     }
 
-    async fn route_ethernet_frame(&self, frame: &EthernetFrame<'_>) -> Result<(), ()> {
+    async fn route_ethernet_frame(&self, frame: &EthernetFrame<'_>) -> Result<(), ProtocolError> {
         match frame.ether_type() {
             EtherType::Ipv4 => {
                 todo!()
             }
             EtherType::Arp => {
-                let packet = ArpPacket::try_from(frame.payload())?;
+                let packet = ArpPacket::try_from(frame.payload()).map_err(InvalidPacket::Arp)?;
                 self.arp.process_packet(packet).await;
             }
         }
@@ -59,9 +82,9 @@ impl Default for NetStack {
 impl NetStack {
     pub fn new() -> Self {
         let executor = Executor::new();
-        let routing = FutureMutex::new(FVec::new());
+        let routing = Arc::new(RoutingTable::new());
         let protocols = Arc::new(Protocols {
-            arp: Arp::new(),
+            arp: Arp::new(routing.clone()),
         });
 
         Self {
@@ -75,7 +98,7 @@ impl NetStack {
         &self.protocols.arp
     }
 
-    pub fn register_device(&self, cidr: IpCidr, device: Box<dyn Device>) {
+    pub fn add_device(&self, cidr: IpCidr, device: Box<dyn Device>) {
         let interface = Interface::new(device);
 
         self.executor.spawn(interface.work_rx_queue());
@@ -83,40 +106,27 @@ impl NetStack {
 
         let rx = interface.rx_queue().clone();
 
-        let route = Route(cidr, interface);
+        let interface = Arc::new(interface);
+        let route = Route::new(cidr, interface);
         block_on(async move {
-            let mut guard = self.routing.lock().await;
-            guard.try_push(route)
-        }).unwrap(); // TODO: handle error
+            self.routing.add_route(route).await;
+        });
 
         self.executor.spawn({
             let protocols = self.protocols.clone();
             async move {
                 loop {
                     let frame = rx.pop().await;
-                    match protocols.route_link_frame(frame).await {
-                        Ok(_) => {}
-                        Err(_) => panic!("failed to route packet"), // FIXME: just log an error and continue
-                    }
+                    // FIXME: just log an error and continue
+                    protocols.route_link_frame(frame).await.unwrap();
                 }
             }
         });
     }
-
-    pub fn execute_step(&self) -> ExecuteResult {
-        self.executor.execute_task()
-    }
 }
 
-#[derive(From, Debug)]
-pub struct Route(IpCidr, Interface); // TODO: probably allow more CIDRs
-
-impl Route {
-    pub fn should_serve(&self, ip: IpAddr) -> bool {
-        self.0.contains(ip).unwrap_or(false)
-    }
-
-    pub fn interface(&self) -> &Interface {
-        &self.1
+impl Tick for NetStack {
+    fn tick(&self) -> TickResult {
+        self.executor.tick()
     }
 }

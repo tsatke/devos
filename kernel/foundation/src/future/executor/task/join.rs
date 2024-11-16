@@ -43,7 +43,7 @@ impl<T> Future for JoinHandle<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::future::executor::{block_on, ExecuteResult, Executor};
+    use crate::future::executor::{block_on, Executor, TickResult};
     use crate::future::testing::Times;
     use crate::future::yield_now;
     use alloc::sync::Arc;
@@ -92,12 +92,12 @@ mod tests {
         assert!(!handle.is_finished());
 
         for _ in 0..5 {
-            assert_eq!(ExecuteResult::Worked, exec.execute_task());
+            assert_eq!(TickResult::Worked, exec.execute_task());
         }
         assert!(!handle.is_finished());
         handle.cancel();
 
-        assert_eq!(ExecuteResult::Idled, exec.execute_task());
+        assert_eq!(TickResult::Idled, exec.execute_task());
     }
 
     #[test]
@@ -116,21 +116,21 @@ mod tests {
         });
 
         assert_eq!(counter.load(Acquire), 0);
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(counter.load(Acquire), 1);
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(counter.load(Acquire), 2);
 
         drop(handle);
 
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(counter.load(Acquire), 3);
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(counter.load(Acquire), 4);
-        assert_eq!(ExecuteResult::Worked, exec.execute_task());
+        assert_eq!(TickResult::Worked, exec.execute_task());
         assert_eq!(counter.load(Acquire), 5);
-        assert_eq!(ExecuteResult::Worked, exec.execute_task()); // after yielding
+        assert_eq!(TickResult::Worked, exec.execute_task()); // after yielding
 
-        assert_eq!(ExecuteResult::Idled, exec.execute_task());
+        assert_eq!(TickResult::Idled, exec.execute_task());
     }
 }

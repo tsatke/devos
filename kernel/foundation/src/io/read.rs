@@ -29,7 +29,7 @@ pub trait Read<T> {
                     continue;
                 }
                 Ok(n) => buf = &mut buf[n..],
-                Err(ReadError::EndOfStream) => return Err(ReadExactError::IncompleteRead),
+                Err(ReadError::ResourceExhausted) => return Err(ReadExactError::IncompleteRead),
             };
         }
         Ok(())
@@ -59,9 +59,9 @@ pub enum ReadError {
     /// No elements have been read, but more might become
     /// available. Try again.
     WouldBlock,
-    /// No more elements is or will become available.
+    /// No more elements are or will become available.
     /// The stream has reached the end.
-    EndOfStream,
+    ResourceExhausted,
 }
 
 impl Error for ReadError {}

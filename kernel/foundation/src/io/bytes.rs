@@ -23,7 +23,7 @@ impl<R: Read<u8>> Iterator for Bytes<R> {
                     return Some(Ok(byte));
                 }
                 Err(ReadError::WouldBlock) => continue,
-                Err(ReadError::EndOfStream) => return None,
+                Err(ReadError::ResourceExhausted) => return None,
             }
         }
     }

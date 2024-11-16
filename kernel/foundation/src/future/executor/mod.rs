@@ -16,6 +16,10 @@ pub use single::block_on;
 mod single;
 mod task;
 
+pub trait Tick {
+    fn tick(&self) -> TickResult;
+}
+
 #[derive(Default)]
 pub struct Executor<'a> {
     ready_queue: Arc<SegQueue<TaskId>>,
@@ -34,7 +38,7 @@ impl<'a> Executor<'a> {
 
     pub fn spawn<F, T>(&self, future: F) -> JoinHandle<T>
     where
-        F: Future<Output=T> + Send + Sync + 'a,
+        F: Future<Output = T> + Send + 'a,
         T: Send + Sync + 'a,
     {
         let (tx, rx) = oneshot::channel();
@@ -46,7 +50,12 @@ impl<'a> Executor<'a> {
         };
         let wrapper = Box::pin(wrapper);
 
-        let task = Task::new(self.ready_queue.clone(), wrapper, should_cancel, self.active_tasks.clone());
+        let task = Task::new(
+            self.ready_queue.clone(),
+            wrapper,
+            should_cancel,
+            self.active_tasks.clone(),
+        );
         let task_id = task.id();
 
         self.ready_tasks.lock().insert(task_id, task);
@@ -62,10 +71,10 @@ impl<'a> Executor<'a> {
     /// When using this executor, call this in a loop
     /// to perform any work. This can be called
     /// simultaneously from multiple threads.
-    pub fn execute_task(&self) -> ExecuteResult {
+    fn execute_task(&self) -> TickResult {
         let mut task = loop {
             let Some(next_task_id) = self.ready_queue.pop() else {
-                return ExecuteResult::Idled;
+                return TickResult::Idled;
             };
 
             // If we can't find a task, that means that the task is currently
@@ -106,14 +115,14 @@ impl<'a> Executor<'a> {
             }
         };
 
-        ExecuteResult::Worked
+        TickResult::Worked
     }
 
     pub fn run_active_tasks_to_completion(&self) {
         while self.active_tasks() > 0 {
             match self.execute_task() {
-                ExecuteResult::Idled => spin_loop(),
-                ExecuteResult::Worked => {}
+                TickResult::Idled => spin_loop(),
+                TickResult::Worked => {}
             }
         }
     }
@@ -123,8 +132,14 @@ impl<'a> Executor<'a> {
     }
 }
 
+impl<'a> Tick for Executor<'a> {
+    fn tick(&self) -> TickResult {
+        self.execute_task()
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ExecuteResult {
+pub enum TickResult {
     Worked,
     Idled,
 }

@@ -20,4 +20,12 @@ impl MacAddr {
     pub const fn new(bytes: [u8; 6]) -> Self {
         Self(bytes)
     }
+
+    pub fn octets(&self) -> &[u8; 6] {
+        &self.0
+    }
+
+    pub fn is_broadcast(&self) -> bool {
+        self == &Self::BROADCAST
+    }
 }

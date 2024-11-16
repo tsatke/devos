@@ -16,7 +16,7 @@ pub trait Write<T> {
                     continue;
                 }
                 Ok(n) => buf = &buf[n..],
-                Err(WriteError::EndOfStream) => return Err(WriteExactError::IncompleteWrite),
+                Err(WriteError::ResourceExhausted) => return Err(WriteExactError::IncompleteWrite),
             };
         }
         Ok(())
@@ -44,7 +44,7 @@ where
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
 pub enum WriteError {
     WouldBlock,
-    EndOfStream,
+    ResourceExhausted,
 }
 
 impl Error for WriteError {}

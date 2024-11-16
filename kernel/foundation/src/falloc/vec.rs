@@ -139,12 +139,14 @@ impl<T> FVec<T> {
         self.push_within_capacity(t)
     }
 
-    pub fn try_extend<I: IntoIterator<Item=T>>(
+    pub fn try_extend<I: IntoIterator<Item = T>>(
         &mut self,
         iter: I,
     ) -> Result<(), TryReserveError> {
         // TODO: once https://github.com/rust-lang/rust/issues/31844 (specialization) is stabilized, we can specialize try_extend for ExactSizeIterator
-        for t in iter {
+        let i = iter.into_iter();
+        self.inner.try_reserve(i.size_hint().0)?;
+        for t in i {
             unsafe {
                 // call directly on inner to make sure we can't mess things up by
                 // relying on that impl in extend_one_unchecked below
@@ -179,7 +181,7 @@ where
 
         for t in buf {
             self.try_push(t.clone())
-                .map_err(|_| WriteError::EndOfStream)?;
+                .map_err(|_| WriteError::ResourceExhausted)?;
         }
         Ok(buf.len())
     }

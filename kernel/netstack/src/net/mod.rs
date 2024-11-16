@@ -7,9 +7,12 @@ pub use link::*;
 pub use mac::*;
 pub use network::*;
 pub use phy::*;
+pub use routing::*;
 
 mod cidr;
 mod link;
 mod mac;
 mod network;
 mod phy;
+mod routing;
+mod serialize;

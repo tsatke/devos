@@ -26,7 +26,7 @@ impl TaskId {
 pub struct Task<'a> {
     id: TaskId,
     waker: Waker,
-    future: Pin<Box<dyn Future<Output=()> + Send + Sync + 'a>>,
+    future: Pin<Box<dyn Future<Output = ()> + Send + 'a>>,
     should_cancel: Arc<AtomicBool>,
     active_tasks: Arc<AtomicUsize>,
 }
@@ -34,13 +34,19 @@ pub struct Task<'a> {
 impl<'a> Task<'a> {
     pub(crate) fn new(
         ready_queue: Arc<SegQueue<TaskId>>,
-        future: Pin<Box<impl Future<Output=()> + Send + Sync + 'a>>,
+        future: Pin<Box<impl Future<Output = ()> + Send + 'a>>,
         should_cancel: Arc<AtomicBool>,
         active_tasks: Arc<AtomicUsize>,
     ) -> Self {
         let id = TaskId::new();
         let waker = TaskWaker::new_waker(id, ready_queue);
-        Self { id, waker, future, should_cancel, active_tasks }
+        Self {
+            id,
+            waker,
+            future,
+            should_cancel,
+            active_tasks,
+        }
     }
 
     pub fn should_cancel(&self) -> bool {
@@ -55,7 +61,7 @@ impl<'a> Task<'a> {
         &self.waker
     }
 
-    pub fn future(&mut self) -> Pin<&mut (dyn Future<Output=()> + Send + Sync)> {
+    pub fn future(&mut self) -> Pin<&mut (dyn Future<Output = ()> + Send)> {
         self.future.as_mut()
     }
 }

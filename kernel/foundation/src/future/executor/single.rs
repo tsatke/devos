@@ -8,7 +8,7 @@ use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::SeqCst;
 use core::task::{Context, Poll, Waker};
 
-pub fn block_on<T>(fut: impl Future<Output=T>) -> T {
+pub fn block_on<T>(fut: impl Future<Output = T>) -> T {
     SingleTaskExecutor::new(fut).execute::<Spin>()
 }
 
@@ -20,7 +20,7 @@ pub struct SingleTaskExecutor<T> {
 
 impl<F, T> SingleTaskExecutor<F>
 where
-    F: Future<Output=T>,
+    F: Future<Output = T>,
 {
     pub fn new(fut: F) -> Self {
         let sleeping = Arc::new(AtomicBool::new(false));
@@ -61,8 +61,8 @@ impl Wake for SingleTaskWaker {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::future::testing::Times;
+    use futures::executor::block_on;
 
     #[test]
     fn test_block_on() {
