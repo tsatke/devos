@@ -59,14 +59,13 @@ impl PhysicalMemoryManager {
         MEMORY_MANAGER
             .lock()
             .as_mut()
-            .map(|mm| mm.alloc.allocate_frame())
-            .flatten()
+            .and_then(|mm| mm.alloc.allocate_frame())
     }
 
     pub fn deallocate_frame(frame: PhysFrame) {
-        MEMORY_MANAGER.lock().as_mut().map(|mm| unsafe {
-            mm.alloc.deallocate_frame(frame);
-        });
+        if let Some(mm) = MEMORY_MANAGER.lock().as_mut() {
+            unsafe { mm.alloc.deallocate_frame(frame) };
+        }
     }
 }
 

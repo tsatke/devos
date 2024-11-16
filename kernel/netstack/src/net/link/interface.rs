@@ -1,6 +1,7 @@
 use crate::net::{DataLinkProtocol, Device, MacAddr, ReadFrameResult};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use core::fmt::{Debug, Formatter};
 use core::future::{poll_fn, Future};
 use core::task::Poll;
 use derive_more::Constructor;
@@ -31,6 +32,15 @@ pub struct Interface {
     rx_queue: Arc<AsyncBoundedQueue<Frame>>,
 }
 
+impl Debug for Interface {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Interface")
+            .field("mac_addr", &self.mac_addr)
+            .field("protocol", &self.protocol)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Interface {
     pub fn new(device: Box<dyn Device>) -> Interface {
         let mac_addr = device.mac_addr();
@@ -53,7 +63,7 @@ impl Interface {
         self.protocol
     }
 
-    pub async fn send_frame(&self, frame: Frame) -> () {
+    pub async fn send_frame(&self, frame: Frame) {
         self.tx_queue.push(frame).await
     }
 

@@ -66,6 +66,12 @@ pub struct Arp {
     cache: FutureMutex<BTreeMap<Ipv4Addr, MacAddr>>,
 }
 
+impl Default for Arp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Arp {
     pub fn new() -> Self {
         Self {

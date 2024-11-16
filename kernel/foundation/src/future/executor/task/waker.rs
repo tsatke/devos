@@ -11,7 +11,7 @@ pub struct TaskWaker {
 }
 
 impl TaskWaker {
-    pub fn new(id: TaskId, ready_queue: Arc<SegQueue<TaskId>>) -> Waker {
+    pub fn new_waker(id: TaskId, ready_queue: Arc<SegQueue<TaskId>>) -> Waker {
         Waker::from(Arc::new(Self { id, ready_queue }))
     }
 }

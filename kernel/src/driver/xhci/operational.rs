@@ -202,8 +202,8 @@ impl Crcr {
 
     /// [`Self::command_ring_pointer`]
     pub fn set_command_ring_pointer(&mut self, value: u64) {
-        (*self).0 &= (1 << 6) - 1;
-        (*self).0 |= value << 6;
+        self.0 &= (1 << 6) - 1;
+        self.0 |= value << 6;
     }
 
     pub fn contains(&self, other: Self) -> bool {
@@ -212,9 +212,9 @@ impl Crcr {
 
     pub fn set(&mut self, other: Self, value: bool) {
         if value {
-            (*self).0 |= other.0;
+            self.0 |= other.0;
         } else {
-            (*self).0 = self.0 & !other.0;
+            self.0 &= !other.0;
         }
     }
 }
@@ -270,8 +270,8 @@ impl Config {
 
     /// [`Self::max_device_slots_enabled`]
     pub fn set_max_device_slots_enabled(&mut self, value: u8) {
-        (*self).0 &= !((1 << 8) - 1);
-        (*self).0 |= value as u32;
+        self.0 &= !((1 << 8) - 1);
+        self.0 |= value as u32;
     }
 
     pub fn contains(&self, other: Self) -> bool {
@@ -280,9 +280,9 @@ impl Config {
 
     pub fn set(&mut self, other: Self, value: bool) {
         if value {
-            (*self).0 |= other.0;
+            self.0 |= other.0;
         } else {
-            (*self).0 = self.0 & !other.0;
+            self.0 &= !other.0;
         }
     }
 }

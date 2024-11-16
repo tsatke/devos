@@ -88,7 +88,7 @@ pub struct FutureMutexGuard<'a, T> {
 unsafe impl<T: Sync> Sync for FutureMutexGuard<'_, T> {}
 unsafe impl<T: Send> Send for FutureMutexGuard<'_, T> {}
 
-impl<'a, T> Deref for FutureMutexGuard<'_, T> {
+impl<T> Deref for FutureMutexGuard<'_, T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -96,12 +96,12 @@ impl<'a, T> Deref for FutureMutexGuard<'_, T> {
     }
 }
 
-impl<'a, T> DerefMut for FutureMutexGuard<'_, T> {
+impl<T> DerefMut for FutureMutexGuard<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { &mut *self.data }
     }
 }
-impl<'a, T> Drop for FutureMutexGuard<'a, T> {
+impl<T> Drop for FutureMutexGuard<'_, T> {
     fn drop(&mut self) {
         // Order matters here, this needs to happen before waking up other tasks.
         // Consider this.
@@ -120,7 +120,9 @@ impl<'a, T> Drop for FutureMutexGuard<'a, T> {
         compiler_fence(SeqCst); // TODO: is this correct/necessary?
 
         // only one task will get the lock, so we only need to wake one
-        self.mutex.wakers.pop().map(|waker| waker.wake_by_ref());
+        if let Some(waker) = self.mutex.wakers.pop() {
+            waker.wake_by_ref()
+        }
     }
 }
 

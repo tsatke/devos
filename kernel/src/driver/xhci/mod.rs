@@ -69,7 +69,7 @@ impl TryFrom<PciStandardHeaderDevice> for XhciRegisters<'_> {
 
         let interval = vmm()
             .reserve(size)
-            .map_err(|vmm_err| XhciError::VmmError(vmm_err))?;
+            .map_err(XhciError::VmmError)?;
         debug_assert_eq!(size, interval.size());
         let start_addr = interval.start();
         (start_addr..(start_addr + (size - 1)))

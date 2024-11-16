@@ -95,7 +95,7 @@ impl<'a> From<&'a str> for Component<'a> {
     }
 }
 
-impl<'a> FusedIterator for Components<'a> {}
+impl FusedIterator for Components<'_> {}
 
 impl<'a> Iterator for Components<'a> {
     type Item = Component<'a>;
@@ -127,7 +127,7 @@ impl<'a> Iterator for Components<'a> {
     }
 }
 
-impl<'a> DoubleEndedIterator for Components<'a> {
+impl DoubleEndedIterator for Components<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         'outer: while !self.path.is_empty() {
             return match self.state_back {

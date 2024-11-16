@@ -67,7 +67,7 @@ fn main() {
                 .skip(200)
                 .take(80)
                 .flat_map(|row| row.iter_mut().skip(400).take(80))
-                .for_each(|pixel| *pixel = 0xFF - (v / 2) << 8 | v);
+                .for_each(|pixel| *pixel = (0xFF - (v / 2)) << 8 | v);
         }
     }
 }

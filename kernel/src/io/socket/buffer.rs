@@ -10,7 +10,7 @@ pub struct SocketBuffer {
 
 impl SocketBuffer {
     pub fn try_new() -> Result<Self, AllocError> {
-        Ok(Self::try_with_size(256 * 1024)?)
+        Self::try_with_size(256 * 1024)
     }
 
     fn try_with_size(size: usize) -> Result<Self, AllocError> {

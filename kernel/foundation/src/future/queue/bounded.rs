@@ -21,6 +21,10 @@ impl<T> AsyncBoundedQueue<T> {
         self.queue.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.queue.is_empty()
+    }
+
     pub async fn pop(&self) -> T {
         poll_fn(|cx| self.poll_for_pop(cx)).await
     }

@@ -16,6 +16,7 @@ pub use single::block_on;
 mod single;
 mod task;
 
+#[derive(Default)]
 pub struct Executor<'a> {
     ready_queue: Arc<SegQueue<TaskId>>,
     ready_tasks: Mutex<BTreeMap<TaskId, Task<'a>>>,

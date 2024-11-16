@@ -91,16 +91,13 @@ impl Scheduler {
     }
 
     fn next_thread(&mut self) -> Box<Thread> {
-        let thread = {
-            // this loop terminates because we must have at least the idle thread in a ready queue
-            // (which is the old kernel task, that is in a hlt-loop)
-            loop {
-                if let Some(thread) = self.ready[self.strategy.next().unwrap()].dequeue() {
-                    break Pin::into_inner(thread);
-                }
+        // this loop terminates because we must have at least the idle thread in a ready queue
+        // (which is the old kernel task, that is in a hlt-loop)
+        loop {
+            if let Some(thread) = self.ready[self.strategy.next().unwrap()].dequeue() {
+                break Pin::into_inner(thread);
             }
-        };
-        thread
+        }
     }
 
     fn take_new_threads(&mut self) {

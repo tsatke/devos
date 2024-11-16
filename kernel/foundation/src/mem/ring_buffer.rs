@@ -55,7 +55,7 @@ impl<T> RingBuffer<T> {
 
 impl<T: Copy> Read<T> for RingBuffer<T> {
     fn read(&mut self, buf: &mut [T]) -> Result<usize, ReadError> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(0);
         }
 
@@ -78,7 +78,7 @@ impl<T: Copy> Read<T> for RingBuffer<T> {
 
 impl<T: Copy> Write<T> for RingBuffer<T> {
     fn write(&mut self, buf: &[T]) -> Result<usize, WriteError> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(0);
         }
 

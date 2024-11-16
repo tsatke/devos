@@ -39,7 +39,7 @@ impl<'a> Task<'a> {
         active_tasks: Arc<AtomicUsize>,
     ) -> Self {
         let id = TaskId::new();
-        let waker = TaskWaker::new(id, ready_queue);
+        let waker = TaskWaker::new_waker(id, ready_queue);
         Self { id, waker, future, should_cancel, active_tasks }
     }
 

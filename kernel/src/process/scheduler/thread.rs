@@ -32,7 +32,7 @@ where
     }
 }
 
-impl !Default for ThreadId {}
+impl ! Default for ThreadId {}
 
 impl ThreadId {
     pub fn new() -> Self {
@@ -262,6 +262,9 @@ extern "C" fn leave_thread() -> ! {
 }
 
 impl Thread {
+    /// # Safety
+    /// The caller must ensure that this is only called once and that the passed process
+    /// is actually the root kernel process.
     pub unsafe fn kernel_thread(kernel_process: Process) -> Self {
         Self {
             id: ThreadId::new(),

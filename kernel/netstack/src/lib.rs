@@ -50,8 +50,32 @@ impl Protocols {
     }
 }
 
+impl Default for NetStack {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NetStack {
-    pub fn register_device(&self, cidr: IpCidr, device: Box<dyn Device>) -> Result<(), ()> {
+    pub fn new() -> Self {
+        let executor = Executor::new();
+        let routing = FutureMutex::new(FVec::new());
+        let protocols = Arc::new(Protocols {
+            arp: Arp::new(),
+        });
+
+        Self {
+            executor,
+            routing,
+            protocols,
+        }
+    }
+
+    pub fn arp(&self) -> &Arp {
+        &self.protocols.arp
+    }
+
+    pub fn register_device(&self, cidr: IpCidr, device: Box<dyn Device>) {
         let interface = Interface::new(device);
 
         self.executor.spawn(interface.work_rx_queue());
@@ -63,7 +87,7 @@ impl NetStack {
         block_on(async move {
             let mut guard = self.routing.lock().await;
             guard.try_push(route)
-        }).map_err(|_| ())?;
+        }).unwrap(); // TODO: handle error
 
         self.executor.spawn({
             let protocols = self.protocols.clone();
@@ -77,8 +101,6 @@ impl NetStack {
                 }
             }
         });
-
-        Ok(())
     }
 
     pub fn execute_step(&self) -> ExecuteResult {
@@ -86,7 +108,7 @@ impl NetStack {
     }
 }
 
-#[derive(From)]
+#[derive(From, Debug)]
 pub struct Route(IpCidr, Interface); // TODO: probably allow more CIDRs
 
 impl Route {

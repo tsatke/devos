@@ -1,6 +1,6 @@
 use crate::io::{Write, WriteError};
 use alloc::collections::TryReserveError;
-use alloc::vec::{IntoIter, Vec};
+use alloc::vec::Vec;
 use core::borrow::{Borrow, BorrowMut};
 use core::fmt::Debug;
 use core::ops::{Deref, DerefMut, Index, IndexMut};
@@ -93,6 +93,21 @@ where
     }
 }
 
+impl<T> Default for FVec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> IntoIterator for FVec<T> {
+    type Item = T;
+    type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.into_iter()
+    }
+}
+
 impl<T> FVec<T> {
     delegate! {
         to Vec {
@@ -108,7 +123,6 @@ impl<T> FVec<T> {
             pub fn push_within_capacity(&mut self, t: T) -> Result<(), T>;
             pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError>;
             pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), TryReserveError>;
-            pub fn into_iter(self) -> IntoIter<T>;
         }
     }
 
@@ -159,7 +173,7 @@ where
     T: Clone,
 {
     fn write(&mut self, buf: &[T]) -> Result<usize, WriteError> {
-        if buf.len() == 0 {
+        if buf.is_empty() {
             return Ok(0);
         }
 

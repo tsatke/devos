@@ -34,6 +34,8 @@ impl<T> FBox<T> {
         Box::into_raw(self.inner)
     }
 
+    /// # Safety
+    /// The caller must ensure that the pointer was created by [`FBox::into_raw`].
     pub unsafe fn from_raw(ptr: *mut T) -> Self {
         unsafe { Box::from_raw(ptr) }.into()
     }
