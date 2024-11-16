@@ -1,8 +1,7 @@
 use crate::io::{seek_do_restore, Seek, SeekError};
 use alloc::boxed::Box;
-use core::error::Error;
 use core::hint::spin_loop;
-use derive_more::Display;
+use thiserror::Error;
 
 pub trait Write<T> {
     fn write(&mut self, buf: &[T]) -> Result<usize, WriteError>;
@@ -41,33 +40,20 @@ where
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum WriteError {
+    #[error("would block")]
     WouldBlock,
+    #[error("resource exhausted")]
     ResourceExhausted,
 }
 
-impl Error for WriteError {}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum WriteExactError {
-    Write(WriteError),
+    #[error("write error")]
+    Write(#[from] WriteError),
+    #[error("a full write could not be completed")]
     IncompleteWrite,
-}
-
-impl Error for WriteExactError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            WriteExactError::Write(e) => Some(e),
-            WriteExactError::IncompleteWrite => None,
-        }
-    }
-}
-
-impl From<WriteError> for WriteExactError {
-    fn from(value: WriteError) -> Self {
-        Self::Write(value)
-    }
 }
 
 pub trait WriteAt<T> {
@@ -76,58 +62,20 @@ pub trait WriteAt<T> {
     fn write_at_exact(&mut self, buf: &[T], offset: usize) -> Result<(), WriteAtExactError>;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum WriteAtError {
-    Write(WriteError),
-    Seek(SeekError),
+    #[error("write error")]
+    Write(#[from] WriteError),
+    #[error("seek error")]
+    Seek(#[from] SeekError),
 }
 
-impl Error for WriteAtError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            WriteAtError::Write(e) => Some(e),
-            WriteAtError::Seek(e) => Some(e),
-        }
-    }
-}
-
-impl From<WriteError> for WriteAtError {
-    fn from(err: WriteError) -> Self {
-        WriteAtError::Write(err)
-    }
-}
-
-impl From<SeekError> for WriteAtError {
-    fn from(err: SeekError) -> Self {
-        WriteAtError::Seek(err)
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum WriteAtExactError {
-    WriteExact(WriteExactError),
-    Seek(SeekError),
-}
-
-impl Error for WriteAtExactError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            WriteAtExactError::WriteExact(e) => Some(e),
-            WriteAtExactError::Seek(e) => Some(e),
-        }
-    }
-}
-
-impl From<WriteExactError> for WriteAtExactError {
-    fn from(value: WriteExactError) -> Self {
-        Self::WriteExact(value)
-    }
-}
-
-impl From<SeekError> for WriteAtExactError {
-    fn from(value: SeekError) -> Self {
-        Self::Seek(value)
-    }
+    #[error("write exact error")]
+    WriteExact(#[from] WriteExactError),
+    #[error("seek error")]
+    Seek(#[from] SeekError),
 }
 
 impl<T, E> WriteAt<E> for T

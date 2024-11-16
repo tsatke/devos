@@ -50,7 +50,7 @@ conquer-once = { version = "0.4.0", default-features = false }
 cordyceps = "0.3.2"
 crossbeam = { version = "0.8.4", default-features = false, features = ["alloc", "nightly", "crossbeam-queue"] }
 delegate = "0.13.1"
-derive_more = { version = "1.0.0", default-features = false, features = ["display", "error", "from", "deref", "constructor"] }
+derive_more = { version = "1.0.0", default-features = false, features = ["display", "from", "deref", "constructor"] }
 elfloader = "0.16.0"
 foundation = { path = "kernel/foundation" }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
@@ -63,6 +63,7 @@ mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
 num_enum = { version = "0.7.0", default-features = false }
 raw-cpuid = { version = "11.0", default-features = false }
 spin = "0.9.8"
+thiserror = { version = "2.0.3", default-features = false }
 uart_16550 = "0.3"
 volatile = { version = "0.6.1", features = ["derive"] }
 x2apic = "0.4"

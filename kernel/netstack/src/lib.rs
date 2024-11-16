@@ -9,9 +9,9 @@ use crate::net::{
 };
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use derive_more::From;
 use foundation::future::executor::{block_on, Executor, Tick, TickResult};
 use net::Route;
+use thiserror::Error;
 
 mod net;
 
@@ -25,25 +25,30 @@ struct Protocols {
     arp: Arp,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, From)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum NoRoute {
-    InvalidFrame(InvalidFrame),
-    ProtocolError(ProtocolError),
+    #[error("invalid frame")]
+    InvalidFrame(#[from] InvalidFrame),
+    #[error("protocol error")]
+    ProtocolError(#[from] ProtocolError),
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, From)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum InvalidFrame {
-    Ethernet(InvalidEthernetFrame),
+    #[error("invalid ethernet frame")]
+    Ethernet(#[from] InvalidEthernetFrame),
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, From)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum ProtocolError {
-    InvalidPacket(InvalidPacket),
+    #[error("invalid packet")]
+    InvalidPacket(#[from] InvalidPacket),
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, From)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum InvalidPacket {
-    Arp(InvalidArpPacket),
+    #[error("invalid arp packet")]
+    Arp(#[from] InvalidArpPacket),
 }
 
 impl Protocols {

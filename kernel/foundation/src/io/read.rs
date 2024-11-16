@@ -1,7 +1,7 @@
 use crate::io::{seek_do_restore, Seek, SeekError};
 use alloc::boxed::Box;
 use core::hint::spin_loop;
-use derive_more::{Display, Error, From};
+use thiserror::Error;
 
 pub trait Read<T> {
     /// Read from the current position into the provided buffer.
@@ -54,39 +54,24 @@ where
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum ReadError {
     /// No elements have been read, but more might become
     /// available. Try again.
+    #[error("would block")]
     WouldBlock,
     /// No more elements are or will become available.
     /// The stream has reached the end.
+    #[error("resource exhausted")]
     ResourceExhausted,
 }
 
-impl Error for ReadError {}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum ReadExactError {
-    Read(ReadError),
-    /// The read could not be completed, because not enough
-    /// data was available.
+    #[error("read error")]
+    Read(#[from] ReadError),
+    #[error("a full read could not be completed")]
     IncompleteRead,
-}
-
-impl Error for ReadExactError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            ReadExactError::Read(e) => Some(e),
-            ReadExactError::IncompleteRead => None,
-        }
-    }
-}
-
-impl From<ReadError> for ReadExactError {
-    fn from(value: ReadError) -> Self {
-        Self::Read(value)
-    }
 }
 
 pub trait ReadAt<T> {
@@ -101,58 +86,20 @@ pub trait ReadAt<T> {
     fn read_at_exact(&mut self, buf: &mut [T], offset: usize) -> Result<(), ReadAtExactError>;
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum ReadAtError {
-    Read(ReadError),
-    Seek(SeekError),
+    #[error("read error")]
+    Read(#[from] ReadError),
+    #[error("seek error")]
+    Seek(#[from] SeekError),
 }
 
-impl Error for ReadAtError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            ReadAtError::Read(e) => Some(e),
-            ReadAtError::Seek(e) => Some(e),
-        }
-    }
-}
-
-impl From<ReadError> for ReadAtError {
-    fn from(value: ReadError) -> Self {
-        Self::Read(value)
-    }
-}
-
-impl From<SeekError> for ReadAtError {
-    fn from(value: SeekError) -> Self {
-        Self::Seek(value)
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum ReadAtExactError {
-    ReadExact(ReadExactError),
-    Seek(SeekError),
-}
-
-impl Error for ReadAtExactError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match self {
-            ReadAtExactError::ReadExact(e) => Some(e),
-            ReadAtExactError::Seek(e) => Some(e),
-        }
-    }
-}
-
-impl From<ReadExactError> for ReadAtExactError {
-    fn from(value: ReadExactError) -> Self {
-        Self::ReadExact(value)
-    }
-}
-
-impl From<SeekError> for ReadAtExactError {
-    fn from(value: SeekError) -> Self {
-        Self::Seek(value)
-    }
+    #[error("read exact error")]
+    ReadExact(#[from] ReadExactError),
+    #[error("seek error")]
+    Seek(#[from] SeekError),
 }
 
 impl<T, E> ReadAt<E> for T

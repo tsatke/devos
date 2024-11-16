@@ -3,6 +3,7 @@ use crate::net::MacAddr;
 use core::cmp::PartialEq;
 use core::iter::repeat_n;
 use foundation::io::{Write, WriteExactError};
+use thiserror::Error;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EthernetFrame<'a> {
@@ -58,10 +59,13 @@ impl<'a> EthernetFrame<'a> {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum InvalidEthernetFrame {
+    #[error("frame too short: expected {expected} bytes, got {actual}")]
     TooShort { expected: usize, actual: usize },
+    #[error("invalid ether type")]
     InvalidEtherType,
+    #[error("invalid frame check sequence")]
     ChecksumError,
 }
 

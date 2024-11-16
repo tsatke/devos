@@ -1,9 +1,14 @@
 use core::fmt::Formatter;
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use derive_more::{Display, Error, From};
+use derive_more::{Display, From};
+use thiserror::Error;
 
-#[derive(Debug, Display, Error, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct InvalidNetworkLength;
+#[derive(Debug, Error, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[error("invalid network length, can be at most {max}, got {actual}")]
+pub struct InvalidNetworkLength {
+    max: u8,
+    actual: u8,
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, From)]
 pub enum IpCidr {
@@ -52,7 +57,10 @@ impl Ipv4Cidr {
 
     pub const fn try_new(ip: Ipv4Addr, network: u8) -> Result<Self, InvalidNetworkLength> {
         if network > Self::MAX_NET_LEN {
-            return Err(InvalidNetworkLength);
+            return Err(InvalidNetworkLength {
+                max: Self::MAX_NET_LEN,
+                actual: network,
+            });
         }
         Ok(Ipv4Cidr(ip, network))
     }
@@ -85,7 +93,10 @@ impl Ipv6Cidr {
 
     pub const fn try_new(ip: Ipv6Addr, network: u8) -> Result<Self, InvalidNetworkLength> {
         if network > Self::MAX_NET_LEN {
-            return Err(InvalidNetworkLength);
+            return Err(InvalidNetworkLength {
+                max: Self::MAX_NET_LEN,
+                actual: network,
+            });
         }
         Ok(Ipv6Cidr(ip, network))
     }

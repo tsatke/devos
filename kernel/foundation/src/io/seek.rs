@@ -1,4 +1,5 @@
 use derive_more::Display;
+use thiserror::Error;
 
 pub trait Seek {
     /// Repositions the read/write index.
@@ -13,14 +14,11 @@ pub trait Seek {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum SeekError {
-    /// The provided seek argument resulted in an invalid
-    /// offset.
+    #[error("seek out of bounds")]
     SeekOutOfBounds,
 }
-
-impl core::error::Error for SeekError {}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Display)]
 pub enum SeekFrom {

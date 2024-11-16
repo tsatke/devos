@@ -7,10 +7,11 @@ use core::future::poll_fn;
 use core::net::Ipv4Addr;
 use core::task::{Poll, Waker};
 use crossbeam::queue::SegQueue;
-use derive_more::{Constructor, Display};
+use derive_more::Constructor;
 use foundation::falloc::vec::FVec;
 use foundation::future::lock::FutureMutex;
 use foundation::io::{Cursor, Write, WriteExactError};
+use thiserror::Error;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ArpOperation {
@@ -52,9 +53,11 @@ where
     }
 }
 
-#[derive(Debug, Display, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum InvalidArpPacket {
+    #[error("packet too short")]
     TooShort,
+    #[error("invalid arp operation")]
     InvalidOperation,
 }
 
