@@ -6,6 +6,7 @@ use crate::net::ethernet::{EtherType, EthernetFrame};
 use crate::net::{Arp, ArpPacket, DataLinkProtocol, Device, Frame, Interface, IpCidr};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
+use core::net::IpAddr;
 use derive_more::From;
 use foundation::falloc::vec::FVec;
 use foundation::future::executor::{block_on, ExecuteResult, Executor};
@@ -86,4 +87,14 @@ impl NetStack {
 }
 
 #[derive(From)]
-pub struct Route(IpCidr, Interface);
+pub struct Route(IpCidr, Interface); // TODO: probably allow more CIDRs
+
+impl Route {
+    pub fn should_serve(&self, ip: IpAddr) -> bool {
+        self.0.contains(ip).unwrap_or(false)
+    }
+
+    pub fn interface(&self) -> &Interface {
+        &self.1
+    }
+}

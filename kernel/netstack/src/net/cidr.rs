@@ -1,5 +1,5 @@
 use core::fmt::Formatter;
-use core::net::{Ipv4Addr, Ipv6Addr};
+use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use derive_more::{Display, Error};
 
 #[derive(Debug, Display, Error, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -9,6 +9,16 @@ pub struct InvalidNetworkLength;
 pub enum IpCidr {
     V4(Ipv4Cidr),
     V6(Ipv6Cidr),
+}
+
+impl IpCidr {
+    pub fn contains(&self, ip: IpAddr) -> Result<bool, ()> {
+        match (self, ip) {
+            (IpCidr::V4(cidr), IpAddr::V4(ip)) => Ok(cidr.contains(ip)),
+            (IpCidr::V6(cidr), IpAddr::V6(ip)) => Ok(cidr.contains(ip)),
+            _ => Err(()),
+        }
+    }
 }
 
 impl Display for IpCidr {

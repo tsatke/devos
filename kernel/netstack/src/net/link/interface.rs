@@ -76,7 +76,7 @@ impl Interface {
                         let frame = Frame(protocol, data);
                         rx_queue.push(frame).await;
                     }
-                    Ok(ReadFrameResult::Incomplete(n)) => {
+                    Ok(ReadFrameResult::Incomplete(_)) => {
                         todo!("handle incomplete frame");
                     }
                     Err(ReadError::WouldBlock) => {

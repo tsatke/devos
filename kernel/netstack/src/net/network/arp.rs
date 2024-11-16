@@ -1,7 +1,8 @@
 use crate::net::MacAddr;
 use alloc::collections::BTreeMap;
+use core::future::poll_fn;
 use core::net::Ipv4Addr;
-use core::task::Waker;
+use core::task::{Poll, Waker};
 use crossbeam::queue::SegQueue;
 use foundation::future::lock::FutureMutex;
 
@@ -22,44 +23,6 @@ pub struct ArpPacket {
     srcpaddr: [u8; 4],
     dsthaddr: MacAddr,
     dstpaddr: [u8; 4],
-}
-
-impl ArpPacket {
-    pub fn htype(&self) -> u16 {
-        self.htype
-    }
-
-    pub fn ptype(&self) -> u16 {
-        self.ptype
-    }
-
-    pub fn hlen(&self) -> u8 {
-        self.hlen
-    }
-
-    pub fn plen(&self) -> u8 {
-        self.plen
-    }
-
-    pub fn operation(&self) -> ArpOperation {
-        self.operation
-    }
-
-    pub fn srchaddr(&self) -> MacAddr {
-        self.srchaddr
-    }
-
-    pub fn srcpaddr(&self) -> [u8; 4] {
-        self.srcpaddr
-    }
-
-    pub fn dsthaddr(&self) -> MacAddr {
-        self.dsthaddr
-    }
-
-    pub fn dstpaddr(&self) -> [u8; 4] {
-        self.dstpaddr
-    }
 }
 
 impl TryFrom<&[u8]> for ArpPacket {
@@ -104,6 +67,28 @@ pub struct Arp {
 }
 
 impl Arp {
+    pub fn new() -> Self {
+        Self {
+            wakers: SegQueue::new(),
+            cache: FutureMutex::new(BTreeMap::new()),
+        }
+    }
+
+    pub async fn translate(&self, ip: Ipv4Addr) -> Option<MacAddr> {
+        if ip.is_broadcast() {
+            return Some(MacAddr::BROADCAST);
+        }
+
+        if let Some(mac) = self.cache.lock().await.get(&ip) {
+            return Some(*mac);
+        }
+
+        poll_fn(|cx| {
+            self.wakers.push(cx.waker().clone());
+            Poll::Pending
+        }).await
+    }
+
     pub async fn process_packet(&self, packet: ArpPacket) {
         if packet.ptype != 0x0800 {
             // ignore non-ipv4 packets
@@ -128,10 +113,22 @@ impl Arp {
         let mac = packet.srchaddr;
         let ip = Ipv4Addr::from(packet.srcpaddr);
 
-        self.cache.lock().await.insert(ip, packet.dsthaddr);
+        self.cache.lock().await.insert(ip, mac);
 
         while let Some(waker) = self.wakers.pop() {
             waker.wake();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use foundation::future::executor::block_on;
+
+    #[test]
+    fn test_arp_translate_broadcast() {
+        let arp = Arp::new();
+        assert_eq!(Some(MacAddr::BROADCAST), block_on(arp.translate(Ipv4Addr::BROADCAST)));
     }
 }

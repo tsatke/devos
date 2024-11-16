@@ -73,7 +73,6 @@ impl Speed {
 #[cfg(feature = "kernel_test")]
 mod tests {
     use crate::driver::usb::speed::Speed;
-    use crate::driver::usb::*;
     use kernel_test_framework::kernel_test;
 
     #[kernel_test]

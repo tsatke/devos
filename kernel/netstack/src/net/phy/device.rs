@@ -21,12 +21,6 @@ pub trait Device: Send + Sync + 'static {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ReadFullError {
-    ReadError(ReadError),
-    AllocError,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ReadFrameResult {
     Incomplete(usize),
     Complete(usize),

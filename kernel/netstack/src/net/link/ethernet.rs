@@ -1,6 +1,8 @@
 use crate::net::MacAddr;
 use core::cmp::PartialEq;
 
+// TODO: remove - once we correctly support ethernet, we should have to use every field
+#[allow(unused)]
 pub struct EthernetFrame<'a> {
     mac_destination: MacAddr,
     mac_source: MacAddr,
@@ -10,24 +12,12 @@ pub struct EthernetFrame<'a> {
 }
 
 impl<'a> EthernetFrame<'a> {
-    pub fn mac_destination(&self) -> MacAddr {
-        self.mac_destination
-    }
-
-    pub fn mac_source(&self) -> MacAddr {
-        self.mac_source
-    }
-
     pub fn ether_type(&self) -> EtherType {
         self.ether_type
     }
 
     pub fn payload(&self) -> &'a [u8] {
         self.payload
-    }
-
-    pub fn fcs(&self) -> [u8; 4] {
-        self.fcs
     }
 }
 
@@ -63,6 +53,7 @@ pub enum EtherType {
     Ipv4,
     Arp,
 }
+
 impl TryFrom<[u8; 2]> for EtherType {
     type Error = ();
 
