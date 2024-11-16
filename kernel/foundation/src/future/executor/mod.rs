@@ -16,13 +16,13 @@ pub use single::block_on;
 mod single;
 mod task;
 
-pub struct Executor {
+pub struct Executor<'a> {
     ready_queue: Arc<SegQueue<TaskId>>,
-    ready_tasks: Mutex<BTreeMap<TaskId, Task>>,
+    ready_tasks: Mutex<BTreeMap<TaskId, Task<'a>>>,
     active_tasks: Arc<AtomicUsize>,
 }
 
-impl Executor {
+impl<'a> Executor<'a> {
     pub fn new() -> Self {
         Self {
             ready_queue: Arc::new(SegQueue::new()),
@@ -33,8 +33,8 @@ impl Executor {
 
     pub fn spawn<F, T>(&self, future: F) -> JoinHandle<T>
     where
-        F: Future<Output=T> + Send + Sync + 'static,
-        T: Send + Sync + 'static,
+        F: Future<Output=T> + Send + Sync + 'a,
+        T: Send + Sync + 'a,
     {
         let (tx, rx) = oneshot::channel();
         let should_cancel = Arc::new(AtomicBool::new(false));

@@ -7,13 +7,23 @@ pub trait Device: Send + Sync + 'static {
 
     fn protocol(&self) -> DataLinkProtocol;
 
-    fn wake_upon_data_available(&mut self, waker: &Waker) {
+    fn wake_when_read_available(&mut self, waker: &Waker) {
+        waker.wake_by_ref(); // immediately wake by default
+    }
+
+    fn wake_when_write_available(&mut self, waker: &Waker) {
         waker.wake_by_ref(); // immediately wake by default
     }
 
     fn read_frame(&mut self, buffer: &mut [u8]) -> Result<ReadFrameResult, ReadError>;
 
     fn write_frame(&mut self, buffer: &[u8]) -> Result<usize, WriteError>;
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ReadFullError {
+    ReadError(ReadError),
+    AllocError,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

@@ -1,14 +1,13 @@
 use crate::net::{DataLinkProtocol, Device, MacAddr, ReadFrameResult};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::alloc::AllocError;
-use core::pin::Pin;
-use core::task::{Context, Poll};
+use core::future::{poll_fn, Future};
+use core::task::Poll;
 use derive_more::Constructor;
 use foundation::falloc::vec::FVec;
 use foundation::future::lock::FutureMutex;
-use foundation::io::ReadError;
-use futures::Stream;
+use foundation::future::queue::AsyncBoundedQueue;
+use foundation::io::{ReadError, WriteError};
 
 #[derive(Constructor)]
 pub struct Frame(DataLinkProtocol, FVec<u8>);
@@ -27,6 +26,9 @@ pub struct Interface {
     device: Arc<FutureMutex<Box<dyn Device>>>,
     mac_addr: MacAddr,
     protocol: DataLinkProtocol,
+
+    tx_queue: Arc<AsyncBoundedQueue<Frame>>,
+    rx_queue: Arc<AsyncBoundedQueue<Frame>>,
 }
 
 impl Interface {
@@ -38,6 +40,8 @@ impl Interface {
             device,
             mac_addr,
             protocol,
+            tx_queue: Arc::new(AsyncBoundedQueue::new(64)),
+            rx_queue: Arc::new(AsyncBoundedQueue::new(64)),
         }
     }
 
@@ -49,57 +53,74 @@ impl Interface {
         self.protocol
     }
 
-    pub fn frames(&self) -> Result<FrameStream, AllocError> {
-        Ok(FrameStream {
-            device: self.device.clone(),
-            protocol: self.protocol,
-        })
+    pub async fn send_frame(&self, frame: Frame) -> () {
+        self.tx_queue.push(frame).await
     }
-}
 
-pub struct FrameStream {
-    device: Arc<FutureMutex<Box<dyn Device>>>,
-    protocol: DataLinkProtocol,
-}
+    pub fn rx_queue(&self) -> &Arc<AsyncBoundedQueue<Frame>> {
+        &self.rx_queue
+    }
 
-impl Stream for FrameStream {
-    type Item = Frame;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // TODO: does this size make sense?
-        let mut frame = match FVec::try_with_capacity(2048) {
-            Ok(v) => v,
-            Err(_) => {
-                cx.waker().wake_by_ref();
-                return Poll::Pending;
+    pub fn work_rx_queue(&self) -> impl Future<Output=()> + 'static {
+        let device = self.device.clone();
+        let protocol = self.protocol;
+        let rx_queue = self.rx_queue.clone();
+        async move {
+            loop {
+                let mut guard = device.lock().await;
+                let mut buf = [0_u8; 2048];
+                match guard.read_frame(&mut buf) {
+                    Ok(ReadFrameResult::Complete(n)) => {
+                        let mut data = FVec::try_with_len(n).unwrap(); // TODO: no panic
+                        data.copy_from_slice(&buf[..n]);
+                        let frame = Frame(protocol, data);
+                        rx_queue.push(frame).await;
+                    }
+                    Ok(ReadFrameResult::Incomplete(n)) => {
+                        todo!("handle incomplete frame");
+                    }
+                    Err(ReadError::WouldBlock) => {
+                        poll_fn(|cx| {
+                            guard.wake_when_read_available(cx.waker());
+                            Poll::<()>::Pending
+                        }).await;
+                    }
+                    Err(ReadError::EndOfStream) => {
+                        return;
+                    }
+                }
             }
-        };
+        }
+    }
 
-        let Some(mut guard) = self.device.try_lock() else {
-            cx.waker().wake_by_ref();
-            return Poll::Pending;
-        };
-
-        let mut buf = [0_u8; 2048];
-        loop {
-            match guard.read_frame(&mut buf) {
-                Ok(ReadFrameResult::Incomplete(n)) => {
-                    // TODO: log packet loss if this errors
-                    let _ = frame.try_extend(buf.iter().copied().take(n));
+    pub fn work_tx_queue(&self) -> impl Future<Output=()> + 'static {
+        let device = self.device.clone();
+        let protocol = self.protocol;
+        let tx_queue = self.tx_queue.clone();
+        async move {
+            loop {
+                let frame = tx_queue.pop().await;
+                debug_assert_eq!(frame.protocol(), protocol);
+                let frame = frame.into_data();
+                let mut guard = device.lock().await;
+                let mut buf = frame.as_ref();
+                while !buf.is_empty() {
+                    match guard.write_frame(&frame) {
+                        Ok(n) => {
+                            buf = &buf[n..];
+                        }
+                        Err(WriteError::WouldBlock) => {
+                            poll_fn(|cx| {
+                                guard.wake_when_write_available(cx.waker());
+                                Poll::<()>::Pending
+                            }).await;
+                        }
+                        Err(WriteError::EndOfStream) => {
+                            return;
+                        }
+                    };
                 }
-                Ok(ReadFrameResult::Complete(n)) => {
-                    // TODO: log packet loss if this errors
-                    let _ = frame.try_extend(buf.iter().copied().take(n));
-                    return Poll::Ready(Some(Frame::new(self.protocol, frame)));
-                }
-                Err(ReadError::WouldBlock) => {
-                    guard.wake_upon_data_available(cx.waker());
-                    return Poll::Pending;
-                }
-                Err(ReadError::EndOfStream) => {
-                    return Poll::Ready(None);
-                }
-            };
+            }
         }
     }
 }

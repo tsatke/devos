@@ -3,8 +3,8 @@ use core::future::Future;
 use core::hint::spin_loop;
 use core::ops::{Deref, DerefMut};
 use core::pin::Pin;
-use core::sync::atomic::AtomicBool;
-use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+use core::sync::atomic::Ordering::{Acquire, Relaxed, Release, SeqCst};
+use core::sync::atomic::{compiler_fence, AtomicBool};
 use core::task::{Context, Poll, Waker};
 use crossbeam::queue::SegQueue;
 
@@ -103,7 +103,21 @@ impl<'a, T> DerefMut for FutureMutexGuard<'_, T> {
 }
 impl<'a, T> Drop for FutureMutexGuard<'a, T> {
     fn drop(&mut self) {
+        // Order matters here, this needs to happen before waking up other tasks.
+        // Consider this.
+        // We wake up another tasks first. Then, we are preempted.
+        // The other task sees the lock as still locked and goes
+        // back to sleep.
+        // We now unlock the lock. All waiting tasks will keep waiting.
+        // The next task that locks the lock will solve this, but there's
+        // no guarantee that there is such a task.
+        //
+        // Something that would relax the situation, but not solve it, would
+        // be the executor sporadically waking tasks up that were not woken,
+        // but we mustn't rely on that.
         self.mutex.locked.store(false, Release);
+
+        compiler_fence(SeqCst); // TODO: is this correct/necessary?
 
         // only one task will get the lock, so we only need to wake one
         self.mutex.wakers.pop().map(|waker| waker.wake_by_ref());

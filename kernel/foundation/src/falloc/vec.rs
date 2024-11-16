@@ -125,7 +125,7 @@ impl<T> FVec<T> {
         self.push_within_capacity(t)
     }
 
-    pub fn try_extend<I: IntoIterator<Item = T>>(
+    pub fn try_extend<I: IntoIterator<Item=T>>(
         &mut self,
         iter: I,
     ) -> Result<(), TryReserveError> {

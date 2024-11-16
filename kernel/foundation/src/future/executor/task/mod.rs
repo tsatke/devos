@@ -23,18 +23,18 @@ impl TaskId {
     }
 }
 
-pub struct Task {
+pub struct Task<'a> {
     id: TaskId,
     waker: Waker,
-    future: Pin<Box<dyn Future<Output=()> + Send + Sync + 'static>>,
+    future: Pin<Box<dyn Future<Output=()> + Send + Sync + 'a>>,
     should_cancel: Arc<AtomicBool>,
     active_tasks: Arc<AtomicUsize>,
 }
 
-impl Task {
+impl<'a> Task<'a> {
     pub(crate) fn new(
         ready_queue: Arc<SegQueue<TaskId>>,
-        future: Pin<Box<impl Future<Output=()> + Send + Sync + 'static>>,
+        future: Pin<Box<impl Future<Output=()> + Send + Sync + 'a>>,
         should_cancel: Arc<AtomicBool>,
         active_tasks: Arc<AtomicUsize>,
     ) -> Self {
@@ -60,7 +60,7 @@ impl Task {
     }
 }
 
-impl Drop for Task {
+impl Drop for Task<'_> {
     fn drop(&mut self) {
         self.active_tasks.fetch_sub(1, Acquire);
     }

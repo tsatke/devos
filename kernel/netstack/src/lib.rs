@@ -10,12 +10,11 @@ use derive_more::From;
 use foundation::falloc::vec::FVec;
 use foundation::future::executor::{block_on, ExecuteResult, Executor};
 use foundation::future::lock::FutureMutex;
-use futures::StreamExt;
 
 mod net;
 
 pub struct NetStack {
-    executor: Executor,
+    executor: Executor<'static>,
     routing: FutureMutex<FVec<Route>>,
     protocols: Arc<Protocols>,
 }
@@ -53,7 +52,11 @@ impl Protocols {
 impl NetStack {
     pub fn register_device(&self, cidr: IpCidr, device: Box<dyn Device>) -> Result<(), ()> {
         let interface = Interface::new(device);
-        let frame_stream = interface.frames().map_err(|_| ())?;
+
+        self.executor.spawn(interface.work_rx_queue());
+        self.executor.spawn(interface.work_tx_queue());
+
+        let rx = interface.rx_queue().clone();
 
         let route = Route(cidr, interface);
         block_on(async move {
@@ -62,16 +65,15 @@ impl NetStack {
         }).map_err(|_| ())?;
 
         self.executor.spawn({
-            let mut frame_stream = frame_stream.fuse();
             let protocols = self.protocols.clone();
             async move {
-                while let Some(frame) = frame_stream.next().await {
+                loop {
+                    let frame = rx.pop().await;
                     match protocols.route_link_frame(frame).await {
                         Ok(_) => {}
                         Err(_) => panic!("failed to route packet"), // FIXME: just log an error and continue
                     }
                 }
-                // no more frames will come from this device, so we can exit the task
             }
         });
 
