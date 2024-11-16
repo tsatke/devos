@@ -1,5 +1,4 @@
 use crate::net::{DataLinkProtocol, Frame, MacAddr};
-use core::future::Future;
 use futures::future::BoxFuture;
 
 pub trait Device: Send + Sync + 'static {
@@ -10,12 +9,6 @@ pub trait Device: Send + Sync + 'static {
     fn next_frame(&self) -> BoxFuture<Frame>;
 
     fn write_frame(&self, buffer: &[u8]) -> BoxFuture<()>;
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum ReadFrameResult {
-    Incomplete(usize),
-    Complete(usize),
 }
 
 #[cfg(test)]
@@ -31,7 +24,6 @@ pub mod testing {
         mac_addr: MacAddr,
         protocol: DataLinkProtocol,
 
-        current_read_frame: Option<Vec<u8>>,
         pub rx_queue: Arc<AsyncBoundedQueue<Vec<u8>>>,
         pub tx_queue: Arc<AsyncBoundedQueue<Vec<u8>>>,
     }
@@ -43,7 +35,6 @@ pub mod testing {
             Self {
                 mac_addr,
                 protocol,
-                current_read_frame: None,
                 rx_queue,
                 tx_queue,
             }

@@ -1,4 +1,4 @@
-use crate::net::{ArpPacket, Interface, IpCidr};
+use crate::net::{Interface, IpCidr};
 use alloc::sync::Arc;
 use core::net::IpAddr;
 use derive_more::From;
@@ -30,10 +30,6 @@ impl RoutingTable {
 
     pub async fn add_route(&self, route: Route) {
         self.routes.lock().await.try_push(route).unwrap(); // TODO: handle error
-    }
-
-    pub async fn send_arp_packet(&self, packet: ArpPacket) {
-        todo!("send_arp_packet")
     }
 }
 

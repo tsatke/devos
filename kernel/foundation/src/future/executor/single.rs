@@ -61,8 +61,8 @@ impl Wake for SingleTaskWaker {
 
 #[cfg(test)]
 mod tests {
+    use crate::future::executor::block_on;
     use crate::future::testing::Times;
-    use futures::executor::block_on;
 
     #[test]
     fn test_block_on() {

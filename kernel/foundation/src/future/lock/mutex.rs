@@ -165,7 +165,7 @@ impl<'a, T> Future for FutexMutexGuardFuture<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::future::executor::{Executor, TickResult};
+    use crate::future::executor::{Executor, Tick, TickResult};
     use alloc::sync::Arc;
 
     #[test]
@@ -189,22 +189,22 @@ mod tests {
         assert_eq!(*guard, 0);
         // every task should attempt to get the lock, then put itself to sleep
         for _ in 0..TASKS {
-            let res = executor.execute_task();
+            let res = executor.tick();
             assert_eq!(res, TickResult::Worked)
         }
         // all tasks should be asleep, the executor should only idle now
         for _ in 0..(TASKS * 10) {
-            let res = executor.execute_task();
+            let res = executor.tick();
             assert_eq!(res, TickResult::Idled)
         }
         assert_eq!(*guard, 0);
 
         drop(guard);
         for _ in 0..TASKS {
-            let res = executor.execute_task();
+            let res = executor.tick();
             assert_eq!(res, TickResult::Worked);
         }
-        assert_eq!(executor.execute_task(), TickResult::Idled);
+        assert_eq!(executor.tick(), TickResult::Idled);
 
         let guard = mutex.try_lock().unwrap();
         assert_eq!(*guard, TASKS);

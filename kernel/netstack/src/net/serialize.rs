@@ -34,18 +34,6 @@ where
         self.inner.write_exact(&value.to_be_bytes())
     }
 
-    pub fn write_u32(&mut self, value: u32) -> Result<(), WriteExactError> {
-        self.inner.write_exact(&value.to_be_bytes())
-    }
-
-    pub fn write_u64(&mut self, value: u64) -> Result<(), WriteExactError> {
-        self.inner.write_exact(&value.to_be_bytes())
-    }
-
-    pub fn write_u128(&mut self, value: u128) -> Result<(), WriteExactError> {
-        self.inner.write_exact(&value.to_be_bytes())
-    }
-
     pub fn write_raw(&mut self, value: impl AsRef<[u8]>) -> Result<(), WriteExactError> {
         self.inner.write_exact(value.as_ref())
     }
