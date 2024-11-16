@@ -4,6 +4,7 @@ use core::task::Poll;
 pub mod lock;
 
 pub mod executor;
+pub mod queue;
 
 pub async fn yield_now() {
     let mut yielded = false;
