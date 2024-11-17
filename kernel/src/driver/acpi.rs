@@ -1,10 +1,8 @@
-use alloc::alloc::Global;
 use alloc::format;
-use alloc::rc::Rc;
-use core::assert_matches::assert_matches;
+use alloc::sync::Arc;
 use core::ptr::NonNull;
 
-use acpi::{AcpiHandler, AcpiTables, InterruptModel, PhysicalMapping, PlatformInfo};
+use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 use bootloader_api::BootInfo;
 use conquer_once::spin::OnceCell;
 use spin::Mutex;
@@ -15,7 +13,11 @@ use crate::map_page;
 use crate::mem::Size;
 use crate::Result;
 
-pub static INTERRUPT_MODEL: OnceCell<InterruptModel<Global>> = OnceCell::uninit();
+static ACPI_TABLES: OnceCell<Mutex<AcpiTables<KernelAcpi>>> = OnceCell::uninit();
+
+pub fn acpi_tables() -> &'static Mutex<AcpiTables<KernelAcpi>> {
+    ACPI_TABLES.get().expect("acpi tables not initialized")
+}
 
 pub static KERNEL_ACPI_ADDR: OnceCell<VirtAddr> = OnceCell::uninit();
 pub static KERNEL_ACPI_LEN: Size = Size::MiB(1);
@@ -28,17 +30,14 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
         panic!("acpi error: {:#?}", e); // FIXME: this currently occurs while booting in BIOS mode rather than UEFI
     }
     let tables = result.map_err(|e| format!("acpi error: {:#?}", e))?;
-    if let Ok(platform_info) = PlatformInfo::new(&tables) {
-        assert_matches!(platform_info.interrupt_model, InterruptModel::Apic(_)); // TODO: remove and support the other one(s), too
-        INTERRUPT_MODEL.init_once(|| platform_info.interrupt_model);
-    }
+    ACPI_TABLES.init_once(|| tables.into());
 
     Ok(())
 }
 
 #[derive(Clone, Debug)]
 pub struct KernelAcpi {
-    start_addr: Rc<Mutex<u64>>,
+    start_addr: Arc<Mutex<u64>>,
     end_addr_exclusive: u64,
 }
 
@@ -50,7 +49,7 @@ impl KernelAcpi {
             .as_u64();
         let end_addr_exclusive = start_addr + KERNEL_ACPI_LEN.bytes() as u64 - 1;
         KernelAcpi {
-            start_addr: Rc::new(Mutex::new(start_addr)),
+            start_addr: Arc::new(Mutex::new(start_addr)),
             end_addr_exclusive,
         }
     }

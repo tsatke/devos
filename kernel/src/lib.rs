@@ -22,15 +22,14 @@ use x86_64::VirtAddr;
 
 pub use error::Result;
 
-use crate::acpi::{KERNEL_ACPI_ADDR, KERNEL_ACPI_LEN};
-use crate::apic::{KERNEL_APIC_ADDR, KERNEL_APIC_LEN};
 use crate::arch::{gdt, idt};
 use crate::io::vfs;
 use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 use crate::mem::Size;
+use driver::acpi::{KERNEL_ACPI_ADDR, KERNEL_ACPI_LEN};
+use driver::apic;
+use driver::apic::{KERNEL_APIC_ADDR, KERNEL_APIC_LEN};
 
-pub mod acpi;
-pub mod apic;
 pub mod arch;
 pub mod driver;
 mod error;
@@ -39,7 +38,6 @@ pub mod mem;
 pub mod process;
 pub mod qemu;
 pub mod syscall;
-pub mod timer;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(128);
 
@@ -77,7 +75,7 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     idt::init();
     syscall::init();
     mem::init(boot_info)?; // sets up address space, thus implies process::init and scheduler::init
-    acpi::init(boot_info)?;
+    driver::acpi::init(boot_info)?;
     apic::init()?;
     vfs::init();
 

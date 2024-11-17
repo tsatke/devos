@@ -9,10 +9,9 @@ use x86_64::PrivilegeLevel;
 
 use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 
-use crate::apic::LAPIC;
 use crate::arch::syscall::syscall_handler_impl;
+use crate::driver::apic::LAPIC;
 use crate::process::vmm;
-use crate::timer::notify_timer_interrupt;
 use crate::{process, serial_println};
 
 static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
@@ -212,7 +211,7 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     }
 
     // after the interrupt is handled, because we'll switch to another thread
-    notify_timer_interrupt();
+    unsafe { process::reschedule() };
 }
 
 extern "x86-interrupt" fn page_fault_handler(
