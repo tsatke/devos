@@ -10,17 +10,16 @@ use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::map_page;
+use crate::mem::virt::OwnedInterval;
 use crate::mem::Size;
+use crate::process::vmm;
 use crate::Result;
 
 static ACPI_TABLES: OnceCell<Mutex<AcpiTables<KernelAcpi>>> = OnceCell::uninit();
 
-pub fn acpi_tables() -> &'static Mutex<AcpiTables<KernelAcpi>> {
-    ACPI_TABLES.get().expect("acpi tables not initialized")
+pub fn acpi_tables() -> Option<&'static Mutex<AcpiTables<KernelAcpi>>> {
+    ACPI_TABLES.get()
 }
-
-pub static KERNEL_ACPI_ADDR: OnceCell<VirtAddr> = OnceCell::uninit();
-pub static KERNEL_ACPI_LEN: Size = Size::MiB(1);
 
 pub fn init(boot_info: &'static BootInfo) -> Result<()> {
     let rsdp = boot_info.rsdp_addr.into_option().ok_or("no rsdp found")?;
@@ -37,18 +36,22 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
 
 #[derive(Clone, Debug)]
 pub struct KernelAcpi {
+    // the memory is valid as long as this lives, so we can't drop it,
+    // but we don't actively need it
+    #[allow(unused)]
+    acpi_interval: Arc<OwnedInterval<'static>>,
     start_addr: Arc<Mutex<u64>>,
     end_addr_exclusive: u64,
 }
 
 impl KernelAcpi {
     pub fn new() -> Self {
-        let start_addr = KERNEL_ACPI_ADDR
-            .get()
-            .expect("kernel acpi address not initialized")
-            .as_u64();
-        let end_addr_exclusive = start_addr + KERNEL_ACPI_LEN.bytes() as u64 - 1;
+        let acpi_interval = vmm().reserve(Size::MiB(1).bytes()).unwrap();
+        let start_addr = acpi_interval.start().as_u64();
+        let len = acpi_interval.size();
+        let end_addr_exclusive = start_addr + len as u64 - 1;
         KernelAcpi {
+            acpi_interval: Arc::new(acpi_interval),
             start_addr: Arc::new(Mutex::new(start_addr)),
             end_addr_exclusive,
         }

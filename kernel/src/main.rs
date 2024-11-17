@@ -3,18 +3,14 @@
 
 extern crate alloc;
 
-use core::num::NonZeroU8;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use kernel::arch::panic::handle_panic;
-use kernel::driver::pci;
-use kernel::driver::pci::{PciDeviceClass, PciStandardHeaderDevice, SerialBusSubClass};
-use kernel::driver::xhci::{Psi, SupportedProtocolCapability, XhciRegisters};
+use kernel::driver::hpet::{hpet, HpetVolatileFieldAccess};
 use kernel::process::{change_thread_priority, Priority, Process};
 use kernel::{bootloader_config, kernel_init, process, serial_println};
-use volatile::VolatilePtr;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 

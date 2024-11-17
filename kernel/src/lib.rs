@@ -23,10 +23,10 @@ use x86_64::VirtAddr;
 pub use error::Result;
 
 use crate::arch::{gdt, idt};
+use crate::driver::hpet;
 use crate::io::vfs;
 use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 use crate::mem::Size;
-use driver::acpi::{KERNEL_ACPI_ADDR, KERNEL_ACPI_LEN};
 use driver::apic;
 use driver::apic::{KERNEL_APIC_ADDR, KERNEL_APIC_LEN};
 
@@ -60,15 +60,12 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     let kernel_code_len = boot_info.kernel_len as usize;
     let kernel_heap_addr = (kernel_code_addr + kernel_code_len).align_up(Page::<Size4KiB>::SIZE);
     let kernel_heap_len = KERNEL_HEAP_LEN.bytes();
-    let kernel_acpi_addr = (kernel_heap_addr + kernel_heap_len).align_up(Page::<Size4KiB>::SIZE);
-    let kernel_acpi_len = KERNEL_ACPI_LEN.bytes();
-    let kernel_apic_addr = (kernel_acpi_addr + kernel_acpi_len).align_up(Page::<Size4KiB>::SIZE);
+    let kernel_apic_addr = (kernel_heap_addr + kernel_heap_len).align_up(Page::<Size4KiB>::SIZE);
     let _kernel_apic_len = KERNEL_APIC_LEN.bytes();
 
     KERNEL_CODE_ADDR.init_once(|| kernel_code_addr);
     KERNEL_CODE_LEN.init_once(|| kernel_code_len);
     KERNEL_HEAP_ADDR.init_once(|| kernel_heap_addr);
-    KERNEL_ACPI_ADDR.init_once(|| kernel_acpi_addr);
     KERNEL_APIC_ADDR.init_once(|| kernel_apic_addr);
 
     gdt::init();
