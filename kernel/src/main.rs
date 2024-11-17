@@ -37,74 +37,11 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         0.into(),
     );
 
-    let xhci = pci::devices()
-        .filter(|d| {
-            matches!(
-                d.class(),
-                PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)
-            ) && d.prog_if() == 0x30
-        })
-        .map(|d| PciStandardHeaderDevice::new(d.clone()).unwrap())
-        .map(|d| XhciRegisters::try_from(d).unwrap())
-        .next()
-        .unwrap();
-
-    let capabilities = xhci.capabilities.read();
-    xhci.extended_capabilities().for_each(|excap| {
-        if excap.read().id() == 2 {
-            // we have Supported Protocol
-            let spc_ptr = unsafe {
-                VolatilePtr::new(excap.as_raw_ptr().cast::<SupportedProtocolCapability>())
-            };
-            let spc = spc_ptr.read();
-            serial_println!("Supported Protocol Capability: {:#?}", spc);
-
-            let psic = spc.psic();
-            if psic > 0 {
-                for i in 0..psic {
-                    let psi = unsafe {
-                        VolatilePtr::new(
-                            spc_ptr
-                                .as_raw_ptr()
-                                .add(1) // end of the struct, start of the first PSI
-                                .cast::<Psi>()
-                                .add(usize::from(i)),
-                        )
-                    };
-                    let psi = psi.read();
-                    let exponent = psi.psie() / 3;
-                    let bit_rate = usize::from(psi.psim()) * (10_usize.pow(u32::from(exponent)));
-
-                    serial_println!(
-                        "psi {} is {} operating at {} bits per second",
-                        psi.psiv(),
-                        match psi.lp() {
-                            0 => "SuperSpeed",
-                            1 => "SuperSpeedPlus",
-                            2..=3 => "Reserved",
-                            _ => "Unknown",
-                        },
-                        bit_rate,
-                    );
-                    serial_println!("psi: {:#?}", psi);
-                }
-            } else {
-                serial_println!("no PSIs, default speeds apply for this protocol");
-            }
-        }
-    });
-
-    let num_ports = capabilities.hcsparams1.max_ports();
-    for i in 1..=num_ports {
-        let port = NonZeroU8::new(i).unwrap();
-        let portsc = xhci.portsc(port).read();
-        let current_connect_status = portsc.ccs();
-        if !current_connect_status {
-            continue;
-        }
-        serial_println!("port {} is connected", i);
-        let speed = portsc.port_speed();
-        serial_println!("port {} speed: {:?}", i, speed);
+    let hpet = hpet().unwrap();
+    {
+        let guard = hpet.lock();
+        let main_counter = guard.main_counter_value().read();
+        serial_println!("main counter: {}", main_counter);
     }
 
     change_thread_priority(Priority::Low);

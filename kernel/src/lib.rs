@@ -74,6 +74,7 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     mem::init(boot_info)?; // sets up address space, thus implies process::init and scheduler::init
     driver::acpi::init(boot_info)?;
     apic::init()?;
+    hpet::init();
     vfs::init();
 
     interrupts::enable();
