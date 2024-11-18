@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use core::mem::swap;
 use core::pin::Pin;
-use core::sync::atomic::Ordering::{Relaxed, Release};
+use core::sync::atomic::Ordering::{Acquire, Relaxed, Release};
 
 use x86_64::instructions::interrupts;
 
@@ -58,8 +58,9 @@ impl Scheduler {
         // because it might have changed (or better: we still need to change it)
         let (priority, mut old_thread) = self.swap_current_thread(next_thread);
 
-        let should_exit = self.current_thread_should_exit.swap(false, Relaxed);
-        let old_stack_ptr = if should_exit {
+        let process_should_terminate = old_thread.process().should_terminate.load(Acquire);
+        let thread_should_exit = self.current_thread_should_exit.swap(false, Relaxed);
+        let old_stack_ptr = if thread_should_exit || process_should_terminate {
             old_thread.set_state(State::Finished);
             finished_threads().enqueue(Box::into_pin(old_thread));
             &mut self._dummy_last_stack_ptr as *mut usize

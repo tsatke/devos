@@ -165,6 +165,9 @@ impl AddressSpace {
     }
 
     fn get_recursive_page_table(&self) -> RecursivePageTable<'static> {
+        // TODO: we could theoretically map our own l4 physical frame into the current process and then use that to get the recursive page table
+        assert!(self.is_active());
+
         unsafe {
             // Safety: we checked that the address is valid when this address space was created
             as_recursive_page_table(self.level4_table_virtual_addr)

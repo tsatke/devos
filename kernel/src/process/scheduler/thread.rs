@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
+use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::Vec;
 use cordyceps::mpsc_queue::Links;
@@ -32,7 +33,7 @@ where
     }
 }
 
-impl ! Default for ThreadId {}
+impl !Default for ThreadId {}
 
 impl ThreadId {
     pub fn new() -> Self {
@@ -51,7 +52,7 @@ pub enum State {
 pub struct Thread {
     pub(in crate::process::scheduler) id: ThreadId,
     pub(in crate::process::scheduler) name: String,
-    pub(in crate::process::scheduler) process: Process,
+    pub(in crate::process::scheduler) process: Arc<Process>,
     pub(in crate::process::scheduler) priority: Priority, // TODO: move priority into this module
     pub(in crate::process::scheduler) last_stack_ptr: Pin<Box<usize>>,
     pub(in crate::process::scheduler) stack: Option<Vec<u8>>,
@@ -120,7 +121,7 @@ impl Thread {
         &mut self.last_stack_ptr
     }
 
-    pub fn process(&self) -> &Process {
+    pub fn process(&self) -> &Arc<Process> {
         &self.process
     }
 
@@ -178,7 +179,7 @@ impl<'a> StackWriter<'a> {
 
 impl Thread {
     pub fn new_ready(
-        process: &Process,
+        process: &Arc<Process>,
         name: impl Into<String>,
         priority: Priority,
         entry_point: extern "C" fn(*mut c_void),
@@ -265,11 +266,11 @@ impl Thread {
     /// # Safety
     /// The caller must ensure that this is only called once and that the passed process
     /// is actually the root kernel process.
-    pub unsafe fn kernel_thread(kernel_process: Process) -> Self {
+    pub unsafe fn kernel_thread(kernel_process: &Arc<Process>) -> Self {
         Self {
             id: ThreadId::new(),
             name: "kernel".to_string(),
-            process: kernel_process,
+            process: kernel_process.clone(),
             priority: Priority::Normal,
             last_stack_ptr: Box::pin(0), // will be set correctly during the next `reschedule`
             stack: None, // FIXME: use the correct stack on the heap (obtained through the bootloader)

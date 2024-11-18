@@ -209,12 +209,10 @@ fn free_thread(thread: Thread) {
         };
 
         serial_println!(
-            "freeing process {} ({}) because it has no more threads",
+            "dropping process {} ({}) because it has no more threads",
             process.pid(),
             process.name()
         );
-
-        // TODO: deallocate address space
 
         drop(process);
     }

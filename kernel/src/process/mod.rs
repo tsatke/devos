@@ -7,7 +7,7 @@ use core::ffi::c_void;
 use core::ptr;
 use core::slice::from_raw_parts;
 use core::sync::atomic::AtomicBool;
-use core::sync::atomic::Ordering::Relaxed;
+use core::sync::atomic::Ordering::{Relaxed, Release};
 
 use elfloader::ElfBinary;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -26,6 +26,7 @@ use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId}
 use crate::process::elf::ElfLoader;
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::thread::{State, Thread};
+use crate::serial_println;
 
 pub mod attributes;
 pub mod elf;
@@ -35,7 +36,7 @@ mod tree;
 
 pub fn init(address_space: AddressSpace) {
     let root_process = Process::create_kernel(address_space);
-    let current_thread = unsafe { Thread::kernel_thread(root_process.clone()) };
+    let current_thread = unsafe { Thread::kernel_thread(&root_process) };
     process_tree()
         .write()
         .add_thread(root_process.pid(), current_thread.id());
@@ -43,7 +44,7 @@ pub fn init(address_space: AddressSpace) {
     scheduler::init(current_thread);
 }
 
-pub fn current() -> &'static Process {
+pub fn current() -> &'static Arc<Process> {
     current_thread().process()
 }
 
@@ -66,7 +67,7 @@ pub fn spawn_thread_in_current_process(
 
 pub fn spawn_thread(
     name: impl Into<String>,
-    process: &Process,
+    process: &Arc<Process>,
     priority: Priority,
     func: extern "C" fn(*mut c_void),
     arg: *mut c_void,
@@ -84,18 +85,19 @@ pub fn exit_thread() -> ! {
     unsafe { exit_current_thread() }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Process {
     // TODO: remove this, read it from the address space (maybe use an atomic to circumvent the locking?)
     cr3_value: usize,
-    address_space: Arc<RwLock<AddressSpace>>,
-    virtual_memory_manager: Arc<VirtualMemoryManager>,
+    address_space: RwLock<AddressSpace>,
+    virtual_memory_manager: VirtualMemoryManager,
 
     name: String,
     pid: ProcessId,
-    next_fd: Arc<FilenoAllocator>,
-    open_fds: Arc<RwLock<BTreeMap<Fileno, FileDescriptor>>>,
-    attributes: Arc<RwLock<Attributes>>,
+    should_terminate: AtomicBool,
+    next_fd: FilenoAllocator,
+    open_fds: RwLock<BTreeMap<Fileno, FileDescriptor>>,
+    attributes: RwLock<Attributes>,
 
     executable_file: Option<OwnedPath>,
 }
@@ -141,6 +143,8 @@ extern "C" fn trampoline(_: *mut c_void) {
 
     entry_fn();
 
+    unreachable!("entry function returned, but must call sys_exit instead");
+
     // TODO: I guess before we can jump to entry_fn in usermode, we need to make sure that the code and stack are actually in user space instead of the kernel heap.
 
     // let stack_ptr = read_rsp();
@@ -181,12 +185,12 @@ extern "C" fn trampoline(_: *mut c_void) {
 
 impl Process {
     pub fn spawn_from_executable(
-        parent: &Process,
+        parent: &Arc<Process>,
         path: impl AsRef<Path>,
         priority: Priority,
         uid: RealUserId,
         gid: RealGroupId,
-    ) -> Self {
+    ) -> Arc<Self> {
         let path = path.as_ref();
 
         let proc = Self::create_user(parent, Some(path.to_owned()), path.to_string(), uid, gid);
@@ -195,23 +199,23 @@ impl Process {
         proc
     }
 
-    pub fn create_kernel(address_space: AddressSpace) -> Self {
+    pub fn create_kernel(address_space: AddressSpace) -> Arc<Self> {
         static ALREADY_CALLED: AtomicBool = AtomicBool::new(false);
         if ALREADY_CALLED.swap(true, Relaxed) {
             panic!("kernel process already created");
         }
 
         let cr3_value = address_space.cr3_value();
-        let address_space = Arc::new(RwLock::new(address_space));
-        let virtual_memory_manager = Arc::new(unsafe {
+        let address_space = RwLock::new(address_space);
+        let virtual_memory_manager = unsafe {
             VirtualMemoryManager::new(VirtAddr::new(0x1111_1111_0000), Size::TiB(100).bytes())
-        });
+        };
         let name = "kernel".to_string();
         let pid = ProcessId::new();
         assert_eq!(0, pid.0, "kernel process must have pid 0");
         let next_fd = Default::default();
         let open_fds = Default::default();
-        let attributes = Arc::new(RwLock::new(Attributes {
+        let attributes = RwLock::new(Attributes {
             pgid: 0.into(),
             euid: 0.into(),
             egid: 0.into(),
@@ -219,19 +223,20 @@ impl Process {
             gid: 0.into(),
             suid: 0.into(),
             sgid: 0.into(),
-        }));
+        });
 
-        let res = Self {
+        let res = Arc::new(Self {
             cr3_value,
             address_space,
             virtual_memory_manager,
             name,
             pid,
+            should_terminate: AtomicBool::new(false),
             next_fd,
             open_fds,
             attributes,
             executable_file: None,
-        };
+        });
         process_tree().write().set_root(res.clone());
         res
     }
@@ -242,7 +247,7 @@ impl Process {
         name: impl Into<String>,
         uid: RealUserId,
         gid: RealGroupId,
-    ) -> Self {
+    ) -> Arc<Self> {
         let address_space = AddressSpace::allocate_new();
         let cr3_value = address_space.cr3_value();
         let vmm = unsafe {
@@ -251,7 +256,7 @@ impl Process {
 
         let name = name.into();
         let pid = ProcessId::new();
-        let attributes = Arc::new(RwLock::new(Attributes {
+        let attributes = RwLock::new(Attributes {
             pgid: 0.into(), // TODO: process group ids
             euid: <RealUserId as Into<u32>>::into(uid).into(),
             egid: <RealGroupId as Into<u32>>::into(gid).into(),
@@ -259,23 +264,38 @@ impl Process {
             gid,
             suid: <RealUserId as Into<u32>>::into(uid).into(),
             sgid: <RealGroupId as Into<u32>>::into(gid).into(),
-        }));
+        });
 
-        let res = Self {
+        let res = Arc::new(Self {
             cr3_value,
-            address_space: Arc::new(RwLock::new(address_space)),
-            virtual_memory_manager: Arc::new(vmm),
+            address_space: RwLock::new(address_space),
+            virtual_memory_manager: vmm,
             name,
             pid,
-            next_fd: Arc::new(Default::default()),
-            open_fds: Arc::new(Default::default()),
+            should_terminate: AtomicBool::new(false),
+            next_fd: Default::default(),
+            open_fds: Default::default(),
             attributes,
             executable_file,
-        };
+        });
         process_tree()
             .write()
-            .insert_process(parent.clone(), res.clone());
+            .insert_process(*parent.pid(), res.clone());
         res
+    }
+
+    pub fn terminate(&self) {
+        assert!(self.address_space.read().is_active());
+
+        serial_println!("terminating process {} ({})", self.pid, self.name);
+
+        // drop open file descriptors - drop must take care of flushing
+        self.open_fds().write().clear();
+
+        // drop vm objects - drop takes care of unmapping
+        self.vmm().vm_objects().write().clear();
+
+        self.should_terminate.store(true, Release);
     }
 
     pub fn pid(&self) -> &ProcessId {
@@ -380,5 +400,20 @@ impl Process {
         let node = descriptor.into_node();
         drop(node);
         Ok(())
+    }
+}
+
+impl Drop for Process {
+    fn drop(&mut self) {
+        assert_eq!(
+            0,
+            self.open_fds().read().len(),
+            "open file descriptors must be flushed and closed before dropping the process"
+        );
+        assert_eq!(
+            0,
+            self.vmm().vm_objects().read().len(),
+            "vm objects must be unmapped before dropping the process"
+        );
     }
 }

@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use core::ops::BitAnd;
 
 use bitflags::bitflags;
+use x86_64::instructions::hlt;
 use x86_64::registers::model_specific::Msr;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
@@ -143,7 +144,11 @@ pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Resul
 
 pub fn sys_exit(status: usize) -> ! {
     serial_println!("sys_exit({})", status);
-    process::exit_thread();
+    process::current().terminate();
+
+    loop {
+        hlt();
+    }
 }
 
 bitflags! {

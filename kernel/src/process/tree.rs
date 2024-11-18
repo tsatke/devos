@@ -1,6 +1,6 @@
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::String;
-
+use alloc::sync::Arc;
 use spin::RwLock;
 use x86_64::structures::paging::PageTableFlags;
 
@@ -17,7 +17,7 @@ pub fn process_tree() -> &'static RwLock<ProcessTree> {
 
 pub struct ProcessTree {
     root_pid: Option<ProcessId>,
-    processes_by_id: BTreeMap<ProcessId, Process>,
+    processes_by_id: BTreeMap<ProcessId, Arc<Process>>,
     parents: BTreeMap<ProcessId, ProcessId>,
     children: BTreeMap<ProcessId, BTreeSet<ProcessId>>,
     threads: BTreeMap<ProcessId, BTreeSet<ThreadId>>,
@@ -40,11 +40,11 @@ impl ProcessTree {
         }
     }
 
-    pub fn process_by_id(&self, process_id: &ProcessId) -> Option<&Process> {
+    pub fn process_by_id(&self, process_id: &ProcessId) -> Option<&Arc<Process>> {
         self.processes_by_id.get(process_id)
     }
 
-    pub fn set_root(&mut self, process: Process) {
+    pub fn set_root(&mut self, process: Arc<Process>) {
         if self.root_pid.is_some() {
             panic!("root process already set");
         }
@@ -54,23 +54,21 @@ impl ProcessTree {
         self.processes_by_id.insert(process_id, process);
     }
 
-    pub fn root_process(&self) -> &Process {
+    pub fn root_process(&self) -> &Arc<Process> {
         self.processes_by_id.get(&self.root_pid.unwrap()).unwrap()
     }
 
-    pub fn insert_process(&mut self, parent: Process, process: Process) {
-        let parent_process_id = *parent.pid();
+    pub fn insert_process(&mut self, parent: ProcessId, process: Arc<Process>) {
         let child_process_id = *process.pid();
-        self.processes_by_id
-            .insert(child_process_id, process.clone());
+        self.processes_by_id.insert(child_process_id, process);
         self.children
-            .entry(parent_process_id)
+            .entry(parent)
             .or_default()
             .insert(child_process_id);
-        self.parents.insert(child_process_id, parent_process_id);
+        self.parents.insert(child_process_id, parent);
     }
 
-    pub fn remove_process(&mut self, process_id: &ProcessId) -> Option<Process> {
+    pub fn remove_process(&mut self, process_id: &ProcessId) -> Option<Arc<Process>> {
         let p = self.processes_by_id.remove(process_id);
         self.parents.remove(process_id);
         if let Some(_children) = self.children.remove(process_id) {
