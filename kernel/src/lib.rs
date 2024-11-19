@@ -38,6 +38,7 @@ pub mod mem;
 pub mod process;
 pub mod qemu;
 pub mod syscall;
+pub mod time;
 
 const KERNEL_STACK_SIZE: Size = Size::KiB(128);
 

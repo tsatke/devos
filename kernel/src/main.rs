@@ -3,14 +3,15 @@
 
 extern crate alloc;
 
+use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
-
-use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use core::time::Duration;
 use kernel::arch::panic::handle_panic;
-use kernel::driver::hpet::{hpet, HpetVolatileFieldAccess};
 use kernel::process::{change_thread_priority, Priority, Process};
+use kernel::time::Instant;
 use kernel::{bootloader_config, kernel_init, process, serial_println};
+use x86_64::instructions::hlt;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -29,6 +30,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     kernel_init(boot_info).expect("kernel_init failed");
 
+    let start = Instant::now();
     let _ = Process::spawn_from_executable(
         process::current(),
         "/bin/window_server",
@@ -36,13 +38,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         0.into(),
         0.into(),
     );
-
-    let hpet = hpet().unwrap();
-    {
-        let guard = hpet.lock();
-        let main_counter = guard.main_counter_value().read();
-        serial_println!("main counter: {}", main_counter);
-    }
+    serial_println!("window_server spawned in {:?}", Instant::now() - start);
 
     change_thread_priority(Priority::Low);
 

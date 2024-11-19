@@ -6,9 +6,8 @@ use alloc::string::ToString;
 use bitfield::bitfield;
 use conquer_once::spin::OnceCell;
 use core::mem::MaybeUninit;
-use core::ops::{Deref, DerefMut};
 use core::ptr::NonNull;
-use spin::Mutex;
+use spin::RwLock;
 use volatile::access::NoAccess;
 use volatile::access::ReadOnly;
 use volatile::access::ReadWrite;
@@ -16,10 +15,10 @@ use volatile::{VolatileFieldAccess, VolatilePtr};
 use x86_64::structures::paging::{PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
-static HPET: OnceCell<Mutex<VolatileHpetPtr>> = OnceCell::uninit();
+static HPET: OnceCell<RwLock<Hpet>> = OnceCell::uninit();
 
-pub fn hpet() -> Option<&'static Mutex<VolatileHpetPtr<'static>>> {
-    HPET.get()
+pub fn hpet() -> &'static RwLock<Hpet<'static>> {
+    HPET.get().unwrap()
 }
 
 pub fn init() {
@@ -43,55 +42,74 @@ pub fn init() {
         .unwrap();
 
     let hpet_volatile_ptr = unsafe { VolatilePtr::new(NonNull::new(addr.as_mut_ptr()).unwrap()) };
-    HPET.init_once(|| {
-        Mutex::new(VolatileHpetPtr {
-            ptr: hpet_volatile_ptr,
-        })
-    });
+    let hpet = Hpet {
+        inner: hpet_volatile_ptr,
+    };
+    hpet.enable();
+    HPET.init_once(|| RwLock::new(hpet));
 }
 
-pub struct VolatileHpetPtr<'a> {
-    ptr: VolatilePtr<'a, Hpet>,
+pub struct Hpet<'a> {
+    inner: VolatilePtr<'a, Inner>,
 }
 
-unsafe impl Send for VolatileHpetPtr<'_> {}
+unsafe impl Send for Hpet<'_> {}
+unsafe impl Sync for Hpet<'_> {}
 
-impl<'a> Deref for VolatileHpetPtr<'a> {
-    type Target = VolatilePtr<'a, Hpet>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.ptr
+impl Hpet<'_> {
+    fn enable(&self) {
+        self.inner.config().update(|mut c| {
+            c.set_enable_cnf(true);
+            c
+        });
     }
-}
 
-impl<'a> DerefMut for VolatileHpetPtr<'a> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.ptr
+    pub fn main_counter_value(&self) -> u64 {
+        self.inner.main_counter_value().read()
+    }
+
+    pub fn period_femtoseconds(&self) -> u32 {
+        self.inner.capabilities_and_id().read().counter_clk_period()
     }
 }
 
 #[repr(C)]
 #[derive(Debug, VolatileFieldAccess)]
-pub struct Hpet {
+pub struct Inner {
     #[access(ReadOnly)]
-    pub capabilities_and_id: CapabilitiesAndId,
+    pub capabilities_and_id: HpetCapabilitiesAndId,
     #[access(NoAccess)]
     _pad1: MaybeUninit<u64>,
     #[access(ReadWrite)]
-    pub config: Config,
+    pub config: HpetConfig,
     #[access(NoAccess)]
     _pad2: MaybeUninit<u64>,
     #[access(ReadWrite)]
     pub interrupt_status: u64,
     #[access(NoAccess)]
-    _pad3: MaybeUninit<[u64; 19]>,
+    _pad3: MaybeUninit<[u64; 25]>,
+    #[access(ReadWrite)]
     pub main_counter_value: u64,
+    #[access(NoAccess)]
+    _pad4: u64,
+    #[access(ReadWrite)]
+    timers: [HpetTimer; 32],
 }
+
+const _: () = assert!(1280 == size_of::<Inner>());
+
+#[repr(C)]
+#[derive(Debug, VolatileFieldAccess)]
+pub struct HpetTimer {
+    raw: [u64; 4], // TODO: implement once we use this
+}
+
+const _: () = assert!(32 == size_of::<HpetTimer>());
 
 bitfield! {
     #[repr(transparent)]
     #[derive(Copy, Clone)]
-    pub struct CapabilitiesAndId(u64);
+    pub struct HpetCapabilitiesAndId(u64);
     impl Debug;
 
     pub u32, counter_clk_period, _: 63, 32;
@@ -105,7 +123,7 @@ bitfield! {
 bitfield! {
     #[repr(transparent)]
     #[derive(Copy, Clone)]
-    pub struct Config(u64);
+    pub struct HpetConfig(u64);
     impl Debug;
 
     pub bool, legacy_replacement_cnf, set_legacy_replacement_cnf: 1;
