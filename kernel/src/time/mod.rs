@@ -1,7 +1,6 @@
 use crate::driver::hpet::hpet;
-pub use instant::*;
-
-mod instant;
+use core::time::Duration;
+use foundation::time::Instant;
 
 pub trait Clock {
     fn now() -> Instant;
@@ -19,5 +18,21 @@ impl Clock for HpetClock {
         let nanos = (ticks * period) / FEMTOSECONDS_PER_NANOSECOND;
 
         Instant::new(u64::try_from(nanos).unwrap())
+    }
+}
+
+pub trait HpetInstantProvider {
+    fn now() -> Instant;
+    fn elapsed(&self) -> Duration;
+}
+
+impl HpetInstantProvider for Instant {
+    fn now() -> Instant {
+        HpetClock::now()
+    }
+
+    fn elapsed(&self) -> Duration {
+        let now = Self::now();
+        now - *self
     }
 }

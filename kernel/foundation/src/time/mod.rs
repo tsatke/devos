@@ -1,4 +1,3 @@
-use crate::time::{Clock, HpetClock};
 use core::time::Duration;
 use derive_more::Constructor;
 
@@ -8,15 +7,6 @@ pub struct Instant {
 }
 
 impl Instant {
-    pub fn now() -> Self {
-        HpetClock::now()
-    }
-
-    pub fn elapsed(&self) -> Duration {
-        let now = Instant::now();
-        now - *self
-    }
-
     pub fn checked_duration_since(&self, earlier: &Self) -> Option<Duration> {
         if self > earlier {
             Some(*self - *earlier)
