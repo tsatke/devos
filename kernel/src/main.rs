@@ -6,12 +6,10 @@ extern crate alloc;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
-use core::time::Duration;
 use kernel::arch::panic::handle_panic;
 use kernel::process::{change_thread_priority, Priority, Process};
 use kernel::time::Instant;
 use kernel::{bootloader_config, kernel_init, process, serial_println};
-use x86_64::instructions::hlt;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
