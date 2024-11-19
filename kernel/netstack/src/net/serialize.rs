@@ -4,13 +4,13 @@ pub trait WireSerializable<T: Write<u8>> {
     fn serialize(&self, s: &mut WireSerializer<T>) -> Result<(), WriteExactError>;
 }
 
-impl<T, U> WireSerializable<T> for U
+impl<T, U> WireSerializable<T> for &'_ U
 where
+    U: WireSerializable<T>,
     T: Write<u8>,
-    U: AsRef<[u8]>,
 {
     fn serialize(&self, s: &mut WireSerializer<T>) -> Result<(), WriteExactError> {
-        s.write_raw(self)
+        s.write_serializable(*self)
     }
 }
 

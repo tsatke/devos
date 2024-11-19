@@ -125,6 +125,7 @@ impl Arp {
 
         poll_fn(|cx| {
             self.wakers.push(cx.waker().clone());
+            todo!("actually send an arp request");
             Poll::Pending
         })
         .await
@@ -160,49 +161,49 @@ impl Arp {
 
         if packet.operation == ArpOperation::Request {
             let sender_ip = packet.srcpaddr;
-            let interfaces = self.routing.interfaces_for_ip(sender_ip.into()).await;
-            for interface in interfaces {
-                let sender_mac = packet.srchaddr;
+            let interface = self
+                .routing
+                .interface_that_serves_ip(sender_ip.into())
+                .await
+                .expect("should have interface");
 
-                let addresses = *interface.addresses().lock().await;
-                let Some(our_ip) = addresses.ipv4_addr() else {
-                    continue;
-                };
+            let sender_mac = packet.srchaddr;
 
-                if interface.protocol() != DataLinkProtocol::Ethernet {
-                    continue;
-                }
+            let addresses = *interface.addresses().lock().await;
+            let our_ip = addresses.ipv4_addr().unwrap_or(Ipv4Addr::UNSPECIFIED);
 
-                let our_mac = addresses.mac_addr();
-                let arp_packet = ArpPacket::new(
-                    1,      // ethernet
-                    0x0800, // ipv4
-                    6,      // mac address length
-                    4,      // ipv4 address length
-                    ArpOperation::Reply,
-                    our_mac,
-                    our_ip,
-                    sender_mac,
-                    sender_ip,
-                );
-
-                let mut arp_raw = FVec::try_with_capacity(28).unwrap(); // TODO: handle error
-                WireSerializer::new(Cursor::new(&mut arp_raw))
-                    .write_serializable(arp_packet)
-                    .unwrap();
-
-                // we know that the interface is an ethernet interface
-                let ethernet_frame =
-                    EthernetFrame::new(sender_mac, our_mac, EtherType::Arp, &arp_raw);
-
-                let mut ethernet_raw = FVec::try_with_capacity(68).unwrap(); // TODO: handle error
-                WireSerializer::new(Cursor::new(&mut ethernet_raw))
-                    .write_serializable(ethernet_frame)
-                    .unwrap();
-
-                let frame = Frame::new(DataLinkProtocol::Ethernet, ethernet_raw);
-                interface.send_frame(frame).await;
+            if interface.protocol() != DataLinkProtocol::Ethernet {
+                todo!("only ethernet interfaces supported for now");
             }
+
+            let our_mac = addresses.mac_addr();
+            let arp_packet = ArpPacket::new(
+                1,      // ethernet
+                0x0800, // ipv4
+                6,      // mac address length
+                4,      // ipv4 address length
+                ArpOperation::Reply,
+                our_mac,
+                our_ip,
+                sender_mac,
+                sender_ip,
+            );
+
+            let mut arp_raw = FVec::try_with_capacity(28).unwrap(); // TODO: handle error
+            WireSerializer::new(Cursor::new(&mut arp_raw))
+                .write_serializable(arp_packet)
+                .unwrap();
+
+            // we know that the interface is an ethernet interface
+            let ethernet_frame = EthernetFrame::new(sender_mac, our_mac, EtherType::Arp, &arp_raw);
+
+            let mut ethernet_raw = FVec::try_with_capacity(68).unwrap(); // TODO: handle error
+            WireSerializer::new(Cursor::new(&mut ethernet_raw))
+                .write_serializable(ethernet_frame)
+                .unwrap();
+
+            let frame = Frame::new(DataLinkProtocol::Ethernet, ethernet_raw);
+            interface.send_frame(frame).await;
         }
     }
 }
@@ -247,9 +248,12 @@ mod tests {
         block_on({
             let net = &net;
             async move {
-                let interfaces = net.routing.interfaces_for_ip(sender_ipv4.into()).await;
-                assert_eq!(1, interfaces.len());
-                let mut guard = interfaces[0].addresses().lock().await;
+                let interface = net
+                    .routing
+                    .interface_that_serves_ip(sender_ipv4.into())
+                    .await
+                    .expect("should have an interface");
+                let mut guard = interface.addresses().lock().await;
                 guard.set_ipv4_addr(Some(receiver_ipv4));
             }
         });

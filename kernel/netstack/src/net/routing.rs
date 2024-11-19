@@ -16,16 +16,15 @@ impl RoutingTable {
         }
     }
 
-    pub async fn interfaces_for_ip(&self, ip: IpAddr) -> FVec<Arc<Interface>> {
-        let guard = self.routes.lock().await;
-        let iter = guard
+    pub async fn interface_that_serves_ip(&self, ip: IpAddr) -> Option<Arc<Interface>> {
+        self.routes
+            .lock()
+            .await
             .iter()
             .filter(|route| route.should_serve(ip))
             .map(Route::interface)
-            .cloned();
-        let mut v = FVec::new();
-        v.try_extend(iter).unwrap(); // TODO: handle error
-        v
+            .next()
+            .cloned()
     }
 
     pub async fn add_route(&self, route: Route) {
