@@ -9,7 +9,7 @@ use core::pin::Pin;
 use core::ptr;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
-use log::{debug, info, trace};
+use log::{debug, trace};
 use x86_64::instructions::hlt;
 
 pub use queues::Priority;

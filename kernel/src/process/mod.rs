@@ -10,7 +10,7 @@ use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::{Relaxed, Release};
 
 use elfloader::ElfBinary;
-use log::{info, trace};
+use log::trace;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;

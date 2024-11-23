@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use core::ops::BitAnd;
 
 use bitflags::bitflags;
-use log::{info, trace};
+use log::trace;
 use x86_64::instructions::hlt;
 use x86_64::registers::model_specific::Msr;
 use x86_64::structures::paging::PageTableFlags;
