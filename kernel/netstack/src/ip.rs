@@ -56,24 +56,17 @@ impl<'a> TryFrom<EthernetFrame<'a>> for IpPacket<'a> {
 pub struct Ip(Arc<Netstack>);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum IpProcessError {}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum IpSendError {}
+pub enum IpError {}
 
 impl Protocol for Ip {
     type Packet<'packet> = IpPacket<'packet>;
-    type ProcessError = IpProcessError;
-    type SendError = IpSendError;
+    type Error = IpError;
 
-    fn process_packet(
-        &self,
-        packet: Self::Packet<'_>,
-    ) -> BoxFuture<Result<(), Self::ProcessError>> {
+    fn process_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
         todo!()
     }
 
-    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>> {
+    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
         todo!()
     }
 }

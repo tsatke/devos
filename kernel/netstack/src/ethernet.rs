@@ -1,15 +1,43 @@
-use crate::Netstack;
+use crate::{Netstack, Protocol};
 use alloc::sync::Arc;
+use derive_more::Constructor;
 use foundation::falloc::vec::FVec;
 use foundation::io::{Write, WriteExactError, WriteInto};
 use foundation::net::MacAddr;
+use futures::future::BoxFuture;
 use thiserror::Error;
 
+#[derive(Constructor)]
 pub struct Ethernet(Arc<Netstack>);
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum EthernetError {
+    #[error("error reading frame")]
+    ReadFrame(#[from] ReadEthernetFrameError),
+}
+
+impl Protocol for Ethernet {
+    type Packet<'packet> = EthernetFrame<'packet>;
+    type Error = EthernetError;
+
+    fn process_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+        todo!()
+    }
+
+    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+        todo!()
+    }
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct RawEthernetFrame {
-    pub data: FVec<u8>,
+    data: FVec<u8>,
+}
+
+impl AsRef<[u8]> for RawEthernetFrame {
+    fn as_ref(&self) -> &[u8] {
+        &self.data
+    }
 }
 
 pub enum EtherType {
@@ -58,6 +86,14 @@ impl<'frame, 'raw> TryFrom<&'raw [u8]> for EthernetFrame<'frame> {
 
     fn try_from(_value: &'raw [u8]) -> Result<Self, Self::Error> {
         todo!()
+    }
+}
+
+impl TryFrom<RawEthernetFrame> for EthernetFrame<'_> {
+    type Error = ReadEthernetFrameError;
+
+    fn try_from(value: RawEthernetFrame) -> Result<Self, Self::Error> {
+        TryFrom::<&[u8]>::try_from(value.as_ref())
     }
 }
 

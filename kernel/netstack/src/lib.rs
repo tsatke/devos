@@ -46,10 +46,10 @@ impl Netstack {
     pub(crate) async fn handle_packet<'a, P, S>(
         self: &Arc<Self>,
         raw: S,
-    ) -> Result<(), Box<dyn Error + 'static>>
+    ) -> Result<(), <P as Protocol>::Error>
     where
         P: Protocol,
-        <P as Protocol>::ProcessError: 'static,
+        <P as Protocol>::Error: From<<P::Packet<'a> as TryFrom<S>>::Error> + 'static,
         Arc<Netstack>: ProtocolSupport<P>,
         P::Packet<'a>: TryFrom<S> + 'static,
         <P::Packet<'a> as TryFrom<S>>::Error: Error + 'static,
@@ -79,6 +79,7 @@ macro_rules! impl_protocol_support {
     };
 }
 
+impl_protocol_support!(ethernet::Ethernet);
 impl_protocol_support!(arp::Arp);
 impl_protocol_support!(ip::Ip);
 
@@ -90,11 +91,9 @@ impl Tick for Netstack {
 
 pub trait Protocol {
     type Packet<'packet>;
-    type ProcessError: Error;
-    type SendError: Error;
+    type Error: Error;
 
-    fn process_packet(&self, packet: Self::Packet<'_>)
-        -> BoxFuture<Result<(), Self::ProcessError>>;
+    fn process_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>>;
 
-    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>>;
+    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>>;
 }

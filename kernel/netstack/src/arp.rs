@@ -60,37 +60,33 @@ impl WriteInto<u8> for ArpPacket {
 pub struct Arp(Arc<Netstack>);
 
 impl Arp {
-    async fn process_packet_internal(&self, packet: ArpPacket) -> Result<(), ArpProcessError> {
+    async fn process_packet_internal(&self, packet: ArpPacket) -> Result<(), ArpError> {
         todo!()
     }
 
-    async fn send_packet_internal(&self, packet: ArpPacket) -> Result<(), ArpSendError> {
+    async fn send_packet_internal(&self, packet: ArpPacket) -> Result<(), ArpError> {
         todo!()
     }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum ArpProcessError {}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum ArpSendError {}
+pub enum ArpError {}
 
 impl Protocol for Arp {
     type Packet<'packet> = ArpPacket;
-    type ProcessError = ArpProcessError;
-    type SendError = ArpSendError;
+    type Error = ArpError;
 
     fn process_packet(
         &self,
         packet: Self::Packet<'_>,
-    ) -> futures::future::BoxFuture<Result<(), Self::ProcessError>> {
+    ) -> futures::future::BoxFuture<Result<(), Self::Error>> {
         self.process_packet_internal(packet).boxed()
     }
 
     fn send_packet(
         &self,
         packet: Self::Packet<'_>,
-    ) -> futures::future::BoxFuture<Result<(), Self::SendError>> {
+    ) -> futures::future::BoxFuture<Result<(), Self::Error>> {
         self.send_packet_internal(packet).boxed()
     }
 }

@@ -1,5 +1,5 @@
 use crate::arp::Arp;
-use crate::ethernet::{EtherType, EthernetFrame, RawEthernetFrame};
+use crate::ethernet::{EtherType, Ethernet, EthernetFrame, RawEthernetFrame};
 use crate::ip::Ip;
 use crate::Netstack;
 use alloc::boxed::Box;
@@ -31,20 +31,13 @@ impl DeviceWorker {
         loop {
             let frame = self.1.read_frame().await;
             let res = match frame {
-                RawDataLinkFrame::Ethernet(frame) => self.handle_ethernet_frame(frame).await,
+                RawDataLinkFrame::Ethernet(frame) => {
+                    self.0.handle_packet::<Ethernet, _>(frame).await
+                }
             };
             if let Err(e) = res {
                 error!("error handling frame: {:?}", e);
             }
-        }
-    }
-
-    async fn handle_ethernet_frame(&self, frame: RawEthernetFrame) -> Result<(), Box<dyn Error>> {
-        let data: &[u8] = &frame.data;
-        let ethernet_frame = EthernetFrame::try_from(data)?;
-        match ethernet_frame.ether_type {
-            EtherType::Ipv4 => self.0.handle_packet::<Ip, _>(ethernet_frame).await,
-            EtherType::Arp => self.0.handle_packet::<Arp, _>(ethernet_frame).await,
         }
     }
 }
