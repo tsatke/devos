@@ -2,11 +2,11 @@
 #![feature(allocator_api)]
 extern crate alloc;
 
-use crate::net::{Arp, Device, Interface, Ip, IpCidr, RoutingTable};
+use crate::net::{Arp, Device, Interface, Ip, Route, RoutingTable};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use foundation::future::executor::{block_on, Executor, Tick, TickResult};
-use net::Route;
+use foundation::net::IpCidr;
 use protocols::Protocols;
 
 mod net;

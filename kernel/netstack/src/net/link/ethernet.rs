@@ -1,9 +1,9 @@
 use crate::net::serialize::{WireSerializable, WireSerializer};
-use crate::net::MacAddr;
 use core::cmp::PartialEq;
 use core::iter::repeat_n;
 use foundation::io::{Write, WriteExactError};
 use thiserror::Error;
+use foundation::net::MacAddr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct EthernetFrame<'a> {

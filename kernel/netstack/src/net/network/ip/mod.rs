@@ -1,6 +1,6 @@
 use crate::net::ethernet::{EtherType, EthernetFrame};
 use crate::net::serialize::WireSerializer;
-use crate::net::{DataLinkProtocol, Frame, Interface, MacAddr, RoutingTable};
+use crate::net::{DataLinkProtocol, Frame, Interface, RoutingTable};
 use alloc::sync::Arc;
 use core::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use core::task::Waker;
@@ -9,6 +9,7 @@ use foundation::falloc::vec::FVec;
 pub use header::*;
 pub use packet::*;
 use thiserror::Error;
+use foundation::net::MacAddr;
 
 mod checksum;
 mod header;

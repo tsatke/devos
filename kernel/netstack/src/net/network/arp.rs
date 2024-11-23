@@ -1,6 +1,6 @@
 use crate::net::ethernet::{EtherType, EthernetFrame};
 use crate::net::serialize::{WireSerializable, WireSerializer};
-use crate::net::{DataLinkProtocol, Frame, MacAddr, RoutingTable};
+use crate::net::{DataLinkProtocol, Frame, RoutingTable};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use core::future::poll_fn;
@@ -11,6 +11,7 @@ use derive_more::Constructor;
 use foundation::falloc::vec::FVec;
 use foundation::future::lock::FutureMutex;
 use foundation::io::{Cursor, Write, WriteExactError};
+use foundation::net::MacAddr;
 use thiserror::Error;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -219,6 +220,7 @@ mod tests {
     use alloc::vec::Vec;
     use foundation::future::executor::{block_on, Tick};
     use foundation::io::Cursor;
+    use foundation::net::{IpCidr, MacAddr};
 
     #[test]
     fn test_arp_translate_broadcast() {

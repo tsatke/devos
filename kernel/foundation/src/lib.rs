@@ -14,4 +14,5 @@ pub mod falloc;
 pub mod future;
 pub mod io;
 pub mod mem;
+pub mod net;
 pub mod time;

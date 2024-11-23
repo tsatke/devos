@@ -117,7 +117,7 @@ impl Ipv6Cidr {
 
 #[cfg(test)]
 mod tests {
-    use crate::net::{Ipv4Cidr, Ipv6Cidr};
+    use crate::net::cidr::{Ipv4Cidr, Ipv6Cidr};
     use core::net::{Ipv4Addr, Ipv6Addr};
 
     #[test]

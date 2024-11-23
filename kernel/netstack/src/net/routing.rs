@@ -1,9 +1,10 @@
-use crate::net::{Interface, IpCidr};
+use crate::net::Interface;
 use alloc::sync::Arc;
 use core::net::IpAddr;
 use derive_more::From;
 use foundation::falloc::vec::FVec;
 use foundation::future::lock::FutureMutex;
+use foundation::net::IpCidr;
 
 pub struct RoutingTable {
     routes: FutureMutex<FVec<Route>>,

@@ -1,5 +1,6 @@
-use crate::net::{DataLinkProtocol, Frame, MacAddr};
+use crate::net::{DataLinkProtocol, Frame};
 use futures::future::BoxFuture;
+use foundation::net::MacAddr;
 
 pub trait Device: Send + Sync + 'static {
     fn mac_addr(&self) -> MacAddr;

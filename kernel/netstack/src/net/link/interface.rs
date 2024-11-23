@@ -1,4 +1,4 @@
-use crate::net::{DataLinkProtocol, Device, MacAddr};
+use crate::net::{DataLinkProtocol, Device};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::fmt::{Debug, Formatter};
@@ -10,6 +10,7 @@ use derive_more::{Constructor, Display};
 use foundation::falloc::vec::FVec;
 use foundation::future::lock::FutureMutex;
 use foundation::future::queue::AsyncBoundedQueue;
+use foundation::net::MacAddr;
 
 #[derive(Constructor)]
 pub struct Frame(DataLinkProtocol, FVec<u8>);
