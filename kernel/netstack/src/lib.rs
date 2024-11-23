@@ -42,6 +42,24 @@ impl Netstack {
             }
         });
     }
+
+    pub(crate) async fn handle_packet<'a, P, S>(
+        self: &Arc<Self>,
+        raw: S,
+    ) -> Result<(), Box<dyn Error + 'static>>
+    where
+        P: Protocol,
+        <P as Protocol>::ProcessError: 'static,
+        Arc<Netstack>: ProtocolSupport<P>,
+        P::Packet<'a>: TryFrom<S> + 'static,
+        <P::Packet<'a> as TryFrom<S>>::Error: Error + 'static,
+    {
+        let packet = P::Packet::try_from(raw)?;
+        ProtocolSupport::<P>::protocol(self)
+            .process_packet(packet)
+            .await?;
+        Ok(())
+    }
 }
 
 pub trait ProtocolSupport<P>

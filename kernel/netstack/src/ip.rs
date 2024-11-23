@@ -1,3 +1,4 @@
+use crate::ethernet::EthernetFrame;
 use crate::{Netstack, Protocol};
 use alloc::sync::Arc;
 use core::net::Ipv4Addr;
@@ -40,6 +41,14 @@ impl<'a> TryFrom<&'a [u8]> for IpPacket<'a> {
 
     fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
         todo!()
+    }
+}
+
+impl<'a> TryFrom<EthernetFrame<'a>> for IpPacket<'a> {
+    type Error = ReadIpPacketError;
+
+    fn try_from(value: EthernetFrame<'a>) -> Result<Self, Self::Error> {
+        TryFrom::<&'a [u8]>::try_from(value.payload)
     }
 }
 

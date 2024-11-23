@@ -53,10 +53,7 @@ pub enum ReadEthernetFrameError {
     ChecksumError,
 }
 
-impl<'raw, 'frame> TryFrom<&'raw [u8]> for EthernetFrame<'frame>
-where
-    'frame: 'raw,
-{
+impl<'frame, 'raw> TryFrom<&'raw [u8]> for EthernetFrame<'frame> {
     type Error = ReadEthernetFrameError;
 
     fn try_from(_value: &'raw [u8]) -> Result<Self, Self::Error> {

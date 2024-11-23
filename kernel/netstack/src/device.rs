@@ -1,7 +1,7 @@
 use crate::arp::Arp;
 use crate::ethernet::{EtherType, EthernetFrame, RawEthernetFrame};
 use crate::ip::Ip;
-use crate::{Netstack, Protocol, ProtocolSupport};
+use crate::Netstack;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
@@ -43,23 +43,8 @@ impl DeviceWorker {
         let data: &[u8] = &frame.data;
         let ethernet_frame = EthernetFrame::try_from(data)?;
         match ethernet_frame.ether_type {
-            EtherType::Ipv4 => self.handle_packet::<Ip>(ethernet_frame.payload).await,
-            EtherType::Arp => self.handle_packet::<Arp>(ethernet_frame.payload).await,
+            EtherType::Ipv4 => self.0.handle_packet::<Ip, _>(ethernet_frame).await,
+            EtherType::Arp => self.0.handle_packet::<Arp, _>(ethernet_frame).await,
         }
-    }
-
-    async fn handle_packet<'a, P>(&self, raw: &'a [u8]) -> Result<(), Box<dyn Error + 'static>>
-    where
-        P: Protocol,
-        <P as Protocol>::ProcessError: 'static,
-        Arc<Netstack>: ProtocolSupport<P>,
-        P::Packet<'a>: TryFrom<&'a [u8]> + 'static,
-        <P::Packet<'a> as TryFrom<&'a [u8]>>::Error: Error + 'static,
-    {
-        let packet = P::Packet::try_from(raw)?;
-        ProtocolSupport::<P>::protocol(&self.0)
-            .process_packet(packet)
-            .await?;
-        Ok(())
     }
 }
