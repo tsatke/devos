@@ -1,10 +1,7 @@
-use crate::arp::Arp;
-use crate::ethernet::{EtherType, Ethernet, EthernetFrame, RawEthernetFrame};
-use crate::ip::Ip;
+use crate::ethernet::{Ethernet, RawEthernetFrame};
 use crate::Netstack;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
-use core::error::Error;
 use core::fmt::Debug;
 use derive_more::Constructor;
 use futures::future::BoxFuture;
