@@ -48,17 +48,13 @@ impl DeviceWorker {
         }
     }
 
-    async fn handle_packet<'packet, 'raw, P>(
-        &self,
-        raw: &'raw [u8],
-    ) -> Result<(), Box<dyn Error + 'static>>
+    async fn handle_packet<'a, P>(&self, raw: &'a [u8]) -> Result<(), Box<dyn Error + 'static>>
     where
-        'raw: 'packet,
         P: Protocol,
         <P as Protocol>::ProcessError: 'static,
         Arc<Netstack>: ProtocolSupport<P>,
-        P::Packet<'packet>: TryFrom<&'raw [u8]> + 'static,
-        <P::Packet<'packet> as TryFrom<&'raw [u8]>>::Error: Error + 'static,
+        P::Packet<'a>: TryFrom<&'a [u8]> + 'static,
+        <P::Packet<'a> as TryFrom<&'a [u8]>>::Error: Error + 'static,
     {
         let packet = P::Packet::try_from(raw)?;
         ProtocolSupport::<P>::protocol(&self.0)
