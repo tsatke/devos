@@ -4,10 +4,10 @@
 use core::panic::PanicInfo;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
-
 use kernel::qemu::ExitCode;
 use kernel::syscall::sys_open;
-use kernel::{bootloader_config, kernel_init, process, serial_println};
+use kernel::{bootloader_config, kernel_init, process};
+use log::info;
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -29,7 +29,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
-    serial_println!(
+    info!(
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
         kernel::process::current().pid(),
         kernel::process::current().name(),
@@ -38,7 +38,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         info.message()
     );
     if let Some(location) = info.location() {
-        serial_println!(
+        info!(
             "\tat {}:{}:{}",
             location.file(),
             location.line(),

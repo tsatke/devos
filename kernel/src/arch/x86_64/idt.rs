@@ -1,6 +1,7 @@
 use core::mem::transmute;
 
 use conquer_once::spin::Lazy;
+use log::info;
 use num_enum::IntoPrimitive;
 use x86_64::instructions::interrupts;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
@@ -11,8 +12,8 @@ use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 
 use crate::arch::syscall::syscall_handler_impl;
 use crate::driver::apic::LAPIC;
+use crate::process;
 use crate::process::vmm;
-use crate::{process, serial_println};
 
 static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     let mut idt = InterruptDescriptorTable::new();
@@ -133,19 +134,19 @@ extern "x86-interrupt" fn general_protection_fault_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
-    serial_println!(
+    info!(
         "encountered a general protection fault, error code {} =",
         error_code
     );
-    serial_println!("index: {}", (error_code >> 3) & ((1 << 14) - 1));
-    serial_println!("tbl: {}", (error_code >> 1) & 0b11);
-    serial_println!("e: {}", error_code & 1);
+    info!("index: {}", (error_code >> 3) & ((1 << 14) - 1));
+    info!("tbl: {}", (error_code >> 1) & 0b11);
+    info!("e: {}", error_code & 1);
 
     panic!("EXCEPTION: GENERAL PROTECTION FAULT\n{:#?}", stack_frame);
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
-    serial_println!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
+    info!("EXCEPTION: BREAKPOINT\n{:#?}", stack_frame);
 }
 
 extern "x86-interrupt" fn overflow_handler(stack_frame: InterruptStackFrame) {

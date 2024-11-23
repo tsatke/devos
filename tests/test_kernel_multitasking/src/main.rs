@@ -9,6 +9,7 @@ use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use log::error;
 use x86_64::instructions::hlt;
 
 use kernel::process::Priority;
@@ -90,7 +91,7 @@ fn test_no_addressspace_lock() {
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
-    serial_println!(
+    error!(
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
         kernel::process::current().pid(),
         kernel::process::current().name(),
@@ -99,7 +100,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         info.message()
     );
     if let Some(location) = info.location() {
-        serial_println!(
+        error!(
             "\tat {}:{}:{}",
             location.file(),
             location.line(),

@@ -7,6 +7,7 @@ use alloc::string::ToString;
 use core::panic::PanicInfo;
 
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
+use log::error;
 use x86_64::structures::paging::PageTableFlags;
 
 use kernel::io::vfs::vfs;
@@ -67,7 +68,7 @@ fn test_read_file_via_vmo() {
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
-    serial_println!(
+    error!(
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
         kernel::process::current().pid(),
         kernel::process::current().name(),
@@ -76,7 +77,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         info.message()
     );
     if let Some(location) = info.location() {
-        serial_println!(
+        error!(
             "\tat {}:{}:{}",
             location.file(),
             location.line(),

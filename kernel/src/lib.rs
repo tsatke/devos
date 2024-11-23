@@ -34,6 +34,7 @@ pub mod arch;
 pub mod driver;
 mod error;
 pub mod io;
+mod log;
 pub mod mem;
 pub mod process;
 pub mod qemu;
@@ -69,6 +70,7 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     KERNEL_HEAP_ADDR.init_once(|| kernel_heap_addr);
     KERNEL_APIC_ADDR.init_once(|| kernel_apic_addr);
 
+    log::init();
     gdt::init();
     idt::init();
     syscall::init();

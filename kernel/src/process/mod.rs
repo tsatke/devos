@@ -10,6 +10,7 @@ use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::{Relaxed, Release};
 
 use elfloader::ElfBinary;
+use log::{info, trace};
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
@@ -26,7 +27,6 @@ use crate::process::attributes::{Attributes, ProcessId, RealGroupId, RealUserId}
 use crate::process::elf::ElfLoader;
 use crate::process::fd::{FileDescriptor, Fileno, FilenoAllocator};
 use crate::process::thread::{State, Thread};
-use crate::serial_println;
 
 pub mod attributes;
 pub mod elf;
@@ -287,7 +287,7 @@ impl Process {
     pub fn terminate(&self) {
         assert!(self.address_space.read().is_active());
 
-        serial_println!("terminating process {} ({})", self.pid, self.name);
+        trace!("terminating process {} ({})", self.pid, self.name);
 
         // drop open file descriptors - drop must take care of flushing
         self.open_fds().write().clear();

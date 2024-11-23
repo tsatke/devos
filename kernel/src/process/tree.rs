@@ -1,13 +1,13 @@
 use alloc::collections::{BTreeMap, BTreeSet};
 use alloc::string::String;
 use alloc::sync::Arc;
+use log::info;
 use spin::RwLock;
 use x86_64::structures::paging::PageTableFlags;
 
 use crate::process::attributes::ProcessId;
 use crate::process::scheduler::thread::ThreadId;
 use crate::process::{current, Process};
-use crate::serial_println;
 
 static PROCESS_TREE: RwLock<ProcessTree> = RwLock::new(ProcessTree::new());
 
@@ -105,15 +105,15 @@ impl ProcessTree {
     }
 
     pub fn dump(&self) {
-        serial_println!("=== start process tree dump");
+        info!("=== start process tree dump");
         self.dump_process_and_children(&self.root_pid.expect("no root process set"), 4);
-        serial_println!("=== end process tree dump");
+        info!("=== end process tree dump");
     }
 
     pub fn dump_current(&self) {
-        serial_println!("=== start process dump");
+        info!("=== start process dump");
         self.dump_process_no_children(current().pid(), 4);
-        serial_println!("=== end process dump");
+        info!("=== end process dump");
     }
 
     fn dump_process_and_children(&self, process_id: &ProcessId, indent: usize) {
@@ -140,7 +140,7 @@ impl ProcessTree {
         let vm_objects = process.vmm().vm_objects().read().len();
         let open_fds = process.open_fds().read().len();
 
-        serial_println!(
+        info!(
             "{:indent$}{} (pid={}, threads={}, children={}, vm_objects={}, open_fds={})",
             "",
             process_name,
@@ -153,7 +153,7 @@ impl ProcessTree {
         );
 
         for (_, vm_object) in process.vmm().vm_objects().read().iter() {
-            serial_println!(
+            info!(
                 "{:indent$}*vm_object: {:#p}-{:#p} {:#016x} {} {}",
                 "",
                 vm_object.addr(),
@@ -166,7 +166,7 @@ impl ProcessTree {
         }
 
         for (fileno, fd) in process.open_fds().read().iter() {
-            serial_println!(
+            info!(
                 "{:indent$}*open_fd: {} (fileno={})",
                 "",
                 fd.node().path(),

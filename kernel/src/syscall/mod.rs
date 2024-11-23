@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use core::ops::BitAnd;
 
 use bitflags::bitflags;
+use log::{info, trace};
 use x86_64::instructions::hlt;
 use x86_64::registers::model_specific::Msr;
 use x86_64::structures::paging::PageTableFlags;
@@ -16,9 +17,9 @@ use crate::io::path::Path;
 use crate::io::socket::create_socket;
 use crate::io::vfs::vfs;
 use crate::mem::virt::{AllocationStrategy, MapAt};
+use crate::process;
 use crate::process::fd::Fileno;
 use crate::process::vmm;
-use crate::{process, serial_println};
 
 mod convert;
 mod dispatch;
@@ -117,13 +118,13 @@ pub fn sys_access(path: impl AsRef<Path>, amode: AMode) -> Result<()> {
 }
 
 pub fn sys_close(fd: Fileno) -> Result<()> {
-    serial_println!("sys_close({})", fd);
+    trace!("sys_close({})", fd);
     let process = process::current();
     process.close_fd(fd).map_err(Into::into)
 }
 
 pub fn sys_dup(fd: Fileno) -> Result<Fileno> {
-    serial_println!("sys_dup({:?})", fd);
+    trace!("sys_dup({:?})", fd);
 
     let process = process::current();
     let node = process
@@ -137,13 +138,13 @@ pub fn sys_dup(fd: Fileno) -> Result<Fileno> {
 }
 
 pub fn sys_execve(path: impl AsRef<Path>, argv: &[&str], envp: &[&str]) -> Result<!> {
-    serial_println!("sys_execve({:?}, {:?}, {:?})", path.as_ref(), argv, envp);
+    trace!("sys_execve({:?}, {:?}, {:?})", path.as_ref(), argv, envp);
 
     unimplemented!("sys_execve")
 }
 
 pub fn sys_exit(status: usize) -> ! {
-    serial_println!("sys_exit({})", status);
+    trace!("sys_exit({})", status);
     process::current().terminate();
 
     loop {
@@ -179,7 +180,7 @@ pub fn sys_mmap(
     fd: Fileno,
     offset: usize,
 ) -> Result<VirtAddr> {
-    serial_println!(
+    trace!(
         "sys_mmap({:#x}, {}, {:?}, {:?}, {:?}, {})",
         addr,
         size,
@@ -279,7 +280,7 @@ pub fn sys_mount(
 
 // TODO: OpenFlags and Mode
 pub fn sys_open(path: impl AsRef<Path>, flags: usize, mode: usize) -> Result<Fileno> {
-    serial_println!(
+    trace!(
         "sys_open({:#p} ({}), {}, {})",
         path.as_ref().as_ptr(),
         path.as_ref(),
@@ -291,32 +292,32 @@ pub fn sys_open(path: impl AsRef<Path>, flags: usize, mode: usize) -> Result<Fil
 }
 
 pub fn sys_read(fd: Fileno, buf: &mut [u8]) -> Result<usize> {
-    serial_println!("sys_read({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
+    trace!("sys_read({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
     let process = process::current();
     process.read(fd, buf).map_err(Into::into)
 }
 
 pub fn sys_write(fd: Fileno, buf: &[u8]) -> Result<usize> {
-    serial_println!("sys_write({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
+    trace!("sys_write({}, {:#p}, {})", fd, buf.as_ptr(), buf.len());
     let process = process::current();
     process.write(fd, buf).map_err(Into::into)
 }
 
 pub fn sys_socket(domain: SocketDomain, typ: SocketType, protocol: usize) -> Result<usize> {
-    serial_println!("sys_socket({:?}, {:?}, {})", domain, typ, protocol);
+    trace!("sys_socket({:?}, {:?}, {})", domain, typ, protocol);
     let socket_id = create_socket()?;
 
     Ok(socket_id.into_usize())
 }
 
 pub fn sys_bind(socket: usize, address: FfiSockAddr, address_len: usize) -> Result<()> {
-    serial_println!("sys_bind({}, {:?}, {})", socket, address, address_len);
+    trace!("sys_bind({}, {:?}, {})", socket, address, address_len);
 
     Ok(())
 }
 
 pub fn sys_stat(path: impl AsRef<Path>, stat: &mut Stat) -> Result<()> {
-    serial_println!("sys_stat({:?}, {:#p})", path.as_ref(), stat);
+    trace!("sys_stat({:?}, {:#p})", path.as_ref(), stat);
 
     vfs().stat_path(path, stat).map_err(Into::into).map(|_| ())
 }

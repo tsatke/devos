@@ -9,4 +9,5 @@ edition = "2021"
 bootloader_api.workspace = true
 kernel = { path = "../../kernel" }
 kernel_api.workspace = true
+log.workspace = true
 x86_64.workspace = true

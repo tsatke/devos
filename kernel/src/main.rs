@@ -10,7 +10,8 @@ use foundation::time::Instant;
 use kernel::arch::panic::handle_panic;
 use kernel::process::{change_thread_priority, Priority, Process};
 use kernel::time::HpetInstantProvider;
-use kernel::{bootloader_config, kernel_init, process, serial_println};
+use kernel::{bootloader_config, kernel_init, process};
+use log::{error, info};
 
 const CONFIG: BootloaderConfig = bootloader_config();
 
@@ -24,7 +25,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         .map(|(addr, len)| unsafe { from_raw_parts(addr, len) });
 
     if ramdisk.is_some() {
-        serial_println!("got a ramdisk");
+        info!("got a ramdisk");
     }
 
     kernel_init(boot_info).expect("kernel_init failed");
@@ -37,7 +38,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         0.into(),
         0.into(),
     );
-    serial_println!("window_server spawned in {:?}", Instant::now() - start);
+    info!("window_server spawned in {:?}", Instant::now() - start);
 
     change_thread_priority(Priority::Low);
 
@@ -47,7 +48,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {
-    serial_println!(
+    error!(
         "kernel panicked in pid={} ({}) tid={} ({}): {}",
         process::current().pid(),
         process::current().name(),
@@ -56,7 +57,7 @@ fn panic_handler(info: &PanicInfo) -> ! {
         info.message()
     );
     if let Some(location) = info.location() {
-        serial_println!(
+        error!(
             "\tat {}:{}:{}",
             location.file(),
             location.line(),

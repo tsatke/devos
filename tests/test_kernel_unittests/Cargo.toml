@@ -9,3 +9,4 @@ edition = "2021"
 bootloader_api.workspace = true
 kernel = { path = "../../kernel", features = ["kernel_test"] }
 kernel_test_framework.workspace = true
+log.workspace = true

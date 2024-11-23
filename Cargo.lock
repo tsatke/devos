@@ -884,6 +884,7 @@ dependencies = [
  "kernel_test_framework",
  "linked_list_allocator",
  "linkme",
+ "log",
  "mkfs-ext2",
  "mkfs-filesystem",
  "num_enum",
@@ -1523,6 +1524,7 @@ dependencies = [
  "bootloader_api",
  "kernel",
  "kernel_api",
+ "log",
  "x86_64",
 ]
 
@@ -1532,6 +1534,7 @@ version = "0.1.0"
 dependencies = [
  "bootloader_api",
  "kernel",
+ "log",
  "x86_64",
 ]
 
@@ -1542,6 +1545,7 @@ dependencies = [
  "bootloader_api",
  "kernel",
  "kernel_test_framework",
+ "log",
 ]
 
 [[package]]
@@ -1550,6 +1554,7 @@ version = "0.1.0"
 dependencies = [
  "bootloader_api",
  "kernel",
+ "log",
 ]
 
 [[package]]
@@ -1558,6 +1563,7 @@ version = "0.1.0"
 dependencies = [
  "bootloader_api",
  "kernel",
+ "log",
  "x86_64",
 ]
 

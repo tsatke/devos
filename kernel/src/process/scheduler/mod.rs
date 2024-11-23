@@ -9,6 +9,7 @@ use core::pin::Pin;
 use core::ptr;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
+use log::{debug, info, trace};
 use x86_64::instructions::hlt;
 
 pub use queues::Priority;
@@ -19,7 +20,6 @@ use crate::process::scheduler::thread::{State, Thread};
 use crate::process::thread::ThreadId;
 use crate::process::Priority::{High, Low, Normal, Realtime};
 use crate::process::{process_tree, spawn_thread_in_current_process, Process};
-use crate::serial_println;
 
 mod queues;
 mod reschedule;
@@ -182,7 +182,7 @@ impl Scheduler {
 }
 
 fn free_thread(thread: Thread) {
-    serial_println!(
+    trace!(
         "freeing thread {} ({}) in process {} ({})",
         thread.id(),
         thread.name(),
@@ -208,7 +208,7 @@ fn free_thread(thread: Thread) {
             Some(p) => p,
         };
 
-        serial_println!(
+        debug!(
             "dropping process {} ({}) because it has no more threads",
             process.pid(),
             process.name()

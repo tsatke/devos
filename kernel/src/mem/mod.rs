@@ -4,6 +4,7 @@ use alloc::sync::Arc;
 
 use bootloader_api::info::MemoryRegionKind;
 use bootloader_api::BootInfo;
+use log::info;
 use spin::RwLock;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
@@ -17,7 +18,7 @@ use crate::mem::virt::{
     heap, Interval, MemoryBackedVmObject, PhysicalAllocationStrategy, PmObject,
 };
 use crate::process::vmm;
-use crate::{process, serial_println, Result, KERNEL_CODE_ADDR, KERNEL_CODE_LEN};
+use crate::{process, Result, KERNEL_CODE_ADDR, KERNEL_CODE_LEN};
 
 mod address_space;
 mod physical;
@@ -67,7 +68,7 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
             address_space.map_to(p, frame, flags).unwrap().flush();
         });
 
-    serial_println!(
+    info!(
         "mapped {} kernel heap from {:#p} to {:#p}",
         KERNEL_HEAP_LEN,
         heap_start as *mut (),
@@ -80,7 +81,7 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
     // after we have heap, we can now switch to the stage 2 physical memory manager
     physical::init_stage2(boot_info);
 
-    serial_println!(
+    info!(
         "{} MiB of initial {} MiB kernel heap available after switching to physical memory management stage 2",
         heap::free() / 1024 / 1024,
         heap::size() / 1024 / 1024,

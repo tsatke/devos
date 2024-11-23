@@ -1,14 +1,13 @@
 use alloc::vec;
 use alloc::vec::Vec;
-use core::sync::atomic::Ordering::Relaxed;
-
 use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
+use core::sync::atomic::Ordering::Relaxed;
+use log::info;
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
 use crate::mem::physical::STAGE1_ALLOCATED_FRAMES;
 use crate::mem::virt::heap::{heap_initialized, KERNEL_HEAP_LEN};
-use crate::serial_println;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum FrameState {
@@ -30,7 +29,7 @@ impl MemoryMapPhysicalFrameAllocator {
         );
 
         let total_mem_size = regions.iter().map(|r| r.end - r.start).sum::<u64>();
-        serial_println!(
+        info!(
             "~{} MiB total physical memory available",
             (total_mem_size / 1024 / 1024) + 1
         );
@@ -38,7 +37,7 @@ impl MemoryMapPhysicalFrameAllocator {
 
         let mut frames = vec![FrameState::NotUsable; frame_count];
 
-        serial_println!(
+        info!(
             "memory manager stage 1 allocated {} physical frames, {} of which belong to the kernel heap",
             STAGE1_ALLOCATED_FRAMES.load(Relaxed),
             KERNEL_HEAP_LEN.bytes() / Size4KiB::SIZE as usize
