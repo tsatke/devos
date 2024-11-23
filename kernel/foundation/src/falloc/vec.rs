@@ -11,6 +11,14 @@ pub struct FVec<T> {
     inner: Vec<T>,
 }
 
+impl<T: PartialEq> PartialEq for FVec<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner.eq(&other.inner)
+    }
+}
+
+impl<T: Eq> Eq for FVec<T> {}
+
 impl<T: Debug> Debug for FVec<T> {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         Debug::fmt(&self.inner, f)

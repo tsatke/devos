@@ -1051,6 +1051,7 @@ dependencies = [
  "derive_more",
  "foundation",
  "futures",
+ "log",
  "thiserror 2.0.3",
 ]
 
