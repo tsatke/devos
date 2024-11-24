@@ -129,5 +129,8 @@ pub trait Protocol {
         packet: Self::Packet<'a>,
     ) -> BoxFuture<'a, Result<(), Self::ReceiveError>>;
 
-    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>>;
+    fn send_packet<'a>(
+        &self,
+        packet: Self::Packet<'a>,
+    ) -> BoxFuture<'a, Result<(), Self::SendError>>;
 }

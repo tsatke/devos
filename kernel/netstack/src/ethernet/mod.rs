@@ -1,13 +1,15 @@
 use crate::arp::{Arp, ArpReceiveError};
+use crate::device::RawDataLinkFrame;
+use crate::interface::Interface;
 use crate::ip::{Ip, IpReceiveError};
-use crate::{Netstack, Protocol};
+use crate::{Netstack, Packet, Protocol};
 use alloc::sync::Arc;
+use foundation::falloc::vec::FVec;
+use foundation::io::{Cursor, WriteInto};
+pub use frame::*;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use thiserror::Error;
-
-use crate::interface::Interface;
-pub use frame::*;
 
 mod frame;
 
@@ -30,7 +32,10 @@ pub enum EthernetReceiveError {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum EthernetSendError {}
+pub enum EthernetSendError {
+    #[error("out of memory")]
+    AllocError,
+}
 
 impl Protocol for Ethernet {
     type Packet<'packet> = EthernetFrame<'packet>;
@@ -63,7 +68,24 @@ impl Protocol for Ethernet {
         .boxed()
     }
 
-    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>> {
-        todo!()
+    fn send_packet<'a>(
+        &self,
+        packet: Self::Packet<'a>,
+    ) -> BoxFuture<'a, Result<(), Self::SendError>> {
+        // FIXME: find right interface, which will require some kind of target ip address
+        let net = self.0.clone();
+        async move {
+            let mut raw = FVec::try_with_capacity(packet.wire_size())
+                .map_err(|_| EthernetSendError::AllocError)?;
+            packet.write_into(Cursor::new(&mut raw)).unwrap(); // TODO: handle error
+
+            let frame = RawDataLinkFrame::Ethernet(RawEthernetFrame::new(raw));
+            net.interfaces.lock().await[0]
+                .device()
+                .write_frame(frame)
+                .await;
+            Ok(())
+        }
+        .boxed()
     }
 }

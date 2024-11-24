@@ -18,7 +18,7 @@ pub enum RawDataLinkFrame {
     Ethernet(RawEthernetFrame),
 }
 
-pub trait Device: Debug + Send + Sync {
+pub trait Device: Send + Sync {
     fn mac_address(&self) -> MacAddr;
     fn read_frame(&self) -> BoxFuture<RawDataLinkFrame>;
     fn write_frame(&self, frame: RawDataLinkFrame) -> BoxFuture<()>;

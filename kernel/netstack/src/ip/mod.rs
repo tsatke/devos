@@ -58,7 +58,10 @@ impl Protocol for Ip {
         .boxed()
     }
 
-    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>> {
+    fn send_packet<'a>(
+        &self,
+        _packet: Self::Packet<'a>,
+    ) -> BoxFuture<'a, Result<(), Self::SendError>> {
         todo!()
     }
 }

@@ -13,4 +13,8 @@ impl ArpCache {
         info!("new arp entry: {ip} -> {mac}");
         self.cache.insert(ip, mac);
     }
+
+    pub fn lookup(&self, ip: Ipv4Addr) -> Option<MacAddr> {
+        self.cache.get(&ip).copied()
+    }
 }

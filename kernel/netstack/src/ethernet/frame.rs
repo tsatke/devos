@@ -1,11 +1,12 @@
 use crate::Packet;
+use derive_more::Constructor;
 use foundation::falloc::vec::FVec;
 use foundation::io::{Write, WriteExactError, WriteInto};
 use foundation::net::MacAddr;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use thiserror::Error;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Constructor, Debug, Eq, PartialEq)]
 pub struct RawEthernetFrame {
     data: FVec<u8>,
 }
@@ -238,14 +239,14 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn test_new_frame_too_large_payload() {
-        let _ = EthernetFrame::try_new(
+        assert!(EthernetFrame::try_new(
             MacAddr::BROADCAST,
             MacAddr::BROADCAST,
             None,
             EtherType::Ipv4,
             &[0; 2000],
-        );
+        )
+        .is_err());
     }
 }

@@ -45,6 +45,10 @@ impl Interface {
         self.state.lock().await.ipv4addr
     }
 
+    pub async fn set_ipv4_addr(&self, addr: Ipv4Addr) {
+        self.state.lock().await.ipv4addr = Some(addr);
+    }
+
     pub async fn should_serve(&self, _ip: IpAddr) -> bool {
         true // TODO: rely on CIDRs once this somewhat works
     }

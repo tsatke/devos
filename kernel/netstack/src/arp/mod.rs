@@ -82,7 +82,11 @@ impl Protocol for Arp {
         .boxed()
     }
 
-    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>> {
+    fn send_packet<'a>(
+        &self,
+        packet: Self::Packet<'a>,
+    ) -> BoxFuture<'a, Result<(), Self::SendError>> {
+        let net = self.0.clone();
         async move {
             let mut raw = FVec::try_with_capacity(packet.wire_size())
                 .map_err(|_| ArpSendError::AllocError)?;
@@ -104,7 +108,7 @@ impl Protocol for Arp {
                         &raw,
                     )
                     .expect("arp has only 28 bytes of payload, which must be small enough for an ethernet frame");
-                    self.0.ethernet().send_packet(frame).await?;
+                    net.ethernet().send_packet(frame).await?;
                 }
             };
 
@@ -121,15 +125,14 @@ impl Arp {
         operation: ArpOperation,
         mac_destination: MacAddr,
         mac_source: MacAddr,
-        ip_destination: Ipv4Addr,
+        _ip_destination: Ipv4Addr,
         ip_source: Ipv4Addr,
     ) -> Result<(), ArpReceiveError> {
-        // get the mac and ip that we need to insert into the cache
-        let (mac, ip) = match operation {
-            ArpOperation::Request => (mac_source, ip_source),
-            ArpOperation::Reply => (mac_destination, ip_destination),
-        };
-        self.0.arp_state.lock().await.insert(ip, mac);
+        let (mac, ip) = (mac_source, ip_source);
+
+        if !(mac.is_broadcast() || ip.is_broadcast() || ip.is_unspecified()) {
+            self.0.arp_state.lock().await.insert(ip, mac);
+        }
 
         let our_mac = interface.device().mac_address();
 
@@ -164,5 +167,84 @@ impl Arp {
         };
         self.send_packet(reply).await?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::device::{Device, RawDataLinkFrame};
+    use alloc::boxed::Box;
+    use foundation::future::executor::{block_on, Tick};
+    use foundation::future::queue::AsyncBoundedQueue;
+
+    pub struct TestDevice {
+        mac: MacAddr,
+        rx: Arc<AsyncBoundedQueue<RawDataLinkFrame>>,
+        tx: Arc<AsyncBoundedQueue<RawDataLinkFrame>>,
+    }
+
+    impl TestDevice {
+        pub fn new(mac: MacAddr) -> Self {
+            Self {
+                mac,
+                rx: Arc::new(AsyncBoundedQueue::new(16)),
+                tx: Arc::new(AsyncBoundedQueue::new(16)),
+            }
+        }
+    }
+
+    impl Device for TestDevice {
+        fn mac_address(&self) -> MacAddr {
+            self.mac
+        }
+
+        fn read_frame(&self) -> BoxFuture<RawDataLinkFrame> {
+            self.rx.pop().boxed()
+        }
+
+        fn write_frame(&self, frame: RawDataLinkFrame) -> BoxFuture<()> {
+            self.tx.push(frame).boxed()
+        }
+    }
+
+    #[test]
+    fn test_arp_resolve() {
+        let left = Netstack::new();
+        let mut left_dev = TestDevice::new(MacAddr::from([0xAA; 6]));
+
+        let right = Netstack::new();
+        let right_dev = TestDevice::new(MacAddr::from([0xBB; 6]));
+        left_dev.rx = right_dev.tx.clone();
+        left_dev.tx = right_dev.rx.clone();
+
+        block_on(left.add_device(Box::new(left_dev)));
+        block_on(right.add_device(Box::new(right_dev)));
+
+        block_on(
+            right.interfaces.try_lock().unwrap()[0].set_ipv4_addr(Ipv4Addr::new(192, 168, 1, 2)),
+        );
+
+        block_on(left.arp().send_packet(ArpPacket::Ipv4Ethernet {
+            operation: ArpOperation::Request,
+            mac_destination: MacAddr::BROADCAST,
+            mac_source: MacAddr::from([0xAA; 6]),
+            ip_destination: Ipv4Addr::new(192, 168, 1, 2),
+            ip_source: Ipv4Addr::UNSPECIFIED,
+        }))
+        .unwrap();
+
+        for _ in 0..10 {
+            left.tick();
+            right.tick();
+        }
+
+        let resolved = left
+            .arp_state
+            .try_lock()
+            .unwrap()
+            .lookup(Ipv4Addr::new(192, 168, 1, 2))
+            .unwrap();
+        assert_eq!(resolved, MacAddr::from([0xBB; 6]));
     }
 }
