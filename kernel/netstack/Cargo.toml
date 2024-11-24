@@ -9,4 +9,5 @@ derive_more.workspace = true
 foundation.workspace = true
 futures.workspace = true
 log.workspace = true
+num_enum.workspace = true
 thiserror.workspace = true

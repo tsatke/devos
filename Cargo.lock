@@ -1052,6 +1052,7 @@ dependencies = [
  "foundation",
  "futures",
  "log",
+ "num_enum",
  "thiserror 2.0.3",
 ]
 

@@ -25,14 +25,12 @@ pub struct DeviceWorker(Arc<Netstack>, Arc<Box<dyn Device>>);
 
 impl DeviceWorker {
     pub async fn run(&self) {
+        let net = &self.0;
         loop {
             let frame = self.1.read_frame().await;
-            let res = match frame {
-                RawDataLinkFrame::Ethernet(frame) => {
-                    self.0.handle_packet::<Ethernet, _>(frame).await
-                }
-            };
-            if let Err(e) = res {
+            if let Err(e) = match frame {
+                RawDataLinkFrame::Ethernet(frame) => net.handle_packet::<Ethernet, _>(frame).await,
+            } {
                 error!("error handling frame: {:?}", e);
             }
         }
