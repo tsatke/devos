@@ -25,8 +25,6 @@ If you also have QEMU installed, `cargo run` and `cargo test` also will work.
 
 ### Features
 
-Check out the next [milestone](https://github.com/tsatke/devos/milestone/1) for progress.
-
 - [x] Heap
 - [x] Syscalls
 - [ ] Drivers
