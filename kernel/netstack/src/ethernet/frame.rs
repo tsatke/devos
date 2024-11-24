@@ -41,7 +41,13 @@ impl Qtag {
 
 impl EthernetFrame<'_> {
     pub fn size(&self) -> usize {
-        18 + self.qtag.as_ref().map_or(0, Qtag::size) + self.payload.len().max(64)
+        let qtag = self.qtag.as_ref().map_or(0, Qtag::size);
+        6 + // mac_destination
+            6 + // mac_source
+            qtag + // qtag
+            2 + // ether_type
+            self.payload.len().max(46 - qtag) + // payload
+            4 // fcs
     }
 }
 
@@ -74,5 +80,37 @@ impl TryFrom<RawEthernetFrame> for EthernetFrame<'_> {
 impl WriteInto<u8> for EthernetFrame<'_> {
     fn write_into(&self, _out: &mut impl Write<u8>) -> Result<(), WriteExactError> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_size() {
+        for (payload, size) in [
+            ([].as_slice(), 64),
+            ([0].as_slice(), 64),
+            ([1; 17].as_slice(), 64),
+            ([2; 46].as_slice(), 64),
+            ([0xAB; 47].as_slice(), 65),
+        ] {
+            let frame = EthernetFrame {
+                mac_destination: MacAddr::BROADCAST,
+                mac_source: MacAddr::BROADCAST,
+                qtag: None,
+                ether_type: EtherType::Ipv4,
+                payload,
+            };
+            assert_eq!(
+                frame.size(),
+                size,
+                "expected size {} for payload {:?}, but got {}",
+                size,
+                payload,
+                frame.size(),
+            );
+        }
     }
 }
