@@ -27,21 +27,29 @@ pub struct EthernetFrame<'a> {
 }
 
 impl<'a> EthernetFrame<'a> {
-    pub fn new(
+    const MTU: usize = 1500;
+
+    pub fn try_new(
         mac_destination: MacAddr,
         mac_source: MacAddr,
         qtag: Option<Qtag>,
         ether_type: EtherType,
         payload: &'a [u8],
-    ) -> Self {
-        assert!(payload.len() <= 1500, "payload too large");
-        Self {
+    ) -> Result<Self, ReadEthernetFrameError> {
+        if payload.len() > Self::MTU {
+            return Err(ReadEthernetFrameError::PayloadTooLarge {
+                max: Self::MTU,
+                actual: payload.len(),
+            });
+        }
+
+        Ok(Self {
             mac_destination,
             mac_source,
             qtag,
             ether_type,
             payload,
-        }
+        })
     }
 }
 
@@ -80,6 +88,8 @@ impl Qtag {
 pub enum ReadEthernetFrameError {
     #[error("frame too short: expected {expected} bytes, got {actual}")]
     TooShort { expected: usize, actual: usize },
+    #[error("payload too large: maximum is {max}, got {actual}")]
+    PayloadTooLarge { max: usize, actual: usize },
     #[error("invalid ether type: {0:04x}")]
     InvalidEtherType(u16),
     #[error("invalid frame check sequence")]
@@ -125,13 +135,7 @@ impl<'raw> TryFrom<&'raw [u8]> for EthernetFrame<'raw> {
             value[value.len() - 1],
         ]);
 
-        Ok(Self {
-            mac_destination,
-            mac_source,
-            qtag,
-            ether_type,
-            payload,
-        })
+        Self::try_new(mac_destination, mac_source, qtag, ether_type, payload)
     }
 }
 
@@ -153,7 +157,6 @@ impl WriteInto<u8> for EthernetFrame<'_> {
         }
         out.write_exact(&Into::<u16>::into(self.ether_type).to_be_bytes())?;
         out.write_exact(self.payload)?;
-        // TODO: padding
 
         let qtag_size = self.qtag.as_ref().map_or(0, Qtag::size);
         let padding_size = (46 - qtag_size).saturating_sub(self.payload.len());
@@ -237,7 +240,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_new_frame_too_large_payload() {
-        let _ = EthernetFrame::new(
+        let _ = EthernetFrame::try_new(
             MacAddr::BROADCAST,
             MacAddr::BROADCAST,
             None,

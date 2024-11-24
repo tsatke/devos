@@ -96,8 +96,14 @@ impl Protocol for Arp {
                     mac_source,
                     ..
                 } => {
-                    let frame =
-                        EthernetFrame::new(mac_destination, mac_source, None, EtherType::Arp, &raw);
+                    let frame = EthernetFrame::try_new(
+                        mac_destination,
+                        mac_source,
+                        None,
+                        EtherType::Arp,
+                        &raw,
+                    )
+                    .expect("arp has only 28 bytes of payload, which must be small enough for an ethernet frame");
                     self.0.ethernet().send_packet(frame).await?;
                 }
             };
