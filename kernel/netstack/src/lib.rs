@@ -17,6 +17,7 @@ pub mod device;
 pub mod ethernet;
 pub mod interface;
 pub mod ip;
+pub mod udp;
 
 pub struct Netstack {
     executor: Executor<'static>,
@@ -89,6 +90,7 @@ macro_rules! impl_protocol_support {
 impl_protocol_support!(ethernet::Ethernet);
 impl_protocol_support!(arp::Arp);
 impl_protocol_support!(ip::Ip);
+impl_protocol_support!(udp::Udp);
 
 impl Tick for Netstack {
     fn tick(&self) -> TickResult {
