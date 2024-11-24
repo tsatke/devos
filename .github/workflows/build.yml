@@ -32,7 +32,6 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          override: true
           components: rustfmt, clippy, llvm-tools-preview, rust-src
       - name: Add build target
         run: |
@@ -67,7 +66,6 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          override: true
           components: rustfmt, clippy, llvm-tools-preview, rust-src
       - name: Add build target
         run: |
@@ -102,7 +100,6 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          override: true
           components: rustfmt, clippy, llvm-tools-preview, rust-src, miri
       - name: Miri Setup
         run: |
@@ -135,7 +132,6 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          override: true
           components: rustfmt, clippy, llvm-tools-preview, rust-src
       - name: Add build target
         run: |
