@@ -45,10 +45,10 @@ impl Netstack {
             .unwrap(); // TODO: handle error
 
         self.executor.spawn({
-            let netstack = self.clone();
+            let net = Arc::downgrade(self);
             let interface = interface.clone();
             async move {
-                InterfaceWorker::new(netstack, interface).run().await;
+                InterfaceWorker::new(net, interface).run().await;
             }
         });
     }
