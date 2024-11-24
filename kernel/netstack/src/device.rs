@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::fmt::Debug;
 use derive_more::Constructor;
+use foundation::net::MacAddr;
 use futures::future::BoxFuture;
 use log::error;
 
@@ -16,6 +17,7 @@ pub enum RawDataLinkFrame {
 }
 
 pub trait Device: Debug + Send + Sync {
+    fn mac_address(&self) -> MacAddr;
     fn read_frame(&self) -> BoxFuture<RawDataLinkFrame>;
     fn write_frame(&self, frame: RawDataLinkFrame) -> BoxFuture<()>;
 }
