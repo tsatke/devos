@@ -39,7 +39,7 @@ pub enum ReadIpPacketError {}
 impl<'a> TryFrom<&'a [u8]> for IpPacket<'a> {
     type Error = ReadIpPacketError;
 
-    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
+    fn try_from(_value: &'a [u8]) -> Result<Self, Self::Error> {
         todo!()
     }
 }
@@ -56,17 +56,23 @@ impl<'a> TryFrom<EthernetFrame<'a>> for IpPacket<'a> {
 pub struct Ip(Arc<Netstack>);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum IpError {}
+pub enum IpError {
+    #[error("error reading packet")]
+    ReadPacket(#[from] ReadIpPacketError),
+}
 
 impl Protocol for Ip {
     type Packet<'packet> = IpPacket<'packet>;
     type Error = IpError;
 
-    fn process_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+    fn process_packet<'a>(
+        &self,
+        _packet: Self::Packet<'a>,
+    ) -> BoxFuture<'a, Result<(), Self::Error>> {
         todo!()
     }
 
-    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
         todo!()
     }
 }

@@ -41,7 +41,7 @@ impl Interface {
         &*self.device
     }
 
-    pub async fn should_serve(&self, ip: IpAddr) -> bool {
+    pub async fn should_serve(&self, _ip: IpAddr) -> bool {
         true // TODO: rely on CIDRs once this somewhat works
     }
 }

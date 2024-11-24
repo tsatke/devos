@@ -5,7 +5,7 @@ use core::net::Ipv4Addr;
 use derive_more::Constructor;
 use foundation::io::{Write, WriteExactError, WriteInto};
 use foundation::net::MacAddr;
-use futures::FutureExt;
+use futures::future::BoxFuture;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use thiserror::Error;
 
@@ -161,35 +161,25 @@ impl WriteInto<u8> for ArpPacket {
 #[derive(Constructor)]
 pub struct Arp(Arc<Netstack>);
 
-impl Arp {
-    async fn process_packet_internal(&self, packet: ArpPacket) -> Result<(), ArpError> {
-        todo!()
-    }
-
-    async fn send_packet_internal(&self, packet: ArpPacket) -> Result<(), ArpError> {
-        todo!()
-    }
-}
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum ArpError {}
+pub enum ArpError {
+    #[error("error reading packet")]
+    ReadPacket(#[from] ReadArpPacketError),
+}
 
 impl Protocol for Arp {
     type Packet<'packet> = ArpPacket;
     type Error = ArpError;
 
-    fn process_packet(
+    fn process_packet<'a>(
         &self,
-        packet: Self::Packet<'_>,
-    ) -> futures::future::BoxFuture<Result<(), Self::Error>> {
-        self.process_packet_internal(packet).boxed()
+        _packet: Self::Packet<'a>,
+    ) -> BoxFuture<'a, Result<(), Self::Error>> {
+        todo!()
     }
 
-    fn send_packet(
-        &self,
-        packet: Self::Packet<'_>,
-    ) -> futures::future::BoxFuture<Result<(), Self::Error>> {
-        self.send_packet_internal(packet).boxed()
+    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+        todo!()
     }
 }
 
