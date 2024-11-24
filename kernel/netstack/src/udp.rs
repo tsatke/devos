@@ -34,6 +34,10 @@ impl Protocol for Udp {
     type Packet<'packet> = UdpPacket<'packet>;
     type Error = UdpError;
 
+    fn name() -> &'static str {
+        "udp"
+    }
+
     fn process_packet<'a>(
         &self,
         _packet: Self::Packet<'a>,

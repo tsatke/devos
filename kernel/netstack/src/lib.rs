@@ -11,6 +11,7 @@ use foundation::falloc::vec::FVec;
 use foundation::future::executor::{Executor, Tick, TickResult};
 use foundation::future::lock::FutureMutex;
 use futures::future::BoxFuture;
+use log::debug;
 
 pub mod arp;
 pub mod device;
@@ -62,6 +63,7 @@ impl Netstack {
         P::Packet<'a>: TryFrom<S>,
         <P::Packet<'a> as TryFrom<S>>::Error: Error + 'static,
     {
+        debug!("handling packet for protocol {}", P::name());
         let packet = P::Packet::try_from(raw)?;
         ProtocolSupport::<P>::protocol(self)
             .process_packet(packet)
@@ -101,6 +103,8 @@ impl Tick for Netstack {
 pub trait Protocol {
     type Packet<'packet>;
     type Error: Error;
+
+    fn name() -> &'static str;
 
     fn process_packet<'a>(
         &self,

@@ -71,6 +71,10 @@ impl Protocol for Ip {
     type Packet<'packet> = IpPacket<'packet>;
     type Error = IpError;
 
+    fn name() -> &'static str {
+        "ip"
+    }
+
     fn process_packet<'a>(
         &self,
         packet: Self::Packet<'a>,

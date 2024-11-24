@@ -171,6 +171,10 @@ impl Protocol for Arp {
     type Packet<'packet> = ArpPacket;
     type Error = ArpError;
 
+    fn name() -> &'static str {
+        "arp"
+    }
+
     fn process_packet<'a>(
         &self,
         _packet: Self::Packet<'a>,

@@ -27,6 +27,10 @@ impl Protocol for Ethernet {
     type Packet<'packet> = EthernetFrame<'packet>;
     type Error = EthernetError;
 
+    fn name() -> &'static str {
+        "ethernet"
+    }
+
     fn process_packet<'a>(
         &self,
         packet: Self::Packet<'a>,
@@ -99,7 +103,7 @@ pub enum ReadEthernetFrameError {
     ChecksumError,
 }
 
-impl<'frame, 'raw> TryFrom<&'raw [u8]> for EthernetFrame<'frame> {
+impl<'raw> TryFrom<&'raw [u8]> for EthernetFrame<'_> {
     type Error = ReadEthernetFrameError;
 
     fn try_from(_value: &'raw [u8]) -> Result<Self, Self::Error> {
