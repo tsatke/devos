@@ -124,7 +124,7 @@ impl<'a> Executor<'a> {
     }
 }
 
-impl<'a> Tick for Executor<'a> {
+impl Tick for Executor<'_> {
     fn tick(&self) -> TickResult {
         self.execute_task()
     }

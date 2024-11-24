@@ -16,6 +16,13 @@ pub enum IpCidr {
     V6(Ipv6Cidr),
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+#[error("ip version mismatch: {ip} is not compatible with {cidr}")]
+pub struct IpVersionMismatch {
+    cidr: IpCidr,
+    ip: IpAddr,
+}
+
 impl IpCidr {
     pub fn new_v4(ip: Ipv4Addr, network: u8) -> Result<Self, InvalidNetworkLength> {
         Ipv4Cidr::try_new(ip, network).map(Self::V4)
@@ -25,11 +32,11 @@ impl IpCidr {
         Ipv6Cidr::try_new(ip, network).map(Self::V6)
     }
 
-    pub fn contains(&self, ip: IpAddr) -> Result<bool, ()> {
+    pub fn contains(&self, ip: IpAddr) -> Result<bool, IpVersionMismatch> {
         match (self, ip) {
             (IpCidr::V4(cidr), IpAddr::V4(ip)) => Ok(cidr.contains(ip)),
             (IpCidr::V6(cidr), IpAddr::V6(ip)) => Ok(cidr.contains(ip)),
-            _ => Err(()),
+            (&cidr, ip) => Err(IpVersionMismatch { cidr, ip }),
         }
     }
 }
