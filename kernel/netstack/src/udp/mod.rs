@@ -30,7 +30,7 @@ impl Protocol for Udp {
         "udp"
     }
 
-    fn process_packet<'a>(
+    fn receive_packet<'a>(
         &self,
         _interface: Arc<Interface>,
         _packet: Self::Packet<'a>,

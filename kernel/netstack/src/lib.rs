@@ -68,7 +68,7 @@ impl Netstack {
         debug!("handling packet for protocol {}", P::name());
         let packet = P::Packet::try_from(raw)?;
         ProtocolSupport::<P>::protocol(self)
-            .process_packet(interface, packet)
+            .receive_packet(interface, packet)
             .await?;
         Ok(())
     }
@@ -122,7 +122,7 @@ pub trait Protocol {
 
     fn name() -> &'static str;
 
-    fn process_packet<'a>(
+    fn receive_packet<'a>(
         &self,
         interface: Arc<Interface>,
         packet: Self::Packet<'a>,

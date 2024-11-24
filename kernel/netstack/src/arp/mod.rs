@@ -41,7 +41,7 @@ impl Protocol for Arp {
         "arp"
     }
 
-    fn process_packet<'a>(
+    fn receive_packet<'a>(
         &self,
         interface: Arc<Interface>,
         packet: Self::Packet<'a>,
