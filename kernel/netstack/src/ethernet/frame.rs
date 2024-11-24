@@ -16,6 +16,7 @@ impl AsRef<[u8]> for RawEthernetFrame {
 }
 
 /// A valid ethernet frame.
+#[derive(Debug, PartialEq)]
 pub struct EthernetFrame<'a> {
     pub mac_destination: MacAddr,
     pub mac_source: MacAddr,
@@ -31,6 +32,7 @@ pub enum EtherType {
     Arp = 0x0806,
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Qtag {
     pub tpid: u16,
     pub tci: u16,
@@ -82,11 +84,11 @@ impl<'raw> TryFrom<&'raw [u8]> for EthernetFrame<'raw> {
             MacAddr::from([value[6], value[7], value[8], value[9], value[10], value[11]]);
         let ether_type = u16::from_be_bytes([value[12], value[13]]);
         let (payload_start, ether_type, qtag) = if ether_type == 0x8100 {
-            let tpid = u16::from_be_bytes([value[14], value[15]]);
-            let tci = u16::from_be_bytes([value[16], value[17]]);
+            let tpid = ether_type;
+            let tci = u16::from_be_bytes([value[14], value[15]]);
             let qtag = Qtag { tpid, tci };
-            let ether_type = u16::from_be_bytes([value[18], value[19]]);
-            (20, ether_type, Some(qtag))
+            let ether_type = u16::from_be_bytes([value[16], value[17]]);
+            (18, ether_type, Some(qtag))
         } else {
             (14, ether_type, None)
         };
@@ -122,14 +124,35 @@ impl<'a> TryFrom<&'a RawEthernetFrame> for EthernetFrame<'a> {
 }
 
 impl WriteInto<u8> for EthernetFrame<'_> {
-    fn write_into(&self, _out: &mut impl Write<u8>) -> Result<(), WriteExactError> {
-        todo!()
+    fn write_into(&self, out: &mut impl Write<u8>) -> Result<(), WriteExactError> {
+        out.write_exact(self.mac_destination.octets().as_slice())?;
+        out.write_exact(self.mac_source.octets().as_slice())?;
+        if let Some(qtag) = self.qtag.as_ref() {
+            out.write_exact(&qtag.tpid.to_be_bytes())?;
+            out.write_exact(&qtag.tci.to_be_bytes())?;
+        }
+        out.write_exact(&Into::<u16>::into(self.ether_type).to_be_bytes())?;
+        out.write_exact(self.payload)?;
+        // TODO: padding
+
+        let qtag_size = self.qtag.as_ref().map_or(0, Qtag::size);
+        let padding_size = (46 - qtag_size).saturating_sub(self.payload.len());
+        for _ in 0..padding_size {
+            out.write_exact(&[0])?; // TODO: make more efficient?
+        }
+
+        // TODO: compute fcs
+        out.write_exact(&[0, 0, 0, 0])?;
+
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec::Vec;
+    use foundation::io::Cursor;
 
     #[test]
     fn test_size() {
@@ -156,5 +179,40 @@ mod tests {
                 frame.size(),
             );
         }
+    }
+
+    #[test]
+    fn test_serialize_deserialize_qtag() {
+        let frame = EthernetFrame {
+            mac_destination: MacAddr::from([0x01, 0x23, 0x45, 0x67, 0x89, 0xAB]),
+            mac_source: MacAddr::from([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC]),
+            qtag: Some(Qtag {
+                tpid: 0x8100,
+                tci: 0x1234,
+            }),
+            ether_type: EtherType::Ipv4,
+            payload: [0xAB; 400].as_slice(),
+        };
+        let mut buf = Vec::new();
+        let mut cursor = Cursor::new(&mut buf);
+        frame.write_into(&mut cursor).unwrap();
+        let frame2 = EthernetFrame::try_from(buf.as_slice()).unwrap();
+        assert_eq!(frame, frame2);
+    }
+
+    #[test]
+    fn test_serialize_deserialize() {
+        let frame = EthernetFrame {
+            mac_destination: MacAddr::from([0x01, 0x23, 0x45, 0x67, 0x89, 0xAB]),
+            mac_source: MacAddr::from([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC]),
+            qtag: None,
+            ether_type: EtherType::Ipv4,
+            payload: [0xAB; 400].as_slice(),
+        };
+        let mut buf = Vec::new();
+        let mut cursor = Cursor::new(&mut buf);
+        frame.write_into(&mut cursor).unwrap();
+        let frame2 = EthernetFrame::try_from(buf.as_slice()).unwrap();
+        assert_eq!(frame, frame2);
     }
 }

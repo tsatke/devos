@@ -163,7 +163,7 @@ mod tests {
     use foundation::net::MacAddr;
 
     #[test]
-    fn test_arp_packet_serialize_deserialize() {
+    fn test_serialize_deserialize() {
         let packet = ArpPacket::Ipv4Ethernet {
             operation: ArpOperation::Reply,
             mac_destination: MacAddr::from([1, 2, 3, 4, 5, 6]),
@@ -181,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    fn test_arp_packet_deserialize_invalids() {
+    fn test_deserialize_invalids() {
         let data = [
             0x00_u8, 0x02, // hardware type (unsupported)
             0x08, 0x00, // protocol type
@@ -197,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn test_arp_packet_deserialize_padded() {
+    fn test_deserialize_padded() {
         let data = [
             0x00_u8, 0x01, // hardware type
             0x08, 0x00, // protocol type
