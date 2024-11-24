@@ -33,7 +33,7 @@ impl InterfaceWorker {
         loop {
             let frame = self.1.device().read_frame().await;
             if let Err(e) = match frame {
-                RawDataLinkFrame::Ethernet(frame) => net.handle_packet::<Ethernet, _>(frame).await,
+                RawDataLinkFrame::Ethernet(frame) => net.handle_packet::<Ethernet, _>(&frame).await,
             } {
                 error!("error handling frame: {:?}", e);
             }
