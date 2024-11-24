@@ -1,4 +1,5 @@
-use crate::ethernet::{Ethernet, RawEthernetFrame};
+use crate::ethernet::Ethernet;
+use crate::ethernet::RawEthernetFrame;
 use crate::interface::Interface;
 use crate::Netstack;
 use alloc::boxed::Box;

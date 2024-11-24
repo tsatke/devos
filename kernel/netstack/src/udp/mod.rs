@@ -1,10 +1,12 @@
-use crate::ip::IpPacket;
 use crate::{Netstack, Protocol};
 use alloc::sync::Arc;
-use core::marker::PhantomData;
 use derive_more::Constructor;
 use futures::future::BoxFuture;
 use thiserror::Error;
+
+pub use datagram::*;
+
+mod datagram;
 
 #[derive(Constructor)]
 pub struct Udp(Arc<Netstack>);
@@ -15,23 +17,8 @@ pub enum UdpError {
     ReadPacket(#[from] ReadUdpPacketError),
 }
 
-pub struct UdpPacket<'a> {
-    _lifetime: PhantomData<&'a ()>,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum ReadUdpPacketError {}
-
-impl<'a> TryFrom<IpPacket<'a>> for UdpPacket<'a> {
-    type Error = ReadUdpPacketError;
-
-    fn try_from(_packet: IpPacket<'a>) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
 impl Protocol for Udp {
-    type Packet<'packet> = UdpPacket<'packet>;
+    type Packet<'packet> = UdpDatagram<'packet>;
     type Error = UdpError;
 
     fn name() -> &'static str {
