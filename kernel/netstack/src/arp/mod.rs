@@ -234,10 +234,8 @@ mod tests {
         }))
         .unwrap();
 
-        for _ in 0..10 {
-            left.tick();
-            right.tick();
-        }
+        right.tick(); // process request in receiver
+        left.tick(); // process reply in sender
 
         let resolved = left
             .arp_state
