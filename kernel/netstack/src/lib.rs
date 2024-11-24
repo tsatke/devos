@@ -2,10 +2,11 @@
 extern crate alloc;
 
 use crate::device::Device;
+use crate::interface::Interface;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
-use device::DeviceWorker;
+use device::InterfaceWorker;
 use foundation::falloc::vec::FVec;
 use foundation::future::executor::{Executor, Tick, TickResult};
 use foundation::future::lock::FutureMutex;
@@ -14,31 +15,37 @@ use futures::future::BoxFuture;
 pub mod arp;
 pub mod device;
 pub mod ethernet;
+pub mod interface;
 pub mod ip;
 
 pub struct Netstack {
     executor: Executor<'static>,
-    devices: FutureMutex<FVec<Arc<Box<dyn Device>>>>,
+    interfaces: FutureMutex<FVec<Arc<Interface>>>,
 }
 
 impl Netstack {
     pub fn new() -> Arc<Self> {
         let s = Arc::new(Self {
             executor: Executor::new(),
-            devices: FutureMutex::new(FVec::new()),
+            interfaces: FutureMutex::new(FVec::new()),
         });
 
         s
     }
 
     pub async fn add_device(self: &Arc<Self>, device: Box<dyn Device>) {
-        let device = Arc::new(device);
-        self.devices.lock().await.try_push(device.clone()).unwrap(); // TODO: handle error
+        let interface = Arc::new(Interface::new(device));
+        self.interfaces
+            .lock()
+            .await
+            .try_push(interface.clone())
+            .unwrap(); // TODO: handle error
+
         self.executor.spawn({
             let netstack = self.clone();
-            let device = device.clone();
+            let interface = interface.clone();
             async move {
-                DeviceWorker::new(netstack, device).run().await;
+                InterfaceWorker::new(netstack, interface).run().await;
             }
         });
     }
@@ -49,8 +56,8 @@ impl Netstack {
     ) -> Result<(), <P as Protocol>::Error>
     where
         P: Protocol,
-        <P as Protocol>::Error: From<<P::Packet<'a> as TryFrom<S>>::Error> + 'static,
         Arc<Netstack>: ProtocolSupport<P>,
+        <P as Protocol>::Error: From<<P::Packet<'a> as TryFrom<S>>::Error> + 'static,
         P::Packet<'a>: TryFrom<S> + 'static,
         <P::Packet<'a> as TryFrom<S>>::Error: Error + 'static,
     {

@@ -1,4 +1,5 @@
 use crate::ethernet::{Ethernet, RawEthernetFrame};
+use crate::interface::Interface;
 use crate::Netstack;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
@@ -23,13 +24,13 @@ pub trait Device: Debug + Send + Sync {
 }
 
 #[derive(Constructor)]
-pub struct DeviceWorker(Arc<Netstack>, Arc<Box<dyn Device>>);
+pub struct InterfaceWorker(Arc<Netstack>, Arc<Interface>);
 
-impl DeviceWorker {
+impl InterfaceWorker {
     pub async fn run(&self) {
         let net = &self.0;
         loop {
-            let frame = self.1.read_frame().await;
+            let frame = self.1.device().read_frame().await;
             if let Err(e) = match frame {
                 RawDataLinkFrame::Ethernet(frame) => net.handle_packet::<Ethernet, _>(frame).await,
             } {
