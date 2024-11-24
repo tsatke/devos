@@ -1,4 +1,5 @@
 use crate::ethernet::EthernetFrame;
+use crate::Packet;
 use core::net::Ipv4Addr;
 use thiserror::Error;
 
@@ -17,6 +18,12 @@ pub enum IpPacket<'a> {
         destination: Ipv4Addr,
         payload: &'a [u8],
     },
+}
+
+impl Packet for IpPacket<'_> {
+    fn wire_size(&self) -> usize {
+        todo!()
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

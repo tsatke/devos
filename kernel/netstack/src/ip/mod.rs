@@ -1,17 +1,22 @@
 use crate::udp::{Udp, UdpError};
 use crate::{Netstack, Protocol};
 use alloc::sync::Arc;
-use derive_more::Constructor;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use thiserror::Error;
 
+use crate::interface::Interface;
 pub use packet::*;
 
 mod packet;
 
-#[derive(Constructor)]
 pub struct Ip(Arc<Netstack>);
+
+impl Ip {
+    pub(crate) fn new(netstack: Arc<Netstack>) -> Self {
+        Self(netstack)
+    }
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum IpError {
@@ -31,13 +36,17 @@ impl Protocol for Ip {
 
     fn process_packet<'a>(
         &self,
+        interface: Arc<Interface>,
         packet: Self::Packet<'a>,
     ) -> BoxFuture<'a, Result<(), Self::Error>> {
         let net = self.0.clone();
         async move {
             match packet {
                 IpPacket::V4 { protocol, .. } => match protocol {
-                    Ipv4Protocol::Udp => net.handle_packet::<Udp, _>(packet).await?,
+                    Ipv4Protocol::Udp => {
+                        net.handle_incoming_packet::<Udp, _>(interface, packet)
+                            .await?
+                    }
                 },
             }
             Ok(())

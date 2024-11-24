@@ -1,15 +1,20 @@
 use crate::{Netstack, Protocol};
 use alloc::sync::Arc;
-use derive_more::Constructor;
 use futures::future::BoxFuture;
 use thiserror::Error;
 
+use crate::interface::Interface;
 pub use datagram::*;
 
 mod datagram;
 
-#[derive(Constructor)]
 pub struct Udp(Arc<Netstack>);
+
+impl Udp {
+    pub(crate) fn new(netstack: Arc<Netstack>) -> Self {
+        Self(netstack)
+    }
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum UdpError {
@@ -27,6 +32,7 @@ impl Protocol for Udp {
 
     fn process_packet<'a>(
         &self,
+        _interface: Arc<Interface>,
         _packet: Self::Packet<'a>,
     ) -> BoxFuture<'a, Result<(), Self::Error>> {
         todo!()

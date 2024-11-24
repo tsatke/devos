@@ -1,5 +1,7 @@
 use crate::ethernet::EthernetFrame;
+use crate::Packet;
 use core::net::Ipv4Addr;
+use derive_more::Display;
 use foundation::io::{Write, WriteExactError, WriteInto};
 use foundation::net::MacAddr;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -16,7 +18,13 @@ pub enum ArpPacket {
     },
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
+impl Packet for ArpPacket {
+    fn wire_size(&self) -> usize {
+        28
+    }
+}
+
+#[derive(Display, Debug, Copy, Clone, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u16)]
 pub enum ArpOperation {
     Request = 1,

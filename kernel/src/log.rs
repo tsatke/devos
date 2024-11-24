@@ -27,18 +27,11 @@ impl log::Log for SerialLogger {
                 Level::Trace => "\x1b[1;90m",
             };
 
-            let target = record.target();
-            let module_path = if let Some(last_colon) = target.rfind(':') {
-                &target[last_colon + 1..]
-            } else {
-                target
-            };
-
             serial_println!(
                 "{}{:5}\x1b[0m [{}] {}",
                 color,
                 record.level(),
-                module_path,
+                record.target(),
                 record.args()
             );
         }

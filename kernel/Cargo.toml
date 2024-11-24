@@ -23,6 +23,7 @@ linkme.workspace = true
 log.workspace = true
 mkfs-ext2.workspace = true
 mkfs-filesystem.workspace = true
+netstack.workspace = true
 num_enum.workspace = true
 raw-cpuid.workspace = true
 spin.workspace = true

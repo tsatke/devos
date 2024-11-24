@@ -1,3 +1,4 @@
+use crate::Packet;
 use foundation::falloc::vec::FVec;
 use foundation::io::{Write, WriteExactError, WriteInto};
 use foundation::net::MacAddr;
@@ -25,6 +26,36 @@ pub struct EthernetFrame<'a> {
     pub payload: &'a [u8],
 }
 
+impl<'a> EthernetFrame<'a> {
+    pub fn new(
+        mac_destination: MacAddr,
+        mac_source: MacAddr,
+        qtag: Option<Qtag>,
+        ether_type: EtherType,
+        payload: &'a [u8],
+    ) -> Self {
+        Self {
+            mac_destination,
+            mac_source,
+            qtag,
+            ether_type,
+            payload,
+        }
+    }
+}
+
+impl Packet for EthernetFrame<'_> {
+    fn wire_size(&self) -> usize {
+        let qtag = self.qtag.as_ref().map_or(0, Qtag::size);
+        6 + // mac_destination
+            6 + // mac_source
+            qtag + // qtag
+            2 + // ether_type
+            self.payload.len().max(46 - qtag) + // payload
+            4 // fcs
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u16)]
 pub enum EtherType {
@@ -41,18 +72,6 @@ pub struct Qtag {
 impl Qtag {
     pub fn size(&self) -> usize {
         4
-    }
-}
-
-impl EthernetFrame<'_> {
-    pub fn size(&self) -> usize {
-        let qtag = self.qtag.as_ref().map_or(0, Qtag::size);
-        6 + // mac_destination
-            6 + // mac_source
-            qtag + // qtag
-            2 + // ether_type
-            self.payload.len().max(46 - qtag) + // payload
-            4 // fcs
     }
 }
 

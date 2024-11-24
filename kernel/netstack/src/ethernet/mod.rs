@@ -2,17 +2,22 @@ use crate::arp::{Arp, ArpError};
 use crate::ip::{Ip, IpError};
 use crate::{Netstack, Protocol};
 use alloc::sync::Arc;
-use derive_more::Constructor;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use thiserror::Error;
 
+use crate::interface::Interface;
 pub use frame::*;
 
 mod frame;
 
-#[derive(Constructor)]
 pub struct Ethernet(Arc<Netstack>);
+
+impl Ethernet {
+    pub(crate) fn new(netstack: Arc<Netstack>) -> Self {
+        Self(netstack)
+    }
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum EthernetError {
@@ -34,13 +39,20 @@ impl Protocol for Ethernet {
 
     fn process_packet<'a>(
         &self,
+        interface: Arc<Interface>,
         packet: Self::Packet<'a>,
     ) -> BoxFuture<'a, Result<(), Self::Error>> {
         let net = self.0.clone();
         async move {
             match packet.ether_type {
-                EtherType::Ipv4 => net.handle_packet::<Ip, _>(packet).await?,
-                EtherType::Arp => net.handle_packet::<Arp, _>(packet).await?,
+                EtherType::Ipv4 => {
+                    net.handle_incoming_packet::<Ip, _>(interface, packet)
+                        .await?
+                }
+                EtherType::Arp => {
+                    net.handle_incoming_packet::<Arp, _>(interface, packet)
+                        .await?
+                }
             };
             Ok(())
         }

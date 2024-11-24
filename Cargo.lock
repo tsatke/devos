@@ -887,6 +887,7 @@ dependencies = [
  "log",
  "mkfs-ext2",
  "mkfs-filesystem",
+ "netstack",
  "num_enum",
  "raw-cpuid 11.2.0",
  "spin",

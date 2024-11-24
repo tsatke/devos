@@ -61,6 +61,7 @@ linkme = "0.3.31"
 log = "0.4.22"
 mkfs-ext2 = { git = "https://github.com/tsatke/mkfs" }
 mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
+netstack = { path = "kernel/netstack" }
 num_enum = { version = "0.7.0", default-features = false }
 raw-cpuid = { version = "11.0", default-features = false }
 spin = "0.9.8"

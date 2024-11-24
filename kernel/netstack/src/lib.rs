@@ -23,16 +23,17 @@ pub mod udp;
 pub struct Netstack {
     executor: Executor<'static>,
     interfaces: FutureMutex<FVec<Arc<Interface>>>,
+
+    arp_state: FutureMutex<arp::ArpCache>,
 }
 
 impl Netstack {
     pub fn new() -> Arc<Self> {
-        let s = Arc::new(Self {
-            executor: Executor::new(),
-            interfaces: FutureMutex::new(FVec::new()),
-        });
-
-        s
+        Arc::new(Self {
+            executor: Executor::default(),
+            interfaces: FutureMutex::default(),
+            arp_state: FutureMutex::default(),
+        })
     }
 
     pub async fn add_device(self: &Arc<Self>, device: Box<dyn Device>) {
@@ -52,8 +53,9 @@ impl Netstack {
         });
     }
 
-    pub(crate) async fn handle_packet<'a, P, S>(
+    pub(crate) async fn handle_incoming_packet<'a, P, S>(
         self: &Arc<Self>,
+        interface: Arc<Interface>,
         raw: S,
     ) -> Result<(), <P as Protocol>::Error>
     where
@@ -66,7 +68,7 @@ impl Netstack {
         debug!("handling packet for protocol {}", P::name());
         let packet = P::Packet::try_from(raw)?;
         ProtocolSupport::<P>::protocol(self)
-            .process_packet(packet)
+            .process_packet(interface, packet)
             .await?;
         Ok(())
     }
@@ -80,19 +82,28 @@ where
 }
 
 macro_rules! impl_protocol_support {
-    ($protocol:ty) => {
+    ($protocol:ty, $getter:ident) => {
         impl ProtocolSupport<$protocol> for Arc<Netstack> {
             fn protocol(&self) -> $protocol {
                 <$protocol>::new(self.clone())
             }
         }
+
+        impl Netstack {
+            pub fn $getter(self: &Arc<Self>) -> $protocol
+            where
+                Arc<Self>: ProtocolSupport<$protocol>,
+            {
+                ProtocolSupport::<$protocol>::protocol(self)
+            }
+        }
     };
 }
 
-impl_protocol_support!(ethernet::Ethernet);
-impl_protocol_support!(arp::Arp);
-impl_protocol_support!(ip::Ip);
-impl_protocol_support!(udp::Udp);
+impl_protocol_support!(ethernet::Ethernet, ethernet);
+impl_protocol_support!(arp::Arp, arp);
+impl_protocol_support!(ip::Ip, ip);
+impl_protocol_support!(udp::Udp, udp);
 
 impl Tick for Netstack {
     fn tick(&self) -> TickResult {
@@ -100,14 +111,20 @@ impl Tick for Netstack {
     }
 }
 
+pub trait Packet {
+    /// The size of the packet in bytes when serialized.
+    fn wire_size(&self) -> usize;
+}
+
 pub trait Protocol {
-    type Packet<'packet>;
+    type Packet<'packet>: Packet;
     type Error: Error;
 
     fn name() -> &'static str;
 
     fn process_packet<'a>(
         &self,
+        interface: Arc<Interface>,
         packet: Self::Packet<'a>,
     ) -> BoxFuture<'a, Result<(), Self::Error>>;
 

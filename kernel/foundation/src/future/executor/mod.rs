@@ -28,14 +28,6 @@ pub struct Executor<'a> {
 }
 
 impl<'a> Executor<'a> {
-    pub fn new() -> Self {
-        Self {
-            ready_queue: Arc::new(SegQueue::new()),
-            ready_tasks: Mutex::new(BTreeMap::new()),
-            active_tasks: Arc::new(AtomicUsize::new(0)),
-        }
-    }
-
     pub fn spawn<F, T>(&self, future: F) -> JoinHandle<T>
     where
         F: Future<Output = T> + Send + 'a,
