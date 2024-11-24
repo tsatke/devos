@@ -170,7 +170,7 @@ mod tests {
 
     #[test]
     fn test_mutex_lock_unlock() {
-        let executor = Executor::new();
+        let executor = Executor::default();
         let mutex = Arc::new(FutureMutex::new(0_usize));
         let guard = mutex.try_lock().unwrap();
 

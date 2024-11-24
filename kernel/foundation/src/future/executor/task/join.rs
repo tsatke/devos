@@ -52,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_join_handle_no_panic_on_executor_drop() {
-        let exec = Executor::new();
+        let exec = Executor::default();
         let handle = exec.spawn(async { 1 });
         drop(exec);
         assert_eq!(None, block_on(handle));
@@ -67,7 +67,7 @@ mod tests {
             a * b
         }
 
-        let exec = Executor::new();
+        let exec = Executor::default();
         let result = exec.spawn(async {
             let a = increment(1).await;
             let b = increment(2).await;
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_join_handle_cancel() {
-        let exec = Executor::new();
+        let exec = Executor::default();
         let handle = exec.spawn(Times::<_, 100>::new(()));
         assert!(!handle.is_finished());
 
@@ -104,7 +104,7 @@ mod tests {
     fn test_drop_join_handle_doesnt_affect_task_execution() {
         let counter = Arc::new(AtomicUsize::new(0));
 
-        let exec = Executor::new();
+        let exec = Executor::default();
         let handle = exec.spawn({
             let counter = counter.clone();
             async move {

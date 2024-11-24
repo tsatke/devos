@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn test_async_push() {
-        let exec = Executor::new();
+        let exec = Executor::default();
         let queue = Arc::new(AsyncBoundedQueue::<usize>::new(1));
 
         assert_eq!(0, queue.len());
@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_async_pop() {
-        let exec = Executor::new();
+        let exec = Executor::default();
         let queue = Arc::new(AsyncBoundedQueue::<usize>::new(1));
         let popped = Arc::new(AtomicBool::new(false));
 

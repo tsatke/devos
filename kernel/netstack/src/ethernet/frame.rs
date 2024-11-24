@@ -190,12 +190,12 @@ mod tests {
                 payload,
             };
             assert_eq!(
-                frame.size(),
+                frame.wire_size(),
                 size,
                 "expected size {} for payload {:?}, but got {}",
                 size,
                 payload,
-                frame.size(),
+                frame.wire_size(),
             );
         }
     }
