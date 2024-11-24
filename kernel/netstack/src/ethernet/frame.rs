@@ -34,6 +34,7 @@ impl<'a> EthernetFrame<'a> {
         ether_type: EtherType,
         payload: &'a [u8],
     ) -> Self {
+        assert!(payload.len() <= 1500, "payload too large");
         Self {
             mac_destination,
             mac_source,
@@ -231,5 +232,17 @@ mod tests {
         frame.write_into(Cursor::new(&mut buf)).unwrap();
         let frame2 = EthernetFrame::try_from(buf.as_slice()).unwrap();
         assert_eq!(frame, frame2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_new_frame_too_large_payload() {
+        let _ = EthernetFrame::new(
+            MacAddr::BROADCAST,
+            MacAddr::BROADCAST,
+            None,
+            EtherType::Ipv4,
+            &[0; 2000],
+        );
     }
 }
