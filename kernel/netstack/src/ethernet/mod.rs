@@ -1,5 +1,5 @@
-use crate::arp::{Arp, ArpError};
-use crate::ip::{Ip, IpError};
+use crate::arp::{Arp, ArpReceiveError};
+use crate::ip::{Ip, IpReceiveError};
 use crate::{Netstack, Protocol};
 use alloc::sync::Arc;
 use futures::future::BoxFuture;
@@ -20,18 +20,22 @@ impl Ethernet {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum EthernetError {
+pub enum EthernetReceiveError {
     #[error("error reading frame")]
     ReadFrame(#[from] ReadEthernetFrameError),
     #[error("error handling ip packet")]
-    Ip(#[from] IpError),
+    Ip(#[from] IpReceiveError),
     #[error("error handling arp packet")]
-    Arp(#[from] ArpError),
+    Arp(#[from] ArpReceiveError),
 }
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum EthernetSendError {}
 
 impl Protocol for Ethernet {
     type Packet<'packet> = EthernetFrame<'packet>;
-    type Error = EthernetError;
+    type ReceiveError = EthernetReceiveError;
+    type SendError = EthernetSendError;
 
     fn name() -> &'static str {
         "ethernet"
@@ -41,7 +45,7 @@ impl Protocol for Ethernet {
         &self,
         interface: Arc<Interface>,
         packet: Self::Packet<'a>,
-    ) -> BoxFuture<'a, Result<(), Self::Error>> {
+    ) -> BoxFuture<'a, Result<(), Self::ReceiveError>> {
         let net = self.0.clone();
         async move {
             match packet.ether_type {
@@ -59,7 +63,7 @@ impl Protocol for Ethernet {
         .boxed()
     }
 
-    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>> {
         todo!()
     }
 }

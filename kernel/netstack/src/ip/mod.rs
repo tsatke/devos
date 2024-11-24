@@ -1,4 +1,3 @@
-use crate::udp::{Udp, UdpError};
 use crate::{Netstack, Protocol};
 use alloc::sync::Arc;
 use futures::future::BoxFuture;
@@ -6,6 +5,7 @@ use futures::FutureExt;
 use thiserror::Error;
 
 use crate::interface::Interface;
+use crate::udp::{Udp, UdpReceiveError};
 pub use packet::*;
 
 mod packet;
@@ -19,16 +19,20 @@ impl Ip {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum IpError {
+pub enum IpReceiveError {
     #[error("error reading packet")]
     ReadPacket(#[from] ReadIpPacketError),
     #[error("error handling udp packet")]
-    Udp(#[from] UdpError),
+    Udp(#[from] UdpReceiveError),
 }
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum IpSendError {}
 
 impl Protocol for Ip {
     type Packet<'packet> = IpPacket<'packet>;
-    type Error = IpError;
+    type ReceiveError = IpReceiveError;
+    type SendError = IpSendError;
 
     fn name() -> &'static str {
         "ip"
@@ -38,7 +42,7 @@ impl Protocol for Ip {
         &self,
         interface: Arc<Interface>,
         packet: Self::Packet<'a>,
-    ) -> BoxFuture<'a, Result<(), Self::Error>> {
+    ) -> BoxFuture<'a, Result<(), Self::ReceiveError>> {
         let net = self.0.clone();
         async move {
             match packet {
@@ -54,7 +58,7 @@ impl Protocol for Ip {
         .boxed()
     }
 
-    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>> {
         todo!()
     }
 }

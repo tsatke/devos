@@ -57,11 +57,11 @@ impl Netstack {
         self: &Arc<Self>,
         interface: Arc<Interface>,
         raw: S,
-    ) -> Result<(), <P as Protocol>::Error>
+    ) -> Result<(), <P as Protocol>::ReceiveError>
     where
         P: Protocol,
         Arc<Netstack>: ProtocolSupport<P>,
-        <P as Protocol>::Error: From<<P::Packet<'a> as TryFrom<S>>::Error> + 'static,
+        <P as Protocol>::ReceiveError: From<<P::Packet<'a> as TryFrom<S>>::Error> + 'static,
         P::Packet<'a>: TryFrom<S>,
         <P::Packet<'a> as TryFrom<S>>::Error: Error + 'static,
     {
@@ -118,7 +118,8 @@ pub trait Packet {
 
 pub trait Protocol {
     type Packet<'packet>: Packet;
-    type Error: Error;
+    type ReceiveError: Error;
+    type SendError: Error;
 
     fn name() -> &'static str;
 
@@ -126,7 +127,7 @@ pub trait Protocol {
         &self,
         interface: Arc<Interface>,
         packet: Self::Packet<'a>,
-    ) -> BoxFuture<'a, Result<(), Self::Error>>;
+    ) -> BoxFuture<'a, Result<(), Self::ReceiveError>>;
 
-    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>>;
+    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>>;
 }

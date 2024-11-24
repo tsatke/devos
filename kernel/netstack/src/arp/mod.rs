@@ -6,7 +6,7 @@ use futures::FutureExt;
 pub use packet::*;
 use thiserror::Error;
 
-use crate::ethernet::{EtherType, EthernetFrame};
+use crate::ethernet::{EtherType, EthernetFrame, EthernetSendError};
 use crate::interface::Interface;
 pub use cache::*;
 use foundation::falloc::vec::FVec;
@@ -26,16 +26,27 @@ impl Arp {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum ArpError {
+pub enum ArpReceiveError {
     #[error("error reading packet")]
     ReadPacket(#[from] ReadArpPacketError),
+    #[error("error sending packet")]
+    Send(#[from] ArpSendError),
+    #[error("out of memory")]
+    AllocError,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum ArpSendError {
+    #[error("error sending ethernet frame")]
+    Ethernet(#[from] EthernetSendError),
     #[error("out of memory")]
     AllocError,
 }
 
 impl Protocol for Arp {
     type Packet<'packet> = ArpPacket;
-    type Error = ArpError;
+    type ReceiveError = ArpReceiveError;
+    type SendError = ArpSendError;
 
     fn name() -> &'static str {
         "arp"
@@ -45,7 +56,7 @@ impl Protocol for Arp {
         &self,
         interface: Arc<Interface>,
         packet: Self::Packet<'a>,
-    ) -> BoxFuture<'a, Result<(), Self::Error>> {
+    ) -> BoxFuture<'a, Result<(), Self::ReceiveError>> {
         let arp = self.clone();
         async move {
             match packet {
@@ -71,13 +82,13 @@ impl Protocol for Arp {
         .boxed()
     }
 
-    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+    fn send_packet(&self, packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>> {
         async move {
-            let mut raw =
-                FVec::try_with_capacity(packet.wire_size()).map_err(|_| ArpError::AllocError)?;
+            let mut raw = FVec::try_with_capacity(packet.wire_size())
+                .map_err(|_| ArpSendError::AllocError)?;
             packet
                 .write_into(Cursor::new(&mut raw))
-                .map_err(|_| ArpError::AllocError)?;
+                .map_err(|_| ArpSendError::AllocError)?;
 
             match packet {
                 ArpPacket::Ipv4Ethernet {
@@ -87,7 +98,7 @@ impl Protocol for Arp {
                 } => {
                     let frame =
                         EthernetFrame::new(mac_destination, mac_source, None, EtherType::Arp, &raw);
-                    todo!("send frame")
+                    self.0.ethernet().send_packet(frame).await?;
                 }
             };
 
@@ -106,7 +117,7 @@ impl Arp {
         mac_source: MacAddr,
         ip_destination: Ipv4Addr,
         ip_source: Ipv4Addr,
-    ) -> Result<(), ArpError> {
+    ) -> Result<(), ArpReceiveError> {
         // get the mac and ip that we need to insert into the cache
         let (mac, ip) = match operation {
             ArpOperation::Request => (mac_source, ip_source),
@@ -145,6 +156,7 @@ impl Arp {
             ip_destination: reply_ip_destination,
             ip_source: our_ip,
         };
-        self.send_packet(reply).await
+        self.send_packet(reply).await?;
+        Ok(())
     }
 }

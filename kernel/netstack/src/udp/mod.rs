@@ -17,14 +17,18 @@ impl Udp {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum UdpError {
+pub enum UdpReceiveError {
     #[error("failed to read udp packet")]
     ReadPacket(#[from] ReadUdpPacketError),
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum UdpSendError {}
+
 impl Protocol for Udp {
     type Packet<'packet> = UdpDatagram<'packet>;
-    type Error = UdpError;
+    type ReceiveError = UdpReceiveError;
+    type SendError = UdpSendError;
 
     fn name() -> &'static str {
         "udp"
@@ -34,11 +38,11 @@ impl Protocol for Udp {
         &self,
         _interface: Arc<Interface>,
         _packet: Self::Packet<'a>,
-    ) -> BoxFuture<'a, Result<(), Self::Error>> {
+    ) -> BoxFuture<'a, Result<(), Self::ReceiveError>> {
         todo!()
     }
 
-    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::Error>> {
+    fn send_packet(&self, _packet: Self::Packet<'_>) -> BoxFuture<Result<(), Self::SendError>> {
         todo!()
     }
 }
