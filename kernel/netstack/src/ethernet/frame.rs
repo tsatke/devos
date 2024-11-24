@@ -124,7 +124,7 @@ impl<'a> TryFrom<&'a RawEthernetFrame> for EthernetFrame<'a> {
 }
 
 impl WriteInto<u8> for EthernetFrame<'_> {
-    fn write_into(&self, out: &mut impl Write<u8>) -> Result<(), WriteExactError> {
+    fn write_into(&self, mut out: impl Write<u8>) -> Result<(), WriteExactError> {
         out.write_exact(self.mac_destination.octets().as_slice())?;
         out.write_exact(self.mac_source.octets().as_slice())?;
         if let Some(qtag) = self.qtag.as_ref() {
@@ -194,8 +194,7 @@ mod tests {
             payload: [0xAB; 400].as_slice(),
         };
         let mut buf = Vec::new();
-        let mut cursor = Cursor::new(&mut buf);
-        frame.write_into(&mut cursor).unwrap();
+        frame.write_into(Cursor::new(&mut buf)).unwrap();
         let frame2 = EthernetFrame::try_from(buf.as_slice()).unwrap();
         assert_eq!(frame, frame2);
     }
@@ -210,8 +209,7 @@ mod tests {
             payload: [0xAB; 400].as_slice(),
         };
         let mut buf = Vec::new();
-        let mut cursor = Cursor::new(&mut buf);
-        frame.write_into(&mut cursor).unwrap();
+        frame.write_into(Cursor::new(&mut buf)).unwrap();
         let frame2 = EthernetFrame::try_from(buf.as_slice()).unwrap();
         assert_eq!(frame, frame2);
     }

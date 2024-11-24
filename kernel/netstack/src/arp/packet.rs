@@ -130,7 +130,7 @@ impl<'a> TryFrom<EthernetFrame<'a>> for ArpPacket {
 }
 
 impl WriteInto<u8> for ArpPacket {
-    fn write_into(&self, out: &mut impl Write<u8>) -> Result<(), WriteExactError> {
+    fn write_into(&self, mut out: impl Write<u8>) -> Result<(), WriteExactError> {
         match self {
             ArpPacket::Ipv4Ethernet {
                 operation,
@@ -173,8 +173,7 @@ mod tests {
         };
 
         let mut buffer = Vec::new();
-        let mut cursor = Cursor::new(&mut buffer);
-        packet.write_into(&mut cursor).unwrap();
+        packet.write_into(Cursor::new(&mut buffer)).unwrap();
 
         let packet2 = ArpPacket::try_from(buffer.as_slice()).unwrap();
         assert_eq!(packet, packet2);

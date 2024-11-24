@@ -92,5 +92,5 @@ where
 }
 
 pub trait WriteInto<E> {
-    fn write_into(&self, out: &mut impl Write<E>) -> Result<(), WriteExactError>;
+    fn write_into(&self, out: impl Write<E>) -> Result<(), WriteExactError>;
 }
