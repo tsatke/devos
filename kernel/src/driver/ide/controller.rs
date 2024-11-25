@@ -1,21 +1,59 @@
-use alloc::sync::Arc;
-use alloc::vec;
-use alloc::vec::Vec;
-use core::fmt::{Debug, Formatter};
-
 use crate::driver::ide::channel::IdeChannel;
 use crate::driver::ide::drive::IdeDrive;
-use crate::driver::ide::is_bit_set;
+use crate::driver::ide::{is_bit_set, register_ide_block_device, IdeBlockDevice};
 use crate::driver::pci::{InterruptPin, MassStorageSubClass, PciDevice, PciDeviceClass};
+use alloc::boxed::Box;
+use alloc::sync::{Arc, Weak};
+use alloc::vec;
+use alloc::vec::Vec;
+use core::error::Error;
+use core::fmt::{Debug, Formatter};
 use spin::RwLock;
+use thiserror::Error;
 
 pub struct IdeController {
+    _device: Weak<PciDevice>,
+
     primary: Arc<RwLock<IdeChannel>>,
     secondary: Arc<RwLock<IdeChannel>>,
     interrupt_pin: InterruptPin,
     interrupt_line: Option<u8>,
 
     pub drives: Vec<IdeDrive>,
+}
+
+impl IdeController {
+    pub fn probe(device: &PciDevice) -> bool {
+        matches!(
+            device.class(),
+            PciDeviceClass::MassStorageController(MassStorageSubClass::IDEController)
+        )
+    }
+
+    pub fn init(device: Weak<PciDevice>) -> Result<(), Box<dyn Error>> {
+        let ide_controller = IdeController::try_from(device)?;
+        for drive in ide_controller.drives {
+            register_ide_block_device(IdeBlockDevice::from(drive))?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum TryFromPciDeviceError {
+    #[error("device is not connected")]
+    DeviceDisconnected,
+}
+
+impl TryFrom<Weak<PciDevice>> for IdeController {
+    type Error = TryFromPciDeviceError;
+
+    fn try_from(device: Weak<PciDevice>) -> Result<Self, Self::Error> {
+        let device = device
+            .upgrade()
+            .ok_or(TryFromPciDeviceError::DeviceDisconnected)?;
+        Ok(IdeController::from(device))
+    }
 }
 
 impl From<Arc<PciDevice>> for IdeController {
@@ -71,6 +109,8 @@ impl From<Arc<PciDevice>> for IdeController {
         }
 
         IdeController {
+            _device: Arc::downgrade(&device),
+
             primary: primary_channel,
             secondary: secondary_channel,
             interrupt_pin: device.interrupt_pin(),

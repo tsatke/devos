@@ -9,7 +9,7 @@ use derive_more::Display;
 pub use device::*;
 pub use header::*;
 use linkme::distributed_slice;
-use log::{debug, error, info};
+use log::{error, info, trace};
 
 mod classes;
 mod device;
@@ -17,6 +17,13 @@ mod header;
 mod raw;
 
 pub fn init() {
+    PCI_DRIVERS
+        .iter()
+        .map(|driver| driver.name)
+        .for_each(|name| {
+            trace!("have driver: {}", name);
+        });
+
     devices_strong().for_each(|dev| {
         for driver in PCI_DRIVERS.iter() {
             if (driver.probe)(dev) {

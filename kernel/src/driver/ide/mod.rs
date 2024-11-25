@@ -1,13 +1,16 @@
-use alloc::vec::Vec;
+use alloc::boxed::Box;
+use core::alloc::AllocError;
+use core::error::Error;
 use core::fmt::{Debug, Display, Formatter};
 
+use crate::driver::ide::controller::IdeController;
+use crate::driver::pci::{PciDriverDescriptor, PCI_DRIVERS};
 use bitflags::bitflags;
 use conquer_once::spin::OnceCell;
-
-use crate::driver::ide::controller::IdeController;
-use crate::driver::pci;
-use crate::driver::pci::{MassStorageSubClass, PciDeviceClass};
 pub use device::*;
+use foundation::falloc::vec::FVec;
+use linkme::distributed_slice;
+use spin::Mutex;
 
 mod channel;
 mod command;
@@ -15,26 +18,28 @@ mod controller;
 mod device;
 mod drive;
 
-static IDE_DEVICES: OnceCell<Vec<IdeBlockDevice>> = OnceCell::uninit();
+#[distributed_slice(PCI_DRIVERS)]
+static IDE_CONTROLLER_DRIVER: PciDriverDescriptor = PciDriverDescriptor {
+    name: "IDEController",
+    probe: IdeController::probe,
+    init: IdeController::init,
+};
 
-pub fn drives() -> impl Iterator<Item = &'static IdeBlockDevice> {
-    IDE_DEVICES.get_or_init(collect_devices).iter()
+fn register_ide_block_device(device: IdeBlockDevice) -> Result<(), Box<dyn Error>> {
+    match IDE_DEVICES
+        .get_or_init(Mutex::default)
+        .lock()
+        .try_push(device)
+    {
+        Ok(_) => Ok(()),
+        Err(_e) => Err(Box::new(AllocError)),
+    }
 }
 
-fn collect_devices() -> Vec<IdeBlockDevice> {
-    pci::devices()
-        .filter_map(|dev| dev.upgrade())
-        .filter(|dev| {
-            matches!(
-                dev.class(),
-                PciDeviceClass::MassStorageController(MassStorageSubClass::IDEController)
-            )
-        })
-        .map(IdeController::from)
-        .flat_map(|ctrl| ctrl.drives)
-        .filter(|drive| drive.exists())
-        .map(IdeBlockDevice::from)
-        .collect()
+static IDE_DEVICES: OnceCell<Mutex<FVec<IdeBlockDevice>>> = OnceCell::uninit();
+
+pub fn devices() -> &'static Mutex<FVec<IdeBlockDevice>> {
+    IDE_DEVICES.get().expect("ide should be initialized")
 }
 
 bitflags! {
@@ -83,7 +88,7 @@ impl Display for IdeError {
     }
 }
 
-impl core::error::Error for IdeError {}
+impl Error for IdeError {}
 
 fn is_bit_set(haystack: u64, needle: u8) -> bool {
     (haystack & (1 << needle)) > 0

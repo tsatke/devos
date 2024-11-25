@@ -27,6 +27,7 @@ netstack.workspace = true
 num_enum.workspace = true
 raw-cpuid.workspace = true
 spin.workspace = true
+thiserror.workspace = true
 uart_16550.workspace = true
 volatile.workspace = true
 x2apic.workspace = true

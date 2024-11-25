@@ -3,22 +3,15 @@
 
 extern crate alloc;
 
-use alloc::boxed::Box;
 use bootloader_api::{entry_point, BootInfo, BootloaderConfig};
-use core::net::Ipv4Addr;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
-use foundation::future::executor::block_on;
-use foundation::net::MacAddr;
 use foundation::time::Instant;
 use kernel::arch::panic::handle_panic;
-use kernel::driver::pci;
 use kernel::process::{change_thread_priority, Priority, Process};
 use kernel::time::HpetInstantProvider;
 use kernel::{bootloader_config, kernel_init, process};
-use log::{debug, error, info};
-use netstack::arp::{ArpOperation, ArpPacket};
-use netstack::{Netstack, Protocol};
+use log::{error, info};
 
 const CONFIG: BootloaderConfig = bootloader_config();
 

@@ -176,6 +176,15 @@ impl<T> FVec<T> {
         self.inner.resize_with(new_len, f); // will not allocate
         Ok(())
     }
+
+    pub fn try_clone(&self) -> Result<FVec<T>, TryReserveError>
+    where
+        T: Clone,
+    {
+        let mut r = Self::try_with_capacity(self.len())?;
+        r.try_extend(self.iter().cloned())?;
+        Ok(r)
+    }
 }
 
 impl<T> Write<T> for FVec<T>

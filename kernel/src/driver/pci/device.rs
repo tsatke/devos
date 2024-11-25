@@ -24,7 +24,7 @@ impl Display for PciDevice {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "vendor=0x{:04x} device=0x{:04x}, slot: {:02x}:{:02x}.{:x}",
+            "id {:04x}:{:04x}, slot {:02x}:{:02x}.{:x}",
             self.vendor(),
             self.device(),
             self.bus(),

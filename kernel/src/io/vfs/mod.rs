@@ -7,15 +7,15 @@ use core::sync::atomic::Ordering::Relaxed;
 
 use spin::RwLock;
 
-pub use error::*;
-pub use file_system::*;
-use kernel_api::syscall::Stat;
-pub use vfs_node::*;
-
+use crate::driver::ide;
 use crate::io::path::{OwnedPath, Path};
 use crate::io::vfs::cache::CachingBlockDevice;
 use crate::io::vfs::devfs::VirtualDevFs;
 use crate::io::vfs::ext2::VirtualExt2Fs;
+pub use error::*;
+pub use file_system::*;
+use kernel_api::syscall::Stat;
+pub use vfs_node::*;
 
 pub mod cache;
 pub mod devfs;
@@ -31,7 +31,9 @@ pub fn vfs() -> &'static Vfs {
 }
 
 pub fn init() {
-    let root_drive = crate::driver::ide::drives()
+    let root_drive = ide::devices()
+        .lock()
+        .iter()
         .nth(1)
         .expect("we need at least one additional IDE drive for now")
         .clone();
