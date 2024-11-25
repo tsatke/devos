@@ -23,7 +23,7 @@ use x86_64::VirtAddr;
 pub use error::Result;
 
 use crate::arch::{gdt, idt};
-use crate::driver::hpet;
+use crate::driver::{hpet, pci};
 use crate::io::vfs;
 use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 use crate::mem::Size;
@@ -78,6 +78,7 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     driver::acpi::init(boot_info)?;
     apic::init()?;
     hpet::init();
+    pci::init();
     vfs::init();
 
     interrupts::enable();

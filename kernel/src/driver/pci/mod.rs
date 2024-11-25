@@ -1,21 +1,50 @@
+use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use bitflags::bitflags;
-use conquer_once::spin::OnceCell;
-use derive_more::Display;
-
 pub use classes::*;
+use conquer_once::spin::OnceCell;
+use core::error::Error;
+use derive_more::Display;
 pub use device::*;
 pub use header::*;
+use linkme::distributed_slice;
+use log::{debug, error, info};
 
 mod classes;
 mod device;
 mod header;
 mod raw;
 
+pub fn init() {
+    devices_strong().for_each(|dev| {
+        for driver in PCI_DRIVERS.iter() {
+            if (driver.probe)(dev) {
+                match (driver.init)(Arc::downgrade(dev)) {
+                    Ok(_) => {
+                        info!("loaded driver {} for {}", driver.name, dev);
+                        return;
+                    }
+                    Err(e) => {
+                        error!("failed to load driver {} for {}: {}", driver.name, dev, e)
+                    }
+                }
+            }
+        }
+        error!("no driver found for {}", dev);
+    });
+}
+
+#[distributed_slice]
+pub static PCI_DRIVERS: [PciDriverDescriptor];
+
 static DEVICES: OnceCell<Devices> = OnceCell::uninit();
 
 pub fn devices() -> impl Iterator<Item = Weak<PciDevice>> {
+    devices_strong().map(|dev| Arc::downgrade(&dev))
+}
+
+fn devices_strong<'a>() -> impl Iterator<Item = &'a Arc<PciDevice>> {
     DEVICES
         .get_or_init(|| {
             let mut devices = Vec::new();
@@ -28,6 +57,19 @@ pub fn devices() -> impl Iterator<Item = Weak<PciDevice>> {
         })
         .iter()
 }
+
+pub struct PciDriverDescriptor {
+    pub name: &'static str,
+    pub probe: fn(&PciDevice) -> bool,
+    pub init: fn(Weak<PciDevice>) -> Result<(), Box<dyn Error>>,
+}
+
+// ================================================
+// ================================================
+// ================================================
+// ================================================
+// ================================================
+// ================================================
 
 pub struct Devices {
     devices: Vec<Arc<PciDevice>>,
@@ -48,7 +90,7 @@ pub struct DevicesIter<'a> {
 }
 
 impl<'a> Iterator for DevicesIter<'a> {
-    type Item = Weak<PciDevice>;
+    type Item = &'a Arc<PciDevice>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.devices.devices.len() {
@@ -56,7 +98,7 @@ impl<'a> Iterator for DevicesIter<'a> {
         }
         let item = &self.devices.devices[self.index];
         self.index += 1;
-        Some(Arc::downgrade(item))
+        Some(item)
     }
 }
 

@@ -22,8 +22,8 @@ impl log::Log for SerialLogger {
             let color = match record.level() {
                 Level::Error => "\x1b[1;31m",
                 Level::Warn => "\x1b[1;33m",
-                Level::Info => "\x1b[1;30m",
-                Level::Debug => "\x1b[1;94m",
+                Level::Info => "\x1b[1;94m",
+                Level::Debug => "\x1b[1;30m",
                 Level::Trace => "\x1b[1;90m",
             };
 
