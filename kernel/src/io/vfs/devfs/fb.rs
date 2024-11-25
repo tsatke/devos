@@ -1,17 +1,32 @@
 use alloc::boxed::Box;
-use alloc::vec::Vec;
 use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
-use x86_64::PhysAddr;
 
-use crate::driver::pci;
-use crate::driver::pci::{BaseAddressRegister, DisplaySubClass, PciDeviceClass};
+use crate::driver::vga;
+use crate::driver::vga::VgaDevice;
 use crate::io::vfs::devfs::DevFile;
 use crate::io::vfs::{Result, VfsError};
 use kernel_api::syscall::{FileMode, Stat};
 
-#[derive(Debug, Clone)]
-pub struct Fb {
-    frames: Vec<PhysFrame>,
+pub fn find_fbs() -> impl Iterator<Item = Fb> {
+    vga::devices()
+        .lock()
+        .try_clone()
+        .unwrap() // TODO: handle error
+        .into_iter()
+        .map(|fb| Fb::Vga(fb))
+}
+
+#[derive(Clone)]
+pub enum Fb {
+    Vga(VgaDevice),
+}
+
+impl Fb {
+    fn frames(&self) -> impl Iterator<Item = &PhysFrame> {
+        match self {
+            Fb::Vga(vga) => vga.physical_frames().iter(),
+        }
+    }
 }
 
 impl DevFile for Fb {
@@ -28,47 +43,14 @@ impl DevFile for Fb {
 
         stat.mode |= FileMode::S_IFCHR;
         stat.nlink = 1; // TODO: can this change?
-        stat.size = self.frames.iter().map(|f| f.size()).sum::<u64>(); // TODO: is this correct? might the memory be shorter?
+        stat.size = self.frames().map(|f| f.size()).sum::<u64>(); // TODO: is this correct? might the memory be shorter?
         stat.blksize = Size4KiB::SIZE; // the size of a PhysFrame
-        stat.blocks = self.frames.len() as u64;
+        stat.blocks = self.frames().count() as u64;
 
         Ok(())
     }
 
     fn physical_memory(&self) -> Result<Option<Box<dyn Iterator<Item = PhysFrame> + '_>>> {
-        Ok(Some(Box::new(self.frames.iter().cloned())))
+        Ok(Some(Box::new(self.frames().cloned())))
     }
-}
-
-pub fn find_fbs() -> impl Iterator<Item = Fb> {
-    find_vga_fbs()
-}
-
-fn find_vga_fbs() -> impl Iterator<Item = Fb> {
-    pci::devices()
-        .filter_map(|dev| dev.upgrade())
-        .filter(|dev| {
-            matches!(
-                dev.class(),
-                PciDeviceClass::DisplayController(DisplaySubClass::VGACompatibleController)
-            )
-        })
-        .map(|ctrl| {
-            let bar0 = ctrl.bar0();
-            let (addr, size) = match bar0 {
-                BaseAddressRegister::MemorySpace32(bar) => (bar.addr as u64, bar.size),
-                BaseAddressRegister::MemorySpace64(bar) => (bar.addr, bar.size),
-                _ => {
-                    panic!("VGA controller has no memory space BAR")
-                }
-            };
-
-            (addr..addr + size as u64)
-                .step_by(4096)
-                .map(PhysAddr::new)
-                .map(PhysFrame::<Size4KiB>::containing_address)
-                .collect::<Vec<_>>()
-        })
-        .map(|frames| Fb { frames })
-        .into_iter()
 }

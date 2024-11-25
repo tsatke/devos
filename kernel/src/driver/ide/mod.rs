@@ -25,21 +25,17 @@ static IDE_CONTROLLER_DRIVER: PciDriverDescriptor = PciDriverDescriptor {
     init: IdeController::init,
 };
 
+static IDE_DEVICES: OnceCell<Mutex<FVec<IdeBlockDevice>>> = OnceCell::uninit();
+
 fn register_ide_block_device(device: IdeBlockDevice) -> Result<(), Box<dyn Error>> {
-    match IDE_DEVICES
-        .get_or_init(Mutex::default)
-        .lock()
-        .try_push(device)
-    {
+    match devices().lock().try_push(device) {
         Ok(_) => Ok(()),
         Err(_e) => Err(Box::new(AllocError)),
     }
 }
 
-static IDE_DEVICES: OnceCell<Mutex<FVec<IdeBlockDevice>>> = OnceCell::uninit();
-
 pub fn devices() -> &'static Mutex<FVec<IdeBlockDevice>> {
-    IDE_DEVICES.get().expect("ide should be initialized")
+    IDE_DEVICES.get_or_init(Mutex::default)
 }
 
 bitflags! {

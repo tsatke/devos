@@ -9,12 +9,15 @@ use derive_more::Display;
 pub use device::*;
 pub use header::*;
 use linkme::distributed_slice;
-use log::{error, info, trace};
+use log::{debug, error, info, trace};
 
 mod classes;
 mod device;
 mod header;
 mod raw;
+
+#[distributed_slice]
+pub static PCI_DRIVERS: [PciDriverDescriptor];
 
 pub fn init() {
     PCI_DRIVERS
@@ -24,7 +27,7 @@ pub fn init() {
             trace!("have driver: {}", name);
         });
 
-    devices_strong().for_each(|dev| {
+    devices().for_each(|dev| {
         for driver in PCI_DRIVERS.iter() {
             if (driver.probe)(dev) {
                 match (driver.init)(Arc::downgrade(dev)) {
@@ -42,16 +45,9 @@ pub fn init() {
     });
 }
 
-#[distributed_slice]
-pub static PCI_DRIVERS: [PciDriverDescriptor];
-
 static DEVICES: OnceCell<Devices> = OnceCell::uninit();
 
-pub fn devices() -> impl Iterator<Item = Weak<PciDevice>> {
-    devices_strong().map(|dev| Arc::downgrade(&dev))
-}
-
-fn devices_strong<'a>() -> impl Iterator<Item = &'a Arc<PciDevice>> {
+fn devices<'a>() -> impl Iterator<Item = &'a Arc<PciDevice>> {
     DEVICES
         .get_or_init(|| {
             let mut devices = Vec::new();

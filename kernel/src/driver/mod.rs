@@ -5,4 +5,5 @@ pub mod ide;
 pub mod pci;
 pub mod rtl8139;
 pub mod usb;
+pub mod vga;
 pub mod xhci;
