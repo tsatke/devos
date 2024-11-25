@@ -89,6 +89,10 @@ b rust_begin_unwind"#
     // add a usb keyboard (instead of the PS/2 keyboard)
     cmd.arg("-device").arg("usb-kbd");
 
+    // networking
+    cmd.arg("-netdev").arg("user,id=net0");
+    cmd.arg("-device").arg("rtl8139,netdev=net0");
+
     if args.verbose {
         println!("qemu command: {:?}", cmd);
     }

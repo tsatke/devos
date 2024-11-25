@@ -1,6 +1,4 @@
-use crate::driver::pci::{
-    BaseAddressRegister, PciDeviceClass, PciStandardHeaderDevice, SerialBusSubClass,
-};
+use crate::driver::pci::{BaseAddressRegister, PciDevice, PciDeviceClass, SerialBusSubClass};
 use crate::driver::xhci::error::XhciError;
 use crate::mem::virt::OwnedInterval;
 use crate::process::vmm;
@@ -45,10 +43,10 @@ impl<'a> Deref for XhciRegisters<'a> {
     }
 }
 
-impl TryFrom<PciStandardHeaderDevice> for XhciRegisters<'_> {
+impl TryFrom<PciDevice> for XhciRegisters<'_> {
     type Error = XhciError;
 
-    fn try_from(pci_device: PciStandardHeaderDevice) -> Result<Self, Self::Error> {
+    fn try_from(pci_device: PciDevice) -> Result<Self, Self::Error> {
         if !(matches!(
             pci_device.class(),
             PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)
@@ -67,9 +65,7 @@ impl TryFrom<PciStandardHeaderDevice> for XhciRegisters<'_> {
             PhysFrame::<Size4KiB>::range_inclusive(start, end)
         };
 
-        let interval = vmm()
-            .reserve(size)
-            .map_err(XhciError::VmmError)?;
+        let interval = vmm().reserve(size).map_err(XhciError::VmmError)?;
         debug_assert_eq!(size, interval.size());
         let start_addr = interval.start();
         (start_addr..(start_addr + (size - 1)))

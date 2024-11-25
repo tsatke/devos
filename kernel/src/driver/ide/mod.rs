@@ -5,7 +5,7 @@ use bitflags::bitflags;
 use conquer_once::spin::OnceCell;
 
 use crate::driver::ide::controller::IdeController;
-use crate::driver::pci::PciStandardHeaderDevice;
+use crate::driver::pci;
 use crate::driver::pci::{MassStorageSubClass, PciDeviceClass};
 pub use device::*;
 
@@ -22,14 +22,14 @@ pub fn drives() -> impl Iterator<Item = &'static IdeBlockDevice> {
 }
 
 fn collect_devices() -> Vec<IdeBlockDevice> {
-    crate::driver::pci::devices()
+    pci::devices()
+        .filter_map(|dev| dev.upgrade())
         .filter(|dev| {
             matches!(
                 dev.class(),
                 PciDeviceClass::MassStorageController(MassStorageSubClass::IDEController)
             )
         })
-        .map(|dev| PciStandardHeaderDevice::new(dev.clone()).unwrap())
         .map(IdeController::from)
         .flat_map(|ctrl| ctrl.drives)
         .filter(|drive| drive.exists())

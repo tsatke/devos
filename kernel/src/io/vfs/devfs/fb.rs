@@ -1,16 +1,13 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
-
 use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
-use crate::driver::pci::{
-    BaseAddressRegister, DisplaySubClass, PciDeviceClass, PciStandardHeaderDevice,
-};
-use kernel_api::syscall::{FileMode, Stat};
-
+use crate::driver::pci;
+use crate::driver::pci::{BaseAddressRegister, DisplaySubClass, PciDeviceClass};
 use crate::io::vfs::devfs::DevFile;
 use crate::io::vfs::{Result, VfsError};
+use kernel_api::syscall::{FileMode, Stat};
 
 #[derive(Debug, Clone)]
 pub struct Fb {
@@ -48,14 +45,14 @@ pub fn find_fbs() -> impl Iterator<Item = Fb> {
 }
 
 fn find_vga_fbs() -> impl Iterator<Item = Fb> {
-    crate::driver::pci::devices()
-        .find(|device| {
+    pci::devices()
+        .filter_map(|dev| dev.upgrade())
+        .filter(|dev| {
             matches!(
-                device.class(),
+                dev.class(),
                 PciDeviceClass::DisplayController(DisplaySubClass::VGACompatibleController)
             )
         })
-        .map(|device| PciStandardHeaderDevice::new(device.clone()).unwrap())
         .map(|ctrl| {
             let bar0 = ctrl.bar0();
             let (addr, size) = match bar0 {

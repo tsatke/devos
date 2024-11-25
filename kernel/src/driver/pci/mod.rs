@@ -1,5 +1,5 @@
+use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
-
 use bitflags::bitflags;
 use conquer_once::spin::OnceCell;
 use derive_more::Display;
@@ -15,20 +15,22 @@ mod raw;
 
 static DEVICES: OnceCell<Devices> = OnceCell::uninit();
 
-pub fn devices() -> impl Iterator<Item = &'static PciDevice> {
+pub fn devices() -> impl Iterator<Item = Weak<PciDevice>> {
     DEVICES
         .get_or_init(|| {
             let mut devices = Vec::new();
             for bus in 0..=255 {
                 unsafe { raw::iterate_bus(bus, &mut devices) };
             }
-            Devices { devices }
+            Devices {
+                devices: devices.into_iter().map(Arc::new).collect::<Vec<_>>(),
+            }
         })
         .iter()
 }
 
 pub struct Devices {
-    devices: Vec<PciDevice>,
+    devices: Vec<Arc<PciDevice>>,
 }
 
 impl Devices {
@@ -46,7 +48,7 @@ pub struct DevicesIter<'a> {
 }
 
 impl<'a> Iterator for DevicesIter<'a> {
-    type Item = &'a PciDevice;
+    type Item = Weak<PciDevice>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.index >= self.devices.devices.len() {
@@ -54,7 +56,7 @@ impl<'a> Iterator for DevicesIter<'a> {
         }
         let item = &self.devices.devices[self.index];
         self.index += 1;
-        Some(item)
+        Some(Arc::downgrade(item))
     }
 }
 

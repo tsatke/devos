@@ -6,9 +6,7 @@ use core::fmt::{Debug, Formatter};
 use crate::driver::ide::channel::IdeChannel;
 use crate::driver::ide::drive::IdeDrive;
 use crate::driver::ide::is_bit_set;
-use crate::driver::pci::{
-    InterruptPin, MassStorageSubClass, PciDeviceClass, PciStandardHeaderDevice,
-};
+use crate::driver::pci::{InterruptPin, MassStorageSubClass, PciDevice, PciDeviceClass};
 use spin::RwLock;
 
 pub struct IdeController {
@@ -20,8 +18,8 @@ pub struct IdeController {
     pub drives: Vec<IdeDrive>,
 }
 
-impl From<PciStandardHeaderDevice> for IdeController {
-    fn from(device: PciStandardHeaderDevice) -> Self {
+impl From<Arc<PciDevice>> for IdeController {
+    fn from(device: Arc<PciDevice>) -> Self {
         let class = device.class();
         match class {
             PciDeviceClass::MassStorageController(sub) => match sub {
