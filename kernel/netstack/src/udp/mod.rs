@@ -8,6 +8,7 @@ pub use datagram::*;
 
 mod datagram;
 
+#[allow(unused)]
 pub struct Udp(Arc<Netstack>);
 
 impl Udp {

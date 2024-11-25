@@ -16,6 +16,7 @@ crossbeam.workspace = true
 derive_more.workspace = true
 elfloader.workspace = true
 foundation.workspace = true
+futures.workspace = true
 kernel_api.workspace = true
 kernel_test_framework.workspace = true
 linked_list_allocator.workspace = true

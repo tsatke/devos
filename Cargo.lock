@@ -880,6 +880,7 @@ dependencies = [
  "derive_more",
  "elfloader",
  "foundation",
+ "futures",
  "kernel_api",
  "kernel_test_framework",
  "linked_list_allocator",

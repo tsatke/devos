@@ -36,6 +36,7 @@ mod error;
 pub mod io;
 mod log;
 pub mod mem;
+pub mod net;
 pub mod process;
 pub mod qemu;
 pub mod syscall;

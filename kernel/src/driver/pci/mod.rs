@@ -9,7 +9,7 @@ use derive_more::Display;
 pub use device::*;
 pub use header::*;
 use linkme::distributed_slice;
-use log::{debug, error, info, trace};
+use log::{error, info, trace};
 
 mod classes;
 mod device;

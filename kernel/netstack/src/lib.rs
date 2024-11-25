@@ -12,6 +12,7 @@ use foundation::future::executor::{Executor, Tick, TickResult};
 use foundation::future::lock::FutureMutex;
 use futures::future::BoxFuture;
 use log::debug;
+use thiserror::Error;
 
 pub mod arp;
 pub mod device;
@@ -27,6 +28,12 @@ pub struct Netstack {
     arp_state: FutureMutex<arp::ArpCache>,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum AddDeviceError {
+    #[error("out of memory")]
+    AllocError,
+}
+
 impl Netstack {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
@@ -36,13 +43,16 @@ impl Netstack {
         })
     }
 
-    pub async fn add_device(self: &Arc<Self>, device: Box<dyn Device>) {
+    pub async fn add_device(
+        self: &Arc<Self>,
+        device: Box<dyn Device>,
+    ) -> Result<(), AddDeviceError> {
         let interface = Arc::new(Interface::new(device));
         self.interfaces
             .lock()
             .await
             .try_push(interface.clone())
-            .unwrap(); // TODO: handle error
+            .map_err(|_| AddDeviceError::AllocError)?;
 
         self.executor.spawn({
             let net = Arc::downgrade(self);
@@ -51,6 +61,7 @@ impl Netstack {
                 InterfaceWorker::new(net, interface).run().await;
             }
         });
+        Ok(())
     }
 
     pub(crate) async fn handle_incoming_packet<'a, P, S>(

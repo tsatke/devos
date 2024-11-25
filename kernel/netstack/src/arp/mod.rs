@@ -206,6 +206,14 @@ mod tests {
         fn write_frame(&self, frame: RawDataLinkFrame) -> BoxFuture<()> {
             self.tx.push(frame).boxed()
         }
+
+        fn try_read_frame(&self) -> Option<RawDataLinkFrame> {
+            self.rx.pop_now()
+        }
+
+        fn try_write_frame(&self, frame: RawDataLinkFrame) -> Result<(), RawDataLinkFrame> {
+            self.tx.push_now(frame)
+        }
     }
 
     #[test]
@@ -218,8 +226,8 @@ mod tests {
         left_dev.rx = right_dev.tx.clone();
         left_dev.tx = right_dev.rx.clone();
 
-        block_on(left.add_device(Box::new(left_dev)));
-        block_on(right.add_device(Box::new(right_dev)));
+        block_on(left.add_device(Box::new(left_dev))).unwrap();
+        block_on(right.add_device(Box::new(right_dev))).unwrap();
 
         block_on(
             right.interfaces.try_lock().unwrap()[0].set_ipv4_addr(Ipv4Addr::new(192, 168, 1, 2)),
