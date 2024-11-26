@@ -1,66 +1,46 @@
-use crate::driver::pci::PciDevice;
-use alloc::vec::Vec;
+use crate::driver::pci::{PciDevice, ProbeResult};
 use x86_64::instructions::port::Port;
 
 const CONFIG_ADDRESS: u16 = 0xCF8;
 const CONFIG_DATA: u16 = 0xCFC;
 
-const OFFSET_VENDOR_ID: u8 = 0x00;
-const OFFSET_DEVICE: u8 = 0x02;
+pub const OFFSET_VENDOR_ID: u8 = 0x00;
+pub const OFFSET_DEVICE_ID: u8 = 0x02;
 pub const OFFSET_STATUS: u8 = 0x06;
-pub const OFFSET_HEADER_TYPE: u8 = 0x0E;
+pub const OFFSET_COMMAND: u8 = 0x04;
 pub const OFFSET_PROG_IF_REVISION_ID: u8 = 0x08;
-pub const OFFSET_CLASS_SUBCLASS: u8 = 0x0A;
+pub const OFFSET_SUBCLASS: u8 = 0x0A;
+pub const OFFSET_CLASS: u8 = 0x0B;
+pub const OFFSET_HEADER_TYPE: u8 = 0x0E;
 pub const OFFSET_BIST: u8 = 0x0F;
+pub const OFFSET_BAR0: u8 = 0x10;
+pub const OFFSET_BAR1: u8 = 0x14;
+pub const OFFSET_BAR2: u8 = 0x18;
+pub const OFFSET_BAR3: u8 = 0x1C;
+pub const OFFSET_BAR4: u8 = 0x20;
+pub const OFFSET_BAR5: u8 = 0x24;
 pub const OFFSET_INTERRUPT_LINE: u8 = 0x3C;
 pub const OFFSET_INTERRUPT_PIN: u8 = 0x3D;
 
-pub unsafe fn iterate_bus(bus: u8, devices: &mut Vec<PciDevice>) {
-    for slot in 0..32 {
-        // function 0 must be implemented by all devices, so if we don't get
-        // a device with function 0, there will not be any devices on other
-        // functions for the same bus and slot
-        if let Some(dev) = check_device(bus, slot, 0) {
-            if dev.is_multi_function() {
-                iterate_functions(bus, slot, devices);
-            } else {
-                devices.push(dev);
+pub unsafe fn iterate_all() -> impl Iterator<Item = PciDevice> {
+    (0..=u8::MAX)
+        .flat_map(|bus| (0_u8..32).map(move |slot| (bus, slot)))
+        .flat_map(|(bus, slot)| {
+            match PciDevice::probe(bus, slot, 0) {
+                ProbeResult::Exists => 0_u8..1,
+                ProbeResult::MultiFunction => 0..8,
+                ProbeResult::None => 0..0,
             }
-        }
-    }
-}
-
-unsafe fn iterate_functions(bus: u8, slot: u8, devices: &mut Vec<PciDevice>) {
-    for function in 0..8 {
-        if let Some(dev) = check_device(bus, slot, function) {
-            // TODO: if the device is a PCI2PCI bridge, iterate that as bus as well
-            devices.push(dev);
-        }
-    }
-}
-
-unsafe fn check_device(bus: u8, slot: u8, function: u8) -> Option<PciDevice> {
-    if let Some((vendor, device)) = pci_check_vendor(bus, slot, function) {
-        let dev = match PciDevice::new(bus, slot, function, vendor, device) {
-            Ok(d) => d,
-            Err(_) => {
-                return None;
-            }
-        };
-        return Some(dev);
-    }
-    None
-}
-
-unsafe fn pci_check_vendor(bus: u8, slot: u8, function: u8) -> Option<(u16, u16)> {
-    let vendor = read_config_word(bus, slot, function, OFFSET_VENDOR_ID);
-    if vendor == 0xFFFF {
-        return None;
-    }
-
-    let device = read_config_word(bus, slot, function, OFFSET_DEVICE);
-
-    Some((vendor, device))
+            .map(move |function| (bus, slot, function))
+        })
+        .filter_map(
+            |(bus, slot, function)| match PciDevice::probe(bus, slot, function) {
+                ProbeResult::Exists | ProbeResult::MultiFunction => {
+                    Some(PciDevice::new(bus, slot, function))
+                }
+                ProbeResult::None => None,
+            },
+        )
 }
 
 pub unsafe fn read_config_double_word(bus: u8, slot: u8, function: u8, offset: u8) -> u32 {
@@ -87,6 +67,14 @@ pub unsafe fn read_config_word(bus: u8, slot: u8, function: u8, offset: u8) -> u
 
     let i = config_data.read();
     (i >> ((offset & 2) * 8) & 0xFFFF) as u16
+}
+
+pub unsafe fn read_config_half_word(bus: u8, slot: u8, function: u8, offset: u8) -> u8 {
+    let word = read_config_word(bus, slot, function, offset & (!1));
+    if offset & 1 > 0 {
+        return (word >> 8) as u8;
+    }
+    word as u8
 }
 
 pub unsafe fn write_config_double_word(bus: u8, slot: u8, function: u8, offset: u8, value: u32) {
@@ -117,10 +105,14 @@ pub unsafe fn write_config_word(bus: u8, slot: u8, function: u8, offset: u8, val
     config_data.write(i);
 }
 
-pub unsafe fn read_config_half_word(bus: u8, slot: u8, function: u8, offset: u8) -> u8 {
-    let word = read_config_word(bus, slot, function, offset & (!1));
+pub unsafe fn write_config_half_word(bus: u8, slot: u8, function: u8, offset: u8, value: u8) {
+    let mut word = read_config_word(bus, slot, function, offset & (!1));
     if offset & 1 > 0 {
-        return (word >> 8) as u8;
+        word &= 0x00FF;
+        word |= (value as u16) << 8;
+    } else {
+        word &= 0xFF00;
+        word |= value as u16;
     }
-    word as u8
+    write_config_word(bus, slot, function, offset & (!1), word);
 }

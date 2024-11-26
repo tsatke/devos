@@ -1,7 +1,4 @@
-use crate::driver::pci::{
-    BaseAddressRegister, DisplaySubClass, PciDevice, PciDeviceClass, PciDriverDescriptor,
-    PCI_DRIVERS,
-};
+use crate::driver::pci::{PciDevice, PciDriverDescriptor, PCI_DRIVERS};
 use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
@@ -12,7 +9,7 @@ use foundation::falloc::vec::FVec;
 use linkme::distributed_slice;
 use spin::Mutex;
 use thiserror::Error;
-use x86_64::structures::paging::{PhysFrame, Size4KiB};
+use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
 #[distributed_slice(PCI_DRIVERS)]
@@ -37,20 +34,17 @@ pub fn devices() -> &'static Mutex<FVec<VgaDevice>> {
 
 #[derive(Clone)]
 pub struct VgaDevice {
-    _device: Weak<PciDevice>,
+    _device: Weak<Mutex<PciDevice>>,
 
     frames: Arc<FVec<PhysFrame>>,
 }
 
 impl VgaDevice {
     fn probe(device: &PciDevice) -> bool {
-        matches!(
-            device.class(),
-            PciDeviceClass::DisplayController(DisplaySubClass::VGACompatibleController)
-        )
+        device.class == 0x03 && device.subclass == 0x00
     }
 
-    fn init(device: Weak<PciDevice>) -> Result<(), Box<dyn Error>> {
+    fn init(device: Weak<Mutex<PciDevice>>) -> Result<(), Box<dyn Error>> {
         let device = device.upgrade().ok_or(AllocError)?;
         register_vga_device(VgaDevice::try_from(device)?)?;
         Ok(())
@@ -71,22 +65,21 @@ pub enum TryFromPciDeviceError {
     AllocError,
 }
 
-impl TryFrom<Arc<PciDevice>> for VgaDevice {
+impl TryFrom<Arc<Mutex<PciDevice>>> for VgaDevice {
     type Error = TryFromPciDeviceError;
 
-    fn try_from(value: Arc<PciDevice>) -> Result<Self, Self::Error> {
-        let bar0 = value.bar0();
-        let (addr, size) = match bar0 {
-            BaseAddressRegister::MemorySpace32(bar) => (bar.addr as u64, bar.size),
-            BaseAddressRegister::MemorySpace64(bar) => (bar.addr, bar.size),
-            _ => {
-                panic!("VGA controller has no memory space BAR")
-            }
-        };
+    fn try_from(value: Arc<Mutex<PciDevice>>) -> Result<Self, Self::Error> {
+        let mut device = value.lock();
+        if device.base_addresses[0].is_io() {
+            return Err(TryFromPciDeviceError::NoMemorySpaceBar);
+        }
 
-        let frames = (addr..addr + size as u64)
-            .step_by(4096)
-            .map(PhysAddr::new)
+        let addr = device.base_addresses[0].addr(Some(&device.base_addresses[1])) as u64;
+        let size = device.base_addresses[0].size() as u64;
+
+        let frames = (addr..addr + size)
+            .step_by(Size4KiB::SIZE as usize)
+            .map(PhysAddr::new_truncate)
             .map(PhysFrame::<Size4KiB>::containing_address)
             .collect::<Vec<_>>(); // TODO: use FVec
         Ok(Self {

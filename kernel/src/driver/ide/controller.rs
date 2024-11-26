@@ -1,22 +1,22 @@
 use crate::driver::ide::channel::IdeChannel;
 use crate::driver::ide::drive::IdeDrive;
 use crate::driver::ide::{is_bit_set, register_ide_block_device, IdeBlockDevice};
-use crate::driver::pci::{InterruptPin, MassStorageSubClass, PciDevice, PciDeviceClass};
+use crate::driver::pci::PciDevice;
 use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::error::Error;
 use core::fmt::{Debug, Formatter};
-use spin::RwLock;
+use spin::{Mutex, RwLock};
 use thiserror::Error;
 
 pub struct IdeController {
-    _device: Weak<PciDevice>,
+    _device: Weak<Mutex<PciDevice>>,
 
     primary: Arc<RwLock<IdeChannel>>,
     secondary: Arc<RwLock<IdeChannel>>,
-    interrupt_pin: InterruptPin,
+    interrupt_pin: u8,
     interrupt_line: Option<u8>,
 
     pub drives: Vec<IdeDrive>,
@@ -24,13 +24,10 @@ pub struct IdeController {
 
 impl IdeController {
     pub fn probe(device: &PciDevice) -> bool {
-        matches!(
-            device.class(),
-            PciDeviceClass::MassStorageController(MassStorageSubClass::IDEController)
-        )
+        device.class == 0x01 && device.subclass == 0x01
     }
 
-    pub fn init(device: Weak<PciDevice>) -> Result<(), Box<dyn Error>> {
+    pub fn init(device: Weak<Mutex<PciDevice>>) -> Result<(), Box<dyn Error>> {
         let ide_controller = IdeController::try_from(device)?;
         for drive in ide_controller.drives {
             register_ide_block_device(IdeBlockDevice::from(drive))?;
@@ -45,10 +42,10 @@ pub enum TryFromPciDeviceError {
     DeviceDisconnected,
 }
 
-impl TryFrom<Weak<PciDevice>> for IdeController {
+impl TryFrom<Weak<Mutex<PciDevice>>> for IdeController {
     type Error = TryFromPciDeviceError;
 
-    fn try_from(device: Weak<PciDevice>) -> Result<Self, Self::Error> {
+    fn try_from(device: Weak<Mutex<PciDevice>>) -> Result<Self, Self::Error> {
         let device = device
             .upgrade()
             .ok_or(TryFromPciDeviceError::DeviceDisconnected)?;
@@ -56,31 +53,31 @@ impl TryFrom<Weak<PciDevice>> for IdeController {
     }
 }
 
-impl From<Arc<PciDevice>> for IdeController {
-    fn from(device: Arc<PciDevice>) -> Self {
-        let class = device.class();
-        match class {
-            PciDeviceClass::MassStorageController(sub) => match sub {
-                MassStorageSubClass::IDEController => {}
-                _ => panic!("mass storage controller is not an IDE controller"),
-            },
-            _ => panic!("pci device is not a mass storage controller"),
-        }
+impl From<Arc<Mutex<PciDevice>>> for IdeController {
+    fn from(value: Arc<Mutex<PciDevice>>) -> Self {
+        let device = value.lock();
+        assert!(IdeController::probe(&device));
 
-        let prog_if = device.prog_if();
+        let prog_if = device.prog;
         let (primary_ctrlbase, primary_iobase) = if is_bit_set(prog_if as u64, 0) {
-            (device.bar1_raw() as u16, device.bar0_raw() as u16)
+            (
+                device.base_addresses[1].read() as u16,
+                device.base_addresses[0].read() as u16,
+            )
         } else {
             (0x3F6, 0x1F0)
         };
 
         let (secondary_ctrlbase, secondary_iobase) = if is_bit_set(prog_if as u64, 2) {
-            (device.bar3_raw() as u16, device.bar2_raw() as u16)
+            (
+                device.base_addresses[3].read() as u16,
+                device.base_addresses[2].read() as u16,
+            )
         } else {
             (0x376, 0x170)
         };
 
-        let bus_master_ide = device.bar4_raw();
+        let bus_master_ide = device.base_addresses[4].read();
         let primary_master_base = bus_master_ide as u16;
         let secondary_master_base = (bus_master_ide >> 16) as u16;
 
@@ -109,12 +106,16 @@ impl From<Arc<PciDevice>> for IdeController {
         }
 
         IdeController {
-            _device: Arc::downgrade(&device),
+            _device: Arc::downgrade(&value),
 
             primary: primary_channel,
             secondary: secondary_channel,
-            interrupt_pin: device.interrupt_pin(),
-            interrupt_line: device.interrupt_line(),
+            interrupt_pin: device.interrupt_pin,
+            interrupt_line: if (0..=15).contains(&device.interrupt_line) {
+                Some(device.interrupt_line)
+            } else {
+                None
+            },
             drives,
         }
     }

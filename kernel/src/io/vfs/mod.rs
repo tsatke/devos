@@ -33,8 +33,7 @@ pub fn vfs() -> &'static Vfs {
 pub fn init() {
     let root_drive = ide::devices()
         .lock()
-        .iter()
-        .nth(1)
+        .get(1)
         .expect("we need at least one additional IDE drive for now")
         .clone();
     let root_drive_cache = CachingBlockDevice::new(

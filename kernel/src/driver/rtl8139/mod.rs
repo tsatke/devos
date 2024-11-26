@@ -1,11 +1,11 @@
 use crate::driver::pci::{PciDevice, PciDriverDescriptor, PCI_DRIVERS};
-use crate::net;
 use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use core::error::Error;
 use foundation::net::MacAddr;
 use linkme::distributed_slice;
 use netstack::device::{Device, RawDataLinkFrame};
+use spin::Mutex;
 use thiserror::Error;
 
 #[distributed_slice(PCI_DRIVERS)]
@@ -23,15 +23,15 @@ pub enum TryFromPciDeviceError {
     DeviceDisconnected,
 }
 
-impl TryFrom<Weak<PciDevice>> for Rtl8139 {
+impl TryFrom<Weak<Mutex<PciDevice>>> for Rtl8139 {
     type Error = TryFromPciDeviceError;
 
-    fn try_from(device: Weak<PciDevice>) -> Result<Self, Self::Error> {
+    fn try_from(device: Weak<Mutex<PciDevice>>) -> Result<Self, Self::Error> {
         let device = device
             .upgrade()
             .ok_or(TryFromPciDeviceError::DeviceDisconnected)?;
 
-        if !Rtl8139::probe(&device) {
+        if !Rtl8139::probe(&device.lock()) {
             return Err(TryFromPciDeviceError::NotRtl8139);
         }
 
@@ -42,7 +42,7 @@ impl TryFrom<Weak<PciDevice>> for Rtl8139 {
 }
 
 pub struct Rtl8139 {
-    _pci_device: Weak<PciDevice>,
+    _pci_device: Weak<Mutex<PciDevice>>,
 }
 
 impl Rtl8139 {
@@ -50,14 +50,15 @@ impl Rtl8139 {
     pub const DEVICE_ID: u16 = 0x8139;
 
     pub fn probe(device: &PciDevice) -> bool {
-        device.vendor() == Self::VENDOR_ID && device.device() == Self::DEVICE_ID
+        device.vendor_id == Self::VENDOR_ID && device.device_id == Self::DEVICE_ID
     }
 
-    pub fn init(device: Weak<PciDevice>) -> Result<(), Box<dyn Error>> {
+    pub fn init(device: Weak<Mutex<PciDevice>>) -> Result<(), Box<dyn Error>> {
         let _rtl8139 = Self {
             _pci_device: device,
         };
-        net::register_nic(Box::new(_rtl8139))?;
+        // TODO: add to net stack
+        // net::register_nic(Box::new(_rtl8139))?;
         Ok(())
     }
 }

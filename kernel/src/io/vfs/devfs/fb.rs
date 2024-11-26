@@ -13,7 +13,7 @@ pub fn find_fbs() -> impl Iterator<Item = Fb> {
         .try_clone()
         .unwrap() // TODO: handle error
         .into_iter()
-        .map(|fb| Fb::Vga(fb))
+        .map(Fb::Vga)
 }
 
 #[derive(Clone)]

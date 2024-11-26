@@ -1,15 +1,13 @@
-use crate::driver::pci::{BaseAddressRegister, PciDevice, PciDeviceClass, SerialBusSubClass};
 use crate::driver::xhci::error::XhciError;
 use crate::mem::virt::OwnedInterval;
-use crate::process::vmm;
-use crate::{map_page, unmap_page};
+use crate::unmap_page;
 use core::fmt::Debug;
 use core::num::NonZeroU8;
 use core::ops::Deref;
 use volatile::VolatilePtr;
-use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
-use x86_64::PhysAddr;
+use x86_64::structures::paging::{Page, PageSize, Size4KiB};
 
+use crate::driver::pci::PciDevice;
 use crate::driver::xhci::extended::ExtendedCapabilities;
 pub use capabilities::*;
 pub use operational::*;
@@ -46,50 +44,8 @@ impl<'a> Deref for XhciRegisters<'a> {
 impl TryFrom<PciDevice> for XhciRegisters<'_> {
     type Error = XhciError;
 
-    fn try_from(pci_device: PciDevice) -> Result<Self, Self::Error> {
-        if !(matches!(
-            pci_device.class(),
-            PciDeviceClass::SerialBusController(SerialBusSubClass::USBController)
-        ) && pci_device.prog_if() == 0x30)
-        {
-            return Err(XhciError::NotUsb);
-        }
-
-        let (phys_addr, size) = match pci_device.bar0() {
-            BaseAddressRegister::MemorySpace64(bar) => (bar.addr, bar.size),
-            _ => return Err(XhciError::NotUsb),
-        };
-        let frames = {
-            let start = PhysFrame::<Size4KiB>::containing_address(PhysAddr::new(phys_addr));
-            let end = start + (size - 1) as u64;
-            PhysFrame::<Size4KiB>::range_inclusive(start, end)
-        };
-
-        let interval = vmm().reserve(size).map_err(XhciError::VmmError)?;
-        debug_assert_eq!(size, interval.size());
-        let start_addr = interval.start();
-        (start_addr..(start_addr + (size - 1)))
-            .step_by(Size4KiB::SIZE as usize)
-            .map(Page::<Size4KiB>::containing_address)
-            .zip(frames)
-            .for_each(|(page, frame)| {
-                map_page!(
-                    page,
-                    frame,
-                    Size4KiB,
-                    PageTableFlags::PRESENT
-                        | PageTableFlags::WRITABLE
-                        | PageTableFlags::NO_EXECUTE
-                        | PageTableFlags::NO_CACHE
-                );
-            });
-
-        let registers = Registers::new(start_addr);
-
-        Ok(Self {
-            interval,
-            registers,
-        })
+    fn try_from(_pci_device: PciDevice) -> Result<Self, Self::Error> {
+        todo!()
     }
 }
 

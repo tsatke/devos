@@ -2,19 +2,17 @@ use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
 use bitflags::bitflags;
-pub use classes::*;
 use conquer_once::spin::OnceCell;
 use core::error::Error;
-use derive_more::Display;
-pub use device::*;
-pub use header::*;
 use linkme::distributed_slice;
-use log::{error, info, trace};
+use log::{error, info, trace, warn};
+use spin::Mutex;
 
-mod classes;
+pub use device::*;
+
 mod device;
-mod header;
 mod raw;
+mod register;
 
 #[distributed_slice]
 pub static PCI_DRIVERS: [PciDriverDescriptor];
@@ -29,34 +27,36 @@ pub fn init() {
 
     devices().for_each(|dev| {
         for driver in PCI_DRIVERS.iter() {
-            if (driver.probe)(dev) {
+            if (driver.probe)(&dev.lock()) {
                 match (driver.init)(Arc::downgrade(dev)) {
                     Ok(_) => {
-                        info!("loaded driver {} for {}", driver.name, dev);
+                        info!("loaded driver {} for {}", driver.name, dev.lock());
                         return;
                     }
                     Err(e) => {
-                        error!("failed to load driver {} for {}: {}", driver.name, dev, e)
+                        error!(
+                            "failed to load driver {} for {}: {}",
+                            driver.name,
+                            dev.lock(),
+                            e
+                        )
                     }
                 }
             }
         }
-        error!("no driver found for {}", dev);
+        warn!("no driver found for {}", dev.lock());
     });
 }
 
 static DEVICES: OnceCell<Devices> = OnceCell::uninit();
 
-fn devices<'a>() -> impl Iterator<Item = &'a Arc<PciDevice>> {
+fn devices<'a>() -> impl Iterator<Item = &'a Arc<Mutex<PciDevice>>> {
     DEVICES
         .get_or_init(|| {
-            let mut devices = Vec::new();
-            for bus in 0..=255 {
-                unsafe { raw::iterate_bus(bus, &mut devices) };
-            }
-            Devices {
-                devices: devices.into_iter().map(Arc::new).collect::<Vec<_>>(),
-            }
+            let devices = unsafe { raw::iterate_all() }
+                .map(|v| Arc::new(Mutex::new(v)))
+                .collect::<Vec<_>>();
+            Devices { devices }
         })
         .iter()
 }
@@ -64,73 +64,19 @@ fn devices<'a>() -> impl Iterator<Item = &'a Arc<PciDevice>> {
 pub struct PciDriverDescriptor {
     pub name: &'static str,
     pub probe: fn(&PciDevice) -> bool,
-    pub init: fn(Weak<PciDevice>) -> Result<(), Box<dyn Error>>,
+    #[allow(clippy::type_complexity)]
+    pub init: fn(Weak<Mutex<PciDevice>>) -> Result<(), Box<dyn Error>>,
 }
 
-// ================================================
-// ================================================
-// ================================================
-// ================================================
-// ================================================
-// ================================================
-
 pub struct Devices {
-    devices: Vec<Arc<PciDevice>>,
+    devices: Vec<Arc<Mutex<PciDevice>>>,
 }
 
 impl Devices {
-    pub fn iter(&self) -> DevicesIter {
-        DevicesIter {
-            devices: self,
-            index: 0,
-        }
+    pub fn iter(&self) -> impl Iterator<Item = &Arc<Mutex<PciDevice>>> {
+        self.devices.iter()
     }
 }
-
-pub struct DevicesIter<'a> {
-    devices: &'a Devices,
-    index: usize,
-}
-
-impl<'a> Iterator for DevicesIter<'a> {
-    type Item = &'a Arc<PciDevice>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.index >= self.devices.devices.len() {
-            return None;
-        }
-        let item = &self.devices.devices[self.index];
-        self.index += 1;
-        Some(item)
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Display)]
-pub enum PciError {
-    #[display("unknown header type {_0:#x?}")]
-    UnknownHeaderType(u8),
-    #[display("unknown pci device class {_0:#x?}")]
-    UnknownPciDeviceClass(u16),
-    #[display("unknown interrupt pin {_0}")]
-    UnknownInterruptPin(u8),
-    #[display("unknown display sub class {_0:#x?}")]
-    UnknownDisplaySubClass(u8),
-    #[display("unknown serial bus sub class {_0:#x?}")]
-    UnknownSerialBusSubClass(u8),
-    #[display("unknown mass storage sub class {_0:#x?}")]
-    UnknownMassStorageSubClass(u8),
-    #[display("unknown network sub class {_0:#x?}")]
-    UnknownNetworkSubClass(u8),
-    #[display("unknown bridge sub class {_0:#x?}")]
-    UnknownBridgeSubClass(u8),
-
-    #[display("not a standard header, but a {_0:?}")]
-    NotStandardHeader(PciHeaderType),
-    #[display("not a pci2pci bridge, but a {_0:?}")]
-    NotPCI2PCIBridge(PciHeaderType),
-}
-
-impl core::error::Error for PciError {}
 
 bitflags! {
     pub struct Status: u16 {

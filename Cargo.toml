@@ -50,7 +50,7 @@ conquer-once = { version = "0.4.0", default-features = false }
 cordyceps = "0.3.2"
 crossbeam = { version = "0.8.4", default-features = false, features = ["alloc", "nightly", "crossbeam-queue"] }
 delegate = "0.13.1"
-derive_more = { version = "1.0.0", default-features = false, features = ["display", "from", "deref", "constructor"] }
+derive_more = { version = "1.0.0", default-features = false, features = ["display", "from", "deref", "deref_mut", "constructor"] }
 elfloader = "0.16.0"
 foundation = { path = "kernel/foundation" }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
