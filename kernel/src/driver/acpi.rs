@@ -2,18 +2,18 @@ use alloc::format;
 use alloc::sync::Arc;
 use core::ptr::NonNull;
 
-use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
-use bootloader_api::BootInfo;
-use conquer_once::spin::OnceCell;
-use spin::Mutex;
-use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
-use x86_64::{PhysAddr, VirtAddr};
-
+use crate::driver::apic;
 use crate::map_page;
 use crate::mem::virt::OwnedInterval;
 use crate::mem::Size;
 use crate::process::vmm;
 use crate::Result;
+use acpi::{AcpiHandler, AcpiTables, InterruptModel, PhysicalMapping, PlatformInfo};
+use bootloader_api::BootInfo;
+use conquer_once::spin::OnceCell;
+use spin::Mutex;
+use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
+use x86_64::{PhysAddr, VirtAddr};
 
 static ACPI_TABLES: OnceCell<Mutex<AcpiTables<KernelAcpi>>> = OnceCell::uninit();
 
@@ -29,6 +29,21 @@ pub fn init(boot_info: &'static BootInfo) -> Result<()> {
         panic!("acpi error: {:#?}", e); // FIXME: this currently occurs while booting in BIOS mode rather than UEFI
     }
     let tables = result.map_err(|e| format!("acpi error: {:#?}", e))?;
+
+    if let Ok(platform_info) = PlatformInfo::new(&tables) {
+        match platform_info.interrupt_model {
+            InterruptModel::Apic(apic) => {
+                apic::init(apic)?;
+            }
+            _ => {
+                panic!(
+                    "unsupported interrupt model: {:#?}",
+                    platform_info.interrupt_model
+                );
+            }
+        }
+    }
+
     ACPI_TABLES.init_once(|| tables.into());
 
     Ok(())

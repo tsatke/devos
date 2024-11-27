@@ -16,6 +16,7 @@ extern crate alloc;
 use bootloader_api::config::Mapping;
 use bootloader_api::{BootInfo, BootloaderConfig};
 use conquer_once::spin::OnceCell;
+use ::log::debug;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::{Page, Size4KiB};
 use x86_64::VirtAddr;
@@ -23,12 +24,12 @@ use x86_64::VirtAddr;
 pub use error::Result;
 
 use crate::arch::{gdt, idt};
+use crate::driver::apic::KERNEL_IOAPIC_ADDR;
 use crate::driver::{hpet, pci};
 use crate::io::vfs;
 use crate::mem::virt::heap::{KERNEL_HEAP_ADDR, KERNEL_HEAP_LEN};
 use crate::mem::Size;
-use driver::apic;
-use driver::apic::{KERNEL_APIC_ADDR, KERNEL_APIC_LEN};
+use driver::apic::{KERNEL_LAPIC_ADDR, KERNEL_LAPIC_LEN};
 
 pub mod arch;
 pub mod driver;
@@ -63,21 +64,30 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     let kernel_code_len = boot_info.kernel_len as usize;
     let kernel_heap_addr = (kernel_code_addr + kernel_code_len).align_up(Page::<Size4KiB>::SIZE);
     let kernel_heap_len = KERNEL_HEAP_LEN.bytes();
-    let kernel_apic_addr = (kernel_heap_addr + kernel_heap_len).align_up(Page::<Size4KiB>::SIZE);
-    let _kernel_apic_len = KERNEL_APIC_LEN.bytes();
+    let kernel_lapic_addr = (kernel_heap_addr + kernel_heap_len).align_up(Page::<Size4KiB>::SIZE);
+    let kernel_lapic_len = KERNEL_LAPIC_LEN.bytes();
+    let kernel_ioapic_addr =
+        (kernel_lapic_addr + kernel_lapic_len).align_up(Page::<Size4KiB>::SIZE);
+    let kernel_ioapic_len = KERNEL_LAPIC_LEN.bytes();
 
     KERNEL_CODE_ADDR.init_once(|| kernel_code_addr);
     KERNEL_CODE_LEN.init_once(|| kernel_code_len);
     KERNEL_HEAP_ADDR.init_once(|| kernel_heap_addr);
-    KERNEL_APIC_ADDR.init_once(|| kernel_apic_addr);
+    KERNEL_LAPIC_ADDR.init_once(|| kernel_lapic_addr);
+    KERNEL_IOAPIC_ADDR.init_once(|| kernel_ioapic_addr);
 
     log::init();
+
+    debug!("kernel code mapped at {kernel_code_addr:p} with length 0x{kernel_code_len:x}");
+    debug!("kernel heap mapped at {kernel_heap_addr:p} with length 0x{kernel_heap_len:x}");
+    debug!("kernel lapic mapped at {kernel_lapic_addr:p} with length 0x{kernel_lapic_len:x}");
+    debug!("kernel ioapic mapped at {kernel_ioapic_addr:p} with length 0x{kernel_ioapic_len:x}");
+
     gdt::init();
     idt::init();
     syscall::init();
     mem::init(boot_info)?; // sets up address space, thus implies process::init and scheduler::init
     driver::acpi::init(boot_info)?;
-    apic::init()?;
     hpet::init();
     pci::init();
     vfs::init();

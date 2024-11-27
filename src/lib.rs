@@ -7,7 +7,7 @@ pub const KERNEL_BINARY: &str = env!("KERNEL_BINARY");
 pub const OS_DISK: &str = env!("OS_DISK");
 
 pub fn create_qcow_image(os_disk: &str) -> String {
-    let name = rand::thread_rng()
+    let name = rand::rng()
         .sample_iter(&Alphanumeric)
         .take(10)
         .map(char::from)

@@ -1,8 +1,9 @@
 use core::mem::transmute;
 
 use conquer_once::spin::Lazy;
-use log::info;
+use log::{error, info};
 use num_enum::IntoPrimitive;
+use seq_macro::seq;
 use x86_64::instructions::interrupts;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::structures::paging::PageTableFlags;
@@ -48,6 +49,11 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
             */
             .disable_interrupts(false);
     }
+
+    seq!(VECTOR in 32..256 {
+        idt[VECTOR].set_handler_fn(catch_all_handler::<VECTOR>);
+    });
+
     idt[InterruptIndex::Timer.into()].set_handler_fn(timer_interrupt_handler);
     idt[InterruptIndex::Keyboard.into()].set_handler_fn(keyboard_interrupt_handler);
     idt[InterruptIndex::LapicErr.into()].set_handler_fn(lapic_err_interrupt_handler);
@@ -117,6 +123,15 @@ macro_rules! wrap {
 }
 
 wrap!(syscall_handler_impl => syscall_handler);
+
+extern "x86-interrupt" fn catch_all_handler<const VECTOR: usize>(
+    _stack_frame: InterruptStackFrame,
+) {
+    // error!("unhandled interrupt vector {}", VECTOR);
+    unsafe {
+        end_of_interrupt();
+    }
+}
 
 extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame) {
     panic!("EXCEPTION: DIVIDE ERROR\n{:#?}", stack_frame);

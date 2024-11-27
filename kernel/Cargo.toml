@@ -27,6 +27,7 @@ mkfs-filesystem.workspace = true
 netstack.workspace = true
 num_enum.workspace = true
 raw-cpuid.workspace = true
+seq-macro.workspace = true
 spin.workspace = true
 thiserror.workspace = true
 uart_16550.workspace = true
