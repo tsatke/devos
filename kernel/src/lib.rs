@@ -84,9 +84,9 @@ pub fn kernel_init(boot_info: &'static BootInfo) -> Result<()> {
     debug!("kernel ioapic mapped at {kernel_ioapic_addr:p} with length 0x{kernel_ioapic_len:x}");
 
     gdt::init();
+    mem::init(boot_info)?; // sets up address space, thus implies process::init and scheduler::init
     idt::init();
     syscall::init();
-    mem::init(boot_info)?; // sets up address space, thus implies process::init and scheduler::init
     driver::acpi::init(boot_info)?;
     hpet::init();
     pci::init();

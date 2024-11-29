@@ -1,21 +1,32 @@
-use core::mem::transmute;
-
 use crate::arch::syscall::syscall_handler_impl;
 use crate::driver::apic::LAPIC;
 use crate::process;
 use crate::process::vmm;
-use conquer_once::spin::Lazy;
+use alloc::boxed::Box;
+use conquer_once::spin::OnceCell;
+use core::mem::transmute;
+use core::pin::Pin;
 use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
 use log::{info, warn};
 use num_enum::IntoPrimitive;
 use seq_macro::seq;
+use spin::RwLock;
 use x86_64::instructions::interrupts;
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::structures::idt::{
+    Entry, InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode,
+};
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::PrivilegeLevel;
 
-static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
-    let mut idt = InterruptDescriptorTable::new();
+// needs to be pinned for safety guarantees in `::reload()`.
+static IDT: OnceCell<RwLock<Pin<Box<InterruptDescriptorTable>>>> = OnceCell::uninit();
+
+fn idt() -> &'static RwLock<Pin<Box<InterruptDescriptorTable>>> {
+    IDT.get_or_init(|| RwLock::new(Box::pin(InterruptDescriptorTable::new())))
+}
+
+pub fn init() {
+    let mut idt = idt().write();
     idt.divide_error.set_handler_fn(divide_error_handler);
     idt.breakpoint.set_handler_fn(breakpoint_handler);
     idt.page_fault.set_handler_fn(page_fault_handler);
@@ -61,11 +72,33 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     idt[InterruptIndex::LapicErr.into()].set_handler_fn(lapic_err_interrupt_handler);
     idt[InterruptIndex::Spurious.into()].set_handler_fn(spurious_interrupt_handler);
     idt[InterruptIndex::Rtc.into()].set_handler_fn(rtc_handler);
-    idt
-});
 
-pub fn init() {
-    IDT.load();
+    drop(idt); // unlock before loading
+    reload();
+}
+
+pub fn reload() {
+    let guard = idt().read();
+    unsafe {
+        // Safety: IDT is pinned
+        guard.load_unsafe()
+    };
+}
+
+pub fn register_interrupt_handler(
+    index: u8,
+    handler: extern "x86-interrupt" fn(InterruptStackFrame),
+) {
+    let mut idt = idt().write();
+    assert!(index >= 32, "invalid interrupt index");
+    assert_eq!(
+        idt[index as usize],
+        Entry::missing(),
+        "interrupt already registered"
+    );
+    idt[index as usize].set_handler_fn(handler);
+
+    reload();
 }
 
 #[derive(Debug, Clone, Copy, IntoPrimitive)]
