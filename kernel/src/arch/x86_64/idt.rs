@@ -1,20 +1,18 @@
 use core::mem::transmute;
 
+use crate::arch::syscall::syscall_handler_impl;
+use crate::driver::apic::LAPIC;
+use crate::process;
+use crate::process::vmm;
 use conquer_once::spin::Lazy;
-use log::{error, info};
+use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
+use log::{info, warn};
 use num_enum::IntoPrimitive;
 use seq_macro::seq;
 use x86_64::instructions::interrupts;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::PrivilegeLevel;
-
-use kernel_api::syscall::SYSCALL_INTERRUPT_INDEX;
-
-use crate::arch::syscall::syscall_handler_impl;
-use crate::driver::apic::LAPIC;
-use crate::process;
-use crate::process::vmm;
 
 static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     let mut idt = InterruptDescriptorTable::new();
@@ -33,6 +31,15 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
         idt.double_fault
             .set_handler_fn(double_fault_handler)
             .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
+    }
+
+    // set up catch all handlers for interrupts
+    seq!(N in 32..=255 { // must be same as CUSTOM_INTERRUPT_RANGE
+        idt[N].set_handler_fn(catch_all_handler::<N>);
+    });
+
+    // set up custom interrupts
+    unsafe {
         idt[InterruptIndex::Syscall.into()]
             .set_handler_fn(transmute::<
                 *mut fn(),
@@ -49,15 +56,11 @@ static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
             */
             .disable_interrupts(false);
     }
-
-    seq!(VECTOR in 32..256 {
-        idt[VECTOR].set_handler_fn(catch_all_handler::<VECTOR>);
-    });
-
     idt[InterruptIndex::Timer.into()].set_handler_fn(timer_interrupt_handler);
     idt[InterruptIndex::Keyboard.into()].set_handler_fn(keyboard_interrupt_handler);
     idt[InterruptIndex::LapicErr.into()].set_handler_fn(lapic_err_interrupt_handler);
     idt[InterruptIndex::Spurious.into()].set_handler_fn(spurious_interrupt_handler);
+    idt[InterruptIndex::Rtc.into()].set_handler_fn(rtc_handler);
     idt
 });
 
@@ -83,12 +86,13 @@ pub enum InterruptIndex {
     /// 67
     IpiPit = 0x43,
     Syscall = SYSCALL_INTERRUPT_INDEX,
+    Rtc = 0x82, // not something that we decide currently, TODO: disable entirely - we don't need it
     /// 255
     Spurious = 0xff,
 }
 
 macro_rules! wrap {
-    ($fn: ident => $w:ident) => {
+    ($fn:ident => $w:ident) => {
         #[allow(clippy::missing_safety_doc)]
         #[naked]
         pub unsafe extern "sysv64" fn $w() {
@@ -127,7 +131,13 @@ wrap!(syscall_handler_impl => syscall_handler);
 extern "x86-interrupt" fn catch_all_handler<const VECTOR: usize>(
     _stack_frame: InterruptStackFrame,
 ) {
-    // error!("unhandled interrupt vector {}", VECTOR);
+    warn!("unhandled interrupt vector {VECTOR}");
+    unsafe {
+        end_of_interrupt();
+    }
+}
+
+extern "x86-interrupt" fn rtc_handler(_stack_frame: InterruptStackFrame) {
     unsafe {
         end_of_interrupt();
     }

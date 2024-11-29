@@ -17,7 +17,7 @@ impl Clock for HpetClock {
         let ticks = hpet.main_counter_value() as u128;
         let nanos = (ticks * period) / FEMTOSECONDS_PER_NANOSECOND;
 
-        Instant::new(u64::try_from(nanos).unwrap())
+        Instant::new(u64::try_from(nanos).unwrap_or(u64::MAX))
     }
 }
 
