@@ -4,12 +4,9 @@ use crate::Netstack;
 use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use core::fmt::Debug;
-use core::future::poll_fn;
-use core::task::Poll;
 use derive_more::Constructor;
 use foundation::net::MacAddr;
 use futures::future::BoxFuture;
-use futures::FutureExt;
 use log::{debug, error};
 
 // make sure that [`Device`] is object safe
@@ -21,38 +18,10 @@ pub enum RawDataLinkFrame {
 }
 
 pub trait Device: Send + Sync {
-    fn read_frame(&self) -> BoxFuture<RawDataLinkFrame> {
-        poll_fn(|cx| {
-            if let Some(frame) = self.try_read_frame() {
-                Poll::Ready(frame)
-            } else {
-                cx.waker().wake_by_ref();
-                Poll::Pending
-            }
-        })
-        .boxed()
-    }
-    fn write_frame(&self, frame: RawDataLinkFrame) -> BoxFuture<()> {
-        let mut frame_slot = Some(frame);
-        poll_fn(move |cx| {
-            let Some(frame) = frame_slot.take() else {
-                return Poll::Ready(());
-            };
-
-            if let Err(frame) = self.try_write_frame(frame) {
-                frame_slot = Some(frame);
-                Poll::Ready(())
-            } else {
-                cx.waker().wake_by_ref();
-                Poll::Pending
-            }
-        })
-        .boxed()
-    }
-
     fn mac_address(&self) -> MacAddr;
-    fn try_read_frame(&self) -> Option<RawDataLinkFrame>;
-    fn try_write_frame(&self, frame: RawDataLinkFrame) -> Result<(), RawDataLinkFrame>;
+
+    fn read_frame(&self) -> BoxFuture<RawDataLinkFrame>;
+    fn write_frame(&self, frame: RawDataLinkFrame) -> BoxFuture<()>;
 }
 
 #[derive(Constructor)]

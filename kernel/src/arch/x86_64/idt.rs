@@ -85,6 +85,11 @@ pub fn reload() {
     };
 }
 
+pub fn next_free_interrupt_vector() -> Option<u8> {
+    let idt = idt().read();
+    (32..=255).find(|&i| idt[i as usize] == Entry::missing())
+}
+
 pub fn register_interrupt_handler(
     index: u8,
     handler: extern "x86-interrupt" fn(InterruptStackFrame),

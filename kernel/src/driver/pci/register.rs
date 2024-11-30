@@ -69,6 +69,10 @@ impl BaseAddressRegister {
         self.0.write(original);
         !(v & if self.is_io() { !0b11 } else { !0b111 }) as usize + 1
     }
+
+    pub fn exists(&self) -> bool {
+        self.0.read() != 0
+    }
 }
 
 #[derive(Debug)]

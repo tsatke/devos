@@ -97,4 +97,10 @@ impl PciDevice {
     pub fn bist(&self) -> BIST {
         BIST::from_bits_truncate(self.bist.read())
     }
+
+    pub fn enable_bus_mastering(&mut self) {
+        let mut command = self.command.read();
+        command |= 1 << 2;
+        self.command.write(command);
+    }
 }

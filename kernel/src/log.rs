@@ -3,7 +3,7 @@ use log::{info, Level, Metadata, Record};
 
 pub fn init() {
     ::log::set_logger(&SerialLogger).unwrap();
-    ::log::set_max_level(::log::LevelFilter::Debug);
+    ::log::set_max_level(::log::LevelFilter::Trace);
 
     info!("logging initialized");
 }
@@ -13,8 +13,8 @@ pub struct SerialLogger;
 impl SerialLogger {}
 
 impl log::Log for SerialLogger {
-    fn enabled(&self, _metadata: &Metadata) -> bool {
-        true
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() < Level::Trace || metadata.target().starts_with("kernel")
     }
 
     fn log(&self, record: &Record) {

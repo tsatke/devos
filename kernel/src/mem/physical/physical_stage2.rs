@@ -2,7 +2,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
 use core::sync::atomic::Ordering::Relaxed;
-use log::info;
+use log::{info, trace};
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator, PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
@@ -27,6 +27,15 @@ impl MemoryMapPhysicalFrameAllocator {
             heap_initialized(),
             "Heap must first be initialized before using the physical memory map"
         );
+
+        regions.iter().for_each(|r| {
+            trace!(
+                "memory region: {:p} - {:p} ({:?})",
+                PhysAddr::new(r.start),
+                PhysAddr::new(r.end),
+                r.kind
+            );
+        });
 
         let total_mem_size = regions.iter().map(|r| r.end - r.start).sum::<u64>();
         info!(
