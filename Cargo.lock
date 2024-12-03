@@ -267,9 +267,9 @@ dependencies = [
 
 [[package]]
 name = "bootloader"
-version = "0.11.8"
+version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfdec0e720aec6c0aa81cf30b8a5956ffacdb0a397a1af4156ff439ceec84067"
+checksum = "8bace22e5c5b93f2e97859d0b74fa1338b8878009cdf752c377d1e8b44eccf26"
 dependencies = [
  "anyhow",
  "async-process",
@@ -295,9 +295,9 @@ dependencies = [
 
 [[package]]
 name = "bootloader_api"
-version = "0.11.8"
+version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99adba6d383d3b4b367b9ae41e8347ffe4d88efe247af76d00fd029e4fbb3076"
+checksum = "57a08a674787a3711ea0ba3bd730e6ffeb74832dcf6c51caf553528b33b54f73"
 
 [[package]]
 name = "bumpalo"
