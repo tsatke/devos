@@ -25,8 +25,8 @@ pub struct PciDevice {
     pub header_type: u8,
     pub bist: PciRegister<u8>,
     pub base_addresses: [BaseAddressRegister; 6],
-    pub interrupt_pin: u8,
-    pub interrupt_line: u8,
+    pub interrupt_pin: PciRegister<u8>,
+    pub interrupt_line: PciRegister<u8>,
 }
 
 impl Display for PciDevice {
@@ -84,8 +84,8 @@ impl PciDevice {
                     PciRegister::new(bus, slot, function, OFFSET_BAR4).into(),
                     PciRegister::new(bus, slot, function, OFFSET_BAR5).into(),
                 ],
-                interrupt_pin: read_config_half_word(bus, slot, function, OFFSET_INTERRUPT_PIN),
-                interrupt_line: read_config_half_word(bus, slot, function, OFFSET_INTERRUPT_LINE),
+                interrupt_pin: PciRegister::new(bus, slot, function, OFFSET_INTERRUPT_PIN),
+                interrupt_line: PciRegister::new(bus, slot, function, OFFSET_INTERRUPT_LINE),
             }
         }
     }

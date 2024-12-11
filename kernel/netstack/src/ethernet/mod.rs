@@ -80,10 +80,7 @@ impl Protocol for Ethernet {
             packet.write_into(Cursor::new(&mut raw)).unwrap(); // TODO: handle error
 
             let frame = RawDataLinkFrame::Ethernet(RawEthernetFrame::new(raw));
-            net.interfaces.lock().await[0]
-                .device()
-                .write_frame(frame)
-                .await;
+            net.interfaces.lock().await[0].tx_queue().push(frame).await;
             Ok(())
         }
         .boxed()

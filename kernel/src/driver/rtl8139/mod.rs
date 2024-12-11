@@ -1,34 +1,26 @@
-use crate::driver::hpet::Inner;
+use crate::arch::idt::{end_of_interrupt, InterruptIndex};
 use crate::driver::pci::{PciDevice, PciDriverDescriptor, PCI_DRIVERS};
 use crate::mem::virt::{AllocationStrategy, MapAt};
 use crate::net;
 use crate::process::vmm;
-use crate::time::HpetInstantProvider;
 use alloc::boxed::Box;
 use alloc::format;
-use alloc::string::ToString;
 use alloc::sync::{Arc, Weak};
-use conquer_once::spin::OnceCell;
 use core::error::Error;
-use core::future::Future;
 use core::hint::spin_loop;
-use core::pin::Pin;
-use core::ptr::NonNull;
-use core::task::{Context, Poll, Waker};
-use core::time::Duration;
-use crossbeam::queue::ArrayQueue;
+use crossbeam::epoch::Pointable;
+use crossbeam::queue::SegQueue;
+use foundation::falloc::vec::FVec;
+use foundation::future::queue::AsyncBoundedQueue;
 use foundation::net::MacAddr;
-use foundation::time::Instant;
-use futures::future::BoxFuture;
-use futures::FutureExt;
 use linkme::distributed_slice;
-use log::{debug, info, trace};
-use netstack::device::{Device, RawDataLinkFrame};
+use log::{error, info, trace};
+use netstack::device::RawDataLinkFrame;
+use netstack::interface::Interface;
 use spin::Mutex;
 use thiserror::Error;
-use volatile::{VolatileFieldAccess, VolatilePtr};
-use x86_64::instructions::hlt;
 use x86_64::instructions::port::Port;
+use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::paging::{PageTableFlags, PhysFrame};
 use x86_64::PhysAddr;
 
@@ -39,10 +31,28 @@ static RTL8239_DRIVER: PciDriverDescriptor = PciDriverDescriptor {
     init: Rtl8139::init,
 };
 
-static RTL_WAKERS: OnceCell<ArrayQueue<Waker>> = OnceCell::uninit();
+static RTL8139_CARDS: SegQueue<Rtl8139> = SegQueue::new();
 
-fn rtl_wakers() -> &'static ArrayQueue<Waker> {
-    RTL_WAKERS.get_or_init(|| ArrayQueue::new(16)) // should be plenty
+pub extern "x86-interrupt" fn rtl8139_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    let len = RTL8139_CARDS.len();
+    trace!("servicing {len} RTL8139 cards");
+    for _ in 0..len {
+        if let Some(rtl) = RTL8139_CARDS.pop() {
+            match rtl.interrupt_received() {
+                Ok(_) => RTL8139_CARDS.push(rtl),
+                Err(InterruptRoutineError::DeviceDisconnected) => {
+                    info!("RTL8139 device disconnected");
+                }
+            }
+        }
+    }
+    unsafe { end_of_interrupt() };
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum InterruptRoutineError {
+    #[error("device is not connected any more")]
+    DeviceDisconnected,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
@@ -57,6 +67,14 @@ pub enum TryFromPciDeviceError {
     DeviceDisconnected,
     #[error("failed to allocate memory")]
     AllocError,
+}
+
+pub struct Rtl8139 {
+    mac_addr: MacAddr,
+    pci_device: Weak<Mutex<PciDevice>>,
+    registers: Mutex<Registers>,
+    rx_queue: Arc<AsyncBoundedQueue<RawDataLinkFrame>>,
+    tx_queue: Arc<AsyncBoundedQueue<RawDataLinkFrame>>,
 }
 
 impl TryFrom<Weak<Mutex<PciDevice>>> for Rtl8139 {
@@ -101,9 +119,10 @@ impl TryFrom<Weak<Mutex<PciDevice>>> for Rtl8139 {
             let phys_addr = PhysAddr::try_new(bar.addr(next) as u64)
                 .map_err(|_| TryFromPciDeviceError::InvalidBarAddress)?;
 
+            // FIXME: this must probably be located in the kernel heap, since the interrupts can happen in any process, and we don't switch address spaces
             let virt_addr = vmm()
                 .allocate_memory_backed_vmobject(
-                    format!("rtl8139 bar{i}"),
+                    format!("rtl8139 {guard} bar{i}"),
                     MapAt::Anywhere,
                     size,
                     AllocationStrategy::MapNow(&[PhysFrame::containing_address(phys_addr)]),
@@ -118,6 +137,8 @@ impl TryFrom<Weak<Mutex<PciDevice>>> for Rtl8139 {
 
         let mut registers =
             Registers::new(u16::try_from(iobase).expect("io base offset should fit into a u16"));
+
+        guard.interrupt_line.write(InterruptIndex::Rtl8139.as_u8());
 
         // turn on
         unsafe { registers.config_1.write(0x0) };
@@ -142,19 +163,38 @@ impl TryFrom<Weak<Mutex<PciDevice>>> for Rtl8139 {
                 (hi >> 8) as u8,
             ])
         };
-
         Ok(Self {
             mac_addr,
             pci_device: Arc::downgrade(&device),
             registers: Mutex::new(registers),
+            rx_queue: Arc::new(AsyncBoundedQueue::new(16)),
+            tx_queue: Arc::new(AsyncBoundedQueue::new(16)),
         })
     }
 }
 
-pub struct Rtl8139 {
-    mac_addr: MacAddr,
-    pci_device: Weak<Mutex<PciDevice>>,
-    registers: Mutex<Registers>,
+impl Rtl8139 {
+    pub const VENDOR_ID: u16 = 0x10EC;
+    pub const DEVICE_ID: u16 = 0x8139;
+
+    pub fn probe(device: &PciDevice) -> bool {
+        device.vendor_id == Self::VENDOR_ID && device.device_id == Self::DEVICE_ID
+    }
+
+    pub fn init(device: Weak<Mutex<PciDevice>>) -> Result<(), Box<dyn Error>> {
+        let rtl = Self::try_from(device)?;
+        info!("RTL8139 MAC address: {}", rtl.mac_addr);
+
+        let nic = Interface::new(rtl.mac_addr, rtl.rx_queue.clone(), rtl.tx_queue.clone());
+        net::register_nic(nic)?;
+
+        RTL8139_CARDS.push(rtl);
+        Ok(())
+    }
+
+    fn interrupt_received(&self) -> Result<(), InterruptRoutineError> {
+        todo!()
+    }
 }
 
 struct Registers {
@@ -182,59 +222,5 @@ impl Registers {
             isr: Port::new(iobase + 0x3E),
             config_1: Port::new(iobase + 0x52),
         }
-    }
-}
-
-impl Rtl8139 {
-    pub const VENDOR_ID: u16 = 0x10EC;
-    pub const DEVICE_ID: u16 = 0x8139;
-
-    pub fn probe(device: &PciDevice) -> bool {
-        device.vendor_id == Self::VENDOR_ID && device.device_id == Self::DEVICE_ID
-    }
-
-    pub fn init(device: Weak<Mutex<PciDevice>>) -> Result<(), Box<dyn Error>> {
-        let rtl = Self::try_from(device)?;
-        info!("RTL8139 MAC address: {}", rtl.mac_addr);
-
-        net::register_nic(Box::new(rtl))?;
-        Ok(())
-    }
-}
-
-impl Device for Rtl8139 {
-    fn mac_address(&self) -> MacAddr {
-        self.mac_addr
-    }
-
-    fn read_frame(&self) -> BoxFuture<RawDataLinkFrame> {
-        ReadFrameFuture {
-            rtl: self.pci_device.clone(),
-        }
-        .boxed()
-    }
-
-    fn write_frame(&self, _frame: RawDataLinkFrame) -> BoxFuture<()> {
-        todo!()
-    }
-}
-
-pub struct ReadFrameFuture {
-    rtl: Weak<Mutex<PciDevice>>,
-}
-
-impl Future for ReadFrameFuture {
-    type Output = RawDataLinkFrame;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let rtl = self.rtl.upgrade().expect("device should be connected");
-        let _rtl = if let Some(rtl) = rtl.try_lock() {
-            rtl
-        } else {
-            cx.waker().wake_by_ref();
-            return Poll::Pending;
-        };
-
-        todo!("check whether there's a frame to read, otherwise register waker in RTL_WAKERS");
     }
 }

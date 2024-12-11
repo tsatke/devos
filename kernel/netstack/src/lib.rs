@@ -1,9 +1,7 @@
 #![no_std]
 extern crate alloc;
 
-use crate::device::Device;
 use crate::interface::Interface;
-use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
 use device::InterfaceWorker;
@@ -43,11 +41,11 @@ impl Netstack {
         })
     }
 
-    pub async fn add_device(
+    pub async fn add_interface(
         self: &Arc<Self>,
-        device: Box<dyn Device>,
+        interface: Interface,
     ) -> Result<(), AddDeviceError> {
-        let interface = Arc::new(Interface::new(device));
+        let interface = Arc::new(interface);
         self.interfaces
             .lock()
             .await
