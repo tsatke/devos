@@ -134,7 +134,7 @@ impl Arp {
             self.0.arp_state.lock().await.insert(ip, mac);
         }
 
-        let our_mac = interface.device().mac_address();
+        let our_mac = interface.mac_address();
 
         if operation != ArpOperation::Request
             || !(mac_destination.is_broadcast() || our_mac == mac_destination)
@@ -154,7 +154,9 @@ impl Arp {
             ip_source
         };
 
-        if !interface.should_serve(reply_ip_destination.into()).await {
+        if !(reply_ip_destination.is_broadcast()
+            || interface.should_serve(reply_ip_destination.into()).await)
+        {
             return Ok(());
         }
 
@@ -173,71 +175,35 @@ impl Arp {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::device::{Device, RawDataLinkFrame};
-    use alloc::boxed::Box;
     use foundation::future::executor::{block_on, Tick};
     use foundation::future::queue::AsyncBoundedQueue;
-
-    pub struct TestDevice {
-        mac: MacAddr,
-        rx: Arc<AsyncBoundedQueue<RawDataLinkFrame>>,
-        tx: Arc<AsyncBoundedQueue<RawDataLinkFrame>>,
-    }
-
-    impl TestDevice {
-        pub fn new(mac: MacAddr) -> Self {
-            Self {
-                mac,
-                rx: Arc::new(AsyncBoundedQueue::new(16)),
-                tx: Arc::new(AsyncBoundedQueue::new(16)),
-            }
-        }
-    }
-
-    impl Device for TestDevice {
-        fn mac_address(&self) -> MacAddr {
-            self.mac
-        }
-
-        fn read_frame(&self) -> BoxFuture<RawDataLinkFrame> {
-            self.rx.pop().boxed()
-        }
-
-        fn write_frame(&self, frame: RawDataLinkFrame) -> BoxFuture<()> {
-            self.tx.push(frame).boxed()
-        }
-
-        fn try_read_frame(&self) -> Option<RawDataLinkFrame> {
-            self.rx.pop_now()
-        }
-
-        fn try_write_frame(&self, frame: RawDataLinkFrame) -> Result<(), RawDataLinkFrame> {
-            self.tx.push_now(frame)
-        }
-    }
 
     #[test]
     fn test_arp_resolve() {
         let left = Netstack::new();
-        let mut left_dev = TestDevice::new(MacAddr::from([0xAA; 6]));
 
         let right = Netstack::new();
-        let right_dev = TestDevice::new(MacAddr::from([0xBB; 6]));
-        left_dev.rx = right_dev.tx.clone();
-        left_dev.tx = right_dev.rx.clone();
 
-        block_on(left.add_device(Box::new(left_dev))).unwrap();
-        block_on(right.add_device(Box::new(right_dev))).unwrap();
+        let left_mac = MacAddr::from([0xAA; 6]);
+        let right_mac = MacAddr::from([0xBB; 6]);
+        let right_ip = Ipv4Addr::new(192, 168, 1, 2);
 
-        block_on(
-            right.interfaces.try_lock().unwrap()[0].set_ipv4_addr(Ipv4Addr::new(192, 168, 1, 2)),
-        );
+        let rx = Arc::new(AsyncBoundedQueue::new(10));
+        let tx = Arc::new(AsyncBoundedQueue::new(10));
+
+        let left_iface = Interface::new(left_mac, rx.clone(), tx.clone());
+        let right_iface = Interface::new(right_mac, tx.clone(), rx.clone());
+
+        block_on(right_iface.set_ipv4_addr(right_ip));
+
+        block_on(left.add_interface(left_iface)).unwrap();
+        block_on(right.add_interface(right_iface)).unwrap();
 
         block_on(left.arp().send_packet(ArpPacket::Ipv4Ethernet {
             operation: ArpOperation::Request,
             mac_destination: MacAddr::BROADCAST,
-            mac_source: MacAddr::from([0xAA; 6]),
-            ip_destination: Ipv4Addr::new(192, 168, 1, 2),
+            mac_source: left_mac,
+            ip_destination: right_ip,
             ip_source: Ipv4Addr::UNSPECIFIED,
         }))
         .unwrap();
@@ -245,12 +211,7 @@ mod tests {
         right.tick(); // process request in receiver
         left.tick(); // process reply in sender
 
-        let resolved = left
-            .arp_state
-            .try_lock()
-            .unwrap()
-            .lookup(Ipv4Addr::new(192, 168, 1, 2))
-            .unwrap();
-        assert_eq!(resolved, MacAddr::from([0xBB; 6]));
+        let resolved = left.arp_state.try_lock().unwrap().lookup(right_ip).unwrap();
+        assert_eq!(resolved, right_mac);
     }
 }

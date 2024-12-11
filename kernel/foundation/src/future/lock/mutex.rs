@@ -1,4 +1,5 @@
 use core::cell::UnsafeCell;
+use core::fmt::Debug;
 use core::future::Future;
 use core::hint::spin_loop;
 use core::ops::{Deref, DerefMut};
@@ -83,6 +84,15 @@ impl<T> FutureMutex<T> {
 pub struct FutureMutexGuard<'a, T> {
     mutex: &'a FutureMutex<T>,
     data: *mut T,
+}
+
+impl<T> Debug for FutureMutexGuard<'_, T>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        <T as Debug>::fmt(self, f)
+    }
 }
 
 unsafe impl<T: Sync> Sync for FutureMutexGuard<'_, T> {}

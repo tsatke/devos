@@ -1,5 +1,6 @@
 use crate::arch::syscall::syscall_handler_impl;
 use crate::driver::apic::LAPIC;
+use crate::driver::rtl8139::rtl8139_interrupt_handler;
 use crate::process;
 use crate::process::vmm;
 use alloc::boxed::Box;
@@ -51,7 +52,7 @@ pub fn init() {
 
     // set up custom interrupts
     unsafe {
-        idt[InterruptIndex::Syscall.into()]
+        idt[InterruptIndex::Syscall.as_usize()]
             .set_handler_fn(transmute::<
                 *mut fn(),
                 extern "x86-interrupt" fn(InterruptStackFrame),
@@ -67,11 +68,12 @@ pub fn init() {
             */
             .disable_interrupts(false);
     }
-    idt[InterruptIndex::Timer.into()].set_handler_fn(timer_interrupt_handler);
-    idt[InterruptIndex::Keyboard.into()].set_handler_fn(keyboard_interrupt_handler);
-    idt[InterruptIndex::LapicErr.into()].set_handler_fn(lapic_err_interrupt_handler);
-    idt[InterruptIndex::Spurious.into()].set_handler_fn(spurious_interrupt_handler);
-    idt[InterruptIndex::Rtc.into()].set_handler_fn(rtc_handler);
+    idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
+    idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
+    idt[InterruptIndex::LapicErr.as_usize()].set_handler_fn(lapic_err_interrupt_handler);
+    idt[InterruptIndex::Spurious.as_usize()].set_handler_fn(spurious_interrupt_handler);
+    idt[InterruptIndex::Rtc.as_usize()].set_handler_fn(rtc_handler);
+    idt[InterruptIndex::Rtl8139.as_usize()].set_handler_fn(rtl8139_interrupt_handler);
 
     drop(idt); // unlock before loading
     reload();
@@ -83,6 +85,11 @@ pub fn reload() {
         // Safety: IDT is pinned
         guard.load_unsafe()
     };
+}
+
+pub fn next_free_interrupt_vector() -> Option<u8> {
+    let idt = idt().read();
+    (32..=255).find(|&i| idt[i as usize] == Entry::missing())
 }
 
 pub fn register_interrupt_handler(
@@ -102,7 +109,7 @@ pub fn register_interrupt_handler(
 }
 
 #[derive(Debug, Clone, Copy, IntoPrimitive)]
-#[repr(usize)]
+#[repr(u8)]
 pub enum InterruptIndex {
     /// 32
     Timer = 0x20,
@@ -120,8 +127,19 @@ pub enum InterruptIndex {
     IpiPit = 0x43,
     Syscall = SYSCALL_INTERRUPT_INDEX,
     Rtc = 0x82, // not something that we decide currently, TODO: disable entirely - we don't need it
+    Rtl8139 = 0x83, // TODO: maybe summarize all network interrupts at some point
     /// 255
     Spurious = 0xff,
+}
+
+impl InterruptIndex {
+    pub fn as_usize(self) -> usize {
+        self as usize
+    }
+
+    pub fn as_u8(self) -> u8 {
+        self as u8
+    }
 }
 
 macro_rules! wrap {

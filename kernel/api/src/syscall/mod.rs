@@ -10,7 +10,7 @@ pub use errno::*;
 
 mod errno;
 
-pub const SYSCALL_INTERRUPT_INDEX: usize = 0x80;
+pub const SYSCALL_INTERRUPT_INDEX: u8 = 0x80;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, TryFromPrimitive)]
 #[repr(usize)]

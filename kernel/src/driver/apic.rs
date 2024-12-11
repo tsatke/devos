@@ -92,9 +92,9 @@ fn init_lapic(lapic_address: u64) -> Result<u32> {
     )?;
 
     let mut lapic = LocalApicBuilder::new()
-        .timer_vector(InterruptIndex::Timer.into())
-        .error_vector(InterruptIndex::LapicErr.into())
-        .spurious_vector(InterruptIndex::Spurious.into())
+        .timer_vector(InterruptIndex::Timer.as_usize())
+        .error_vector(InterruptIndex::LapicErr.as_usize())
+        .spurious_vector(InterruptIndex::Spurious.as_usize())
         .set_xapic_base(lapic_virtual_address.as_u64())
         .timer_mode(TimerMode::Periodic)
         .timer_initial(312500)

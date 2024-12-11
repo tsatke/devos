@@ -110,9 +110,9 @@ impl From<Arc<Mutex<PciDevice>>> for IdeController {
 
             primary: primary_channel,
             secondary: secondary_channel,
-            interrupt_pin: device.interrupt_pin,
-            interrupt_line: if (0..=15).contains(&device.interrupt_line) {
-                Some(device.interrupt_line)
+            interrupt_pin: device.interrupt_pin.read(),
+            interrupt_line: if (0..=15).contains(&device.interrupt_line.read()) {
+                Some(device.interrupt_line.read())
             } else {
                 None
             },
