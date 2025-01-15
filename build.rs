@@ -24,10 +24,7 @@ fn main() {
 }
 
 fn ovmf() -> Prebuilt {
-    let out_dir = out_dir();
-    let ovmf_dir = out_dir.join("ovmf");
-
-    Prebuilt::fetch(Source::LATEST, ovmf_dir).unwrap()
+    Prebuilt::fetch(Source::LATEST, PathBuf::from("target/ovmf")).unwrap()
 }
 
 fn build_iso(limine_checkout: impl AsRef<Path>, kernel_binary: impl AsRef<Path>) -> PathBuf {
@@ -119,8 +116,7 @@ fn build_iso(limine_checkout: impl AsRef<Path>, kernel_binary: impl AsRef<Path>)
 }
 
 fn limine() -> PathBuf {
-    let out_dir = out_dir();
-    let limine_dir = out_dir.join("limine");
+    let limine_dir = PathBuf::from("target/limine");
 
     // check whether we've already checked it out
     if exists(&limine_dir).unwrap() {
