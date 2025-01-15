@@ -1,4 +1,4 @@
-use limine::memory_map::EntryType;
+use crate::mem::physical::init_stage1;
 use limine::request::MemoryMapRequest;
 use log::debug;
 
@@ -6,16 +6,23 @@ use log::debug;
 #[unsafe(link_section = ".requests")]
 static MEMORY_MAP_REQUEST: MemoryMapRequest = MemoryMapRequest::new();
 
+mod physical;
+mod physical_stage1;
+
 pub fn init() {
-    if let Some(response) = MEMORY_MAP_REQUEST.get_response() {
-        response
-            .entries()
-            .iter()
-            .filter(|e| e.entry_type == EntryType::USABLE)
-            .for_each(|entry| {
-                debug!("usable memory map entry: 0x{:#X}", entry.base);
-            });
-    }
-    // todo initialize
+    let response = MEMORY_MAP_REQUEST
+        .get_response()
+        .expect("should have a memory map response");
+
+    init_stage1(response.entries());
+
+    /*
+    1. create a recursive page table
+    2. activate it
+    3. map the kernel heap
+    4. init the heap
+    5. init stage 2
+     */
+
     debug!("memory initialized")
 }
