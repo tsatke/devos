@@ -16,4 +16,11 @@ default-members = [
 ]
 
 [workspace.dependencies]
+conquer-once = { version = "0.4", default-features = false }
 limine = "0.3.1"
+log = "0.4"
+seq-macro = "0.3"
+spin = "0.9"
+thiserror = { version = "2.0", default-features = false }
+uart_16550 = "0.3"
+x86_64 = "0.15"
