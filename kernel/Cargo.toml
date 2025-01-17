@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 conquer-once.workspace = true
 limine.workspace = true
+linked_list_allocator.workspace = true
 log.workspace = true
 seq-macro.workspace = true
 spin.workspace = true

@@ -3,7 +3,7 @@
 
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
 use limine::BaseRevision;
-use log::error;
+use log::{error, info};
 use x86_64::instructions::hlt;
 
 #[used]
@@ -43,7 +43,10 @@ unsafe extern "C" fn main() -> ! {
         }
     }
 
-    loop {}
+    info!("reached end of kernel_main");
+    loop {
+        hlt();
+    }
 }
 
 #[panic_handler]

@@ -1,4 +1,6 @@
 use crate::mem::heap::Heap;
+use alloc::vec;
+use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use core::mem::swap;
 use limine::memory_map::{Entry, EntryType};
@@ -174,21 +176,90 @@ impl PhysicalFrameAllocator for PhysicalBumpAllocator {
     }
 }
 
-struct PhysicalBitmapAllocator {}
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum FrameState {
+    Free,
+    Allocated,
+    NotUsable,
+}
+
+struct PhysicalBitmapAllocator {
+    frames: Vec<FrameState>,
+    first_free: Option<usize>,
+}
 
 impl PhysicalBitmapAllocator {
     fn create_from_stage1(stage1: &PhysicalBumpAllocator) -> Self {
         assert!(Heap::is_initialized());
-        todo!()
+
+        let regions = stage1.regions;
+        let stage_one_next_free = stage1.next_frame;
+
+        // TODO: we only need to consider all regions until the last one that is usable
+        let highest_usable_address = regions.iter().fold(0, |highest_address, r| {
+            if r.entry_type == EntryType::USABLE {
+                r.base + r.length
+            } else {
+                highest_address
+            }
+        });
+
+        let frame_count = (highest_usable_address / Size4KiB::SIZE) as usize;
+
+        let mut frames = vec![FrameState::NotUsable; frame_count];
+
+        regions
+            .iter()
+            .filter(|r| r.entry_type == EntryType::USABLE)
+            .map(|r| r.base..r.base + r.length)
+            .flat_map(|r| r.step_by(Size4KiB::SIZE as usize))
+            .map(|addr| PhysAddr::new(addr))
+            .map(Self::frame_address_to_index)
+            .enumerate()
+            .for_each(|(i, frame)| {
+                if i < stage_one_next_free {
+                    frames[frame] = FrameState::Allocated;
+                } else {
+                    frames[frame] = FrameState::Free;
+                }
+            });
+
+        Self {
+            frames,
+            first_free: Some(stage_one_next_free),
+        }
+    }
+
+    fn frame_index_to_address(index: usize) -> PhysAddr {
+        PhysAddr::new(index as u64 * Size4KiB::SIZE)
+    }
+
+    fn frame_address_to_index(addr: PhysAddr) -> usize {
+        (addr.as_u64() / Size4KiB::SIZE) as usize
     }
 }
 
 impl PhysicalFrameAllocator for PhysicalBitmapAllocator {
     fn allocate_frames(&mut self, n: usize) -> Option<PhysFrameRangeInclusive> {
-        todo!()
+        let start_index = self
+            .frames
+            .windows(n)
+            .position(|window| window.iter().all(|&state| state == FrameState::Free))?;
+        let end_index = start_index + n - 1;
+        self.frames[start_index..=end_index]
+            .iter_mut()
+            .for_each(|state| *state = FrameState::Allocated);
+        Some(PhysFrameRangeInclusive {
+            start: PhysFrame::containing_address(Self::frame_index_to_address(start_index)),
+            end: PhysFrame::containing_address(Self::frame_index_to_address(end_index)),
+        })
     }
 
     fn deallocate_frame(&mut self, frame: PhysFrame) {
-        todo!()
+        debug_assert_eq!(
+            self.frames[Self::frame_address_to_index(frame.start_address())],
+            FrameState::Allocated
+        );
+        self.frames[Self::frame_address_to_index(frame.start_address())] = FrameState::Free;
     }
 }

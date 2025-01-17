@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt, naked_functions)]
+extern crate alloc;
 
 use crate::arch::gdt;
 
