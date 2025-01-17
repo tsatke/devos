@@ -33,7 +33,7 @@ pub fn dispatch_syscall(
     arg5: usize,
     arg6: usize,
 ) -> isize {
-    let syscall = match TryInto::<Syscall>::try_into(syscall) {
+    let syscall = match Syscall::try_from(syscall) {
         Ok(v) => v,
         Err(_) => return Errno::ENOSYS.as_isize(),
     };
