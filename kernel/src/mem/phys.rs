@@ -20,6 +20,7 @@ fn allocator() -> &'static Mutex<MultiStageAllocator> {
 #[derive(Copy, Clone)]
 pub struct PhysicalMemory;
 
+#[allow(dead_code)]
 impl PhysicalMemory {
     pub fn is_initialized() -> bool {
         PHYS_ALLOC.is_initialized()
@@ -165,14 +166,14 @@ impl PhysicalFrameAllocator for PhysicalBumpAllocator {
         frame
     }
 
-    fn allocate_frames(&mut self, n: usize) -> Option<PhysFrameRangeInclusive> {
+    fn allocate_frames(&mut self, _: usize) -> Option<PhysFrameRangeInclusive> {
         unimplemented!(
             "the stage1 physical frame allocator doesn't support allocation of contiguous frames"
         )
     }
 
-    fn deallocate_frame(&mut self, frame: PhysFrame) {
-        todo!()
+    fn deallocate_frame(&mut self, _: PhysFrame) {
+        unimplemented!("the stage1 physical frame allocator doesn't support deallocation of frames")
     }
 }
 
@@ -244,11 +245,17 @@ impl PhysicalFrameAllocator for PhysicalBitmapAllocator {
         let start_index = self
             .frames
             .windows(n)
+            .skip(self.first_free.unwrap_or(0))
             .position(|window| window.iter().all(|&state| state == FrameState::Free))?;
         let end_index = start_index + n - 1;
         self.frames[start_index..=end_index]
             .iter_mut()
             .for_each(|state| *state = FrameState::Allocated);
+        self.first_free = self
+            .frames
+            .iter()
+            .skip(end_index)
+            .position(|&state| state == FrameState::Free);
         Some(PhysFrameRangeInclusive {
             start: PhysFrame::containing_address(Self::frame_index_to_address(start_index)),
             end: PhysFrame::containing_address(Self::frame_index_to_address(end_index)),
@@ -256,10 +263,12 @@ impl PhysicalFrameAllocator for PhysicalBitmapAllocator {
     }
 
     fn deallocate_frame(&mut self, frame: PhysFrame) {
-        debug_assert_eq!(
-            self.frames[Self::frame_address_to_index(frame.start_address())],
-            FrameState::Allocated
-        );
-        self.frames[Self::frame_address_to_index(frame.start_address())] = FrameState::Free;
+        let index = Self::frame_address_to_index(frame.start_address());
+        if self.first_free.is_some_and(|v| index < v) {
+            self.first_free = Some(index);
+        }
+
+        debug_assert_eq!(self.frames[index], FrameState::Allocated);
+        self.frames[index] = FrameState::Free;
     }
 }

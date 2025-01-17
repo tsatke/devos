@@ -3,7 +3,7 @@ use crate::mem::phys::PhysicalMemory;
 use crate::mem::virt_addr_from_page_table_indices;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
-use log::{debug, info};
+use log::info;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 

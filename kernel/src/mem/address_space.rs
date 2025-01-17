@@ -1,6 +1,5 @@
 use crate::mem::phys::PhysicalMemory;
-use log::{debug, info, warn};
-use x86_64::instructions::tlb::flush;
+use log::warn;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::{

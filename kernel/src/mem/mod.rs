@@ -1,20 +1,13 @@
 use crate::mem::address_space::AddressSpace;
 use crate::mem::heap::Heap;
 use crate::mem::phys::PhysicalMemory;
-use core::iter::zip;
-use limine::paging::Mode;
-use limine::request::{
-    HhdmRequest, KernelAddressRequest, KernelFileRequest, MemoryMapRequest, PagingModeRequest,
-};
-use log::{debug, info};
+use limine::request::{HhdmRequest, MemoryMapRequest, PagingModeRequest};
+use log::info;
 use x86_64::registers::control::Cr3;
-use x86_64::structures::paging::mapper::CleanUp;
-use x86_64::structures::paging::page_table::PageTableEntry;
 use x86_64::structures::paging::{
-    Mapper, OffsetPageTable, Page, PageTable, PageTableFlags, PageTableIndex, PhysFrame,
-    RecursivePageTable, Size4KiB, Translate,
+    Mapper, OffsetPageTable, Page, PageTable, PageTableFlags, PhysFrame, Size4KiB,
 };
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::VirtAddr;
 
 mod address_space;
 mod heap;
