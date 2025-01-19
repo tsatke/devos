@@ -258,12 +258,12 @@ impl Process {
         let pid = ProcessId::new();
         let attributes = RwLock::new(Attributes {
             pgid: 0.into(), // TODO: process group ids
-            euid: <RealUserId as Into<u32>>::into(uid).into(),
-            egid: <RealGroupId as Into<u32>>::into(gid).into(),
+            euid: u32::from(uid).into(),
+            egid: u32::from(gid).into(),
             uid,
             gid,
-            suid: <RealUserId as Into<u32>>::into(uid).into(),
-            sgid: <RealGroupId as Into<u32>>::into(gid).into(),
+            suid: u32::from(uid).into(),
+            sgid: u32::from(gid).into(),
         });
 
         let res = Arc::new(Self {
