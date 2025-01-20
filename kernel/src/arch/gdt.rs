@@ -45,7 +45,7 @@ pub struct Selectors {
     pub user_code_selector: SegmentSelector,
 }
 
-pub fn init() {
+pub(in crate::arch) fn init() {
     GDT.0.load();
     unsafe {
         CS::set_reg(GDT.1.kernel_code_selector);

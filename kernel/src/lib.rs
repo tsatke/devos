@@ -3,8 +3,6 @@
 #![feature(abi_x86_interrupt, naked_functions)]
 extern crate alloc;
 
-use crate::arch::gdt;
-
 mod arch;
 mod log;
 mod mem;
@@ -12,6 +10,7 @@ mod serial;
 
 pub fn init() {
     log::init();
-    gdt::init();
+    arch::init_no_heap();
     mem::init();
+    arch::init_with_heap();
 }
