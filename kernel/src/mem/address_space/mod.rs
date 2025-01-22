@@ -26,9 +26,9 @@ fn remap_with_recursive_page_table() -> (VirtAddr, PhysFrame) {
     // switch to a recursive page table
     let offset = HHDM_REQUEST.get_response().unwrap().offset();
     let (cr3_frame, cr3_flags) = Cr3::read();
-    let cr3_paddr = cr3_frame.start_address();
-    let cr3_vaddr = VirtAddr::new(cr3_paddr.as_u64() + offset);
-    let current_pt = unsafe { &mut *cr3_vaddr.as_mut_ptr::<PageTable>() };
+    let cr3_phys_addr = cr3_frame.start_address();
+    let cr3_virt_addr = VirtAddr::new(cr3_phys_addr.as_u64() + offset);
+    let current_pt = unsafe { &mut *cr3_virt_addr.as_mut_ptr::<PageTable>() };
     let mut offset_pt = unsafe { OffsetPageTable::new(current_pt, VirtAddr::new(offset)) };
 
     let pt_frame = PhysicalMemory::allocate_frame().unwrap();
@@ -62,19 +62,24 @@ fn recursive_index_to_virtual_address(recursive_index: usize) -> VirtAddr {
     let i = recursive_index as u64;
     let addr = (i << 39) | (i << 30) | (i << 21) | (i << 12);
 
-    let addr = ((addr << 16) as i64 >> 16) as u64; // correctly sign extend the address - 48-bit
+    let addr = sign_extend_vaddr(addr);
 
     VirtAddr::new(addr)
 }
 
-pub const fn virt_addr_from_page_table_indices(indices: &[u16; 4], offset: u64) -> VirtAddr {
-    let addr = ((indices[0] as u64) << 39) | ((indices[1] as u64) << 30) | ((indices[2] as u64) << 21) | ((indices[3] as u64) << 12)
+pub const fn virt_addr_from_page_table_indices(indices: [u16; 4], offset: u64) -> VirtAddr {
+    let addr = ((indices[0] as u64) << 39)
+        | ((indices[1] as u64) << 30)
+        | ((indices[2] as u64) << 21)
+        | ((indices[3] as u64) << 12)
         | (offset & ((1 << 12) - 1));
     VirtAddr::new(sign_extend_vaddr(addr))
 }
 
 pub const fn sign_extend_vaddr(vaddr: u64) -> u64 {
-    ((vaddr << 16) as i64 >> 16) as u64 // only works for 48-bit addresses
+    #[allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
+    let result = ((vaddr << 16) as i64 >> 16) as u64; // only works for 48-bit addresses
+    result
 }
 
 #[derive(Debug)]

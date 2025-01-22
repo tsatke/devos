@@ -71,9 +71,8 @@ pub(in crate::mem) fn init_stage1(entries: &'static [&'static Entry]) {
 pub(in crate::mem) fn init_stage2() {
     let mut guard = allocator().lock();
 
-    let stage1 = match &*guard {
-        MultiStageAllocator::Stage1(a) => a,
-        _ => unreachable!(),
+    let MultiStageAllocator::Stage1(stage1) = &*guard else {
+        unreachable!()
     };
     let bitmap_allocator = PhysicalBitmapAllocator::create_from_stage1(stage1);
     let mut stage2 = MultiStageAllocator::Stage2(bitmap_allocator);
@@ -164,7 +163,7 @@ impl PhysicalBumpAllocator {
             .iter()
             .filter(|region| region.entry_type == EntryType::USABLE)
             .map(|region| region.base..region.length)
-            .flat_map(|r| r.step_by(Size4KiB::SIZE as usize))
+            .flat_map(|r| r.step_by(usize::try_from(Size4KiB::SIZE).expect("usize overflow")))
             .map(|addr| PhysFrame::containing_address(PhysAddr::new(addr)))
     }
 }
@@ -225,7 +224,7 @@ impl PhysicalBitmapAllocator {
             .iter()
             .filter(|r| r.entry_type == EntryType::USABLE)
             .map(|r| r.base..r.base + r.length)
-            .flat_map(|r| r.step_by(Size4KiB::SIZE as usize))
+            .flat_map(|r| r.step_by(usize::try_from(Size4KiB::SIZE).expect("usize overflow")))
             .map(PhysAddr::new)
             .map(Self::frame_address_to_index)
             .enumerate()

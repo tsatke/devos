@@ -2,7 +2,9 @@
 #![no_main]
 
 use core::slice::from_raw_parts_mut;
-use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
+use limine::request::{
+    FramebufferRequest, KernelFileRequest, RequestsEndMarker, RequestsStartMarker,
+};
 use limine::BaseRevision;
 use log::{error, info};
 use x86_64::instructions::hlt;
@@ -23,6 +25,10 @@ static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
 #[unsafe(link_section = ".requests_end_marker")]
 static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 
+#[used]
+#[unsafe(link_section = ".requests")]
+static KERNEL_FILE: KernelFileRequest = KernelFileRequest::new();
+
 #[unsafe(export_name = "kernel_main")]
 unsafe extern "C" fn main() -> ! {
     assert!(BASE_REVISION.is_supported());
@@ -32,9 +38,10 @@ unsafe extern "C" fn main() -> ! {
     if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {
         if let Some(framebuffer) = framebuffer_response.framebuffers().next() {
             let slice = unsafe {
+                #[allow(clippy::cast_ptr_alignment)]
                 from_raw_parts_mut(
-                    framebuffer.addr() as *mut u32,
-                    framebuffer.pitch() as usize * framebuffer.height() as usize / 4,
+                    framebuffer.addr().cast::<u32>(),
+                    (framebuffer.pitch() * framebuffer.height() / 4) as usize,
                 )
             };
             slice.fill(0x00_11_AA_11);
@@ -45,8 +52,12 @@ unsafe extern "C" fn main() -> ! {
                 let pixel_offset = i * framebuffer.pitch() + i * 4;
 
                 // Write 0xFFFFFFFF to the provided pixel offset to fill it white.
+                #[allow(clippy::cast_ptr_alignment)]
                 unsafe {
-                    *(framebuffer.addr().add(pixel_offset as usize) as *mut u32) = 0xFFFFFFFF;
+                    *(framebuffer
+                        .addr()
+                        .add(usize::try_from(pixel_offset).expect("usize overflow"))
+                        .cast::<u32>()) = 0xFFFF_FFFF;
                 }
             }
         }

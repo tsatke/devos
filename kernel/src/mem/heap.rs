@@ -8,7 +8,7 @@ use x86_64::structures::paging::{Page, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 static HEAP_INITIALIZED: AtomicBool = AtomicBool::new(false);
-static HEAP_START: VirtAddr = virt_addr_from_page_table_indices(&[257, 0, 0, 0], 0);
+static HEAP_START: VirtAddr = virt_addr_from_page_table_indices([257, 0, 0, 0], 0);
 static INITIAL_HEAP_SIZE: usize = 5 * 1024 * 1024; // 1 MiB
 
 #[global_allocator]

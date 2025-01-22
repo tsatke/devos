@@ -9,7 +9,7 @@ static SERIAL1: Lazy<Mutex<SerialPort>> = Lazy::new(|| {
 });
 
 #[doc(hidden)]
-pub fn _print(args: core::fmt::Arguments) {
+pub fn internal_print(args: core::fmt::Arguments) {
     use core::fmt::Write;
     use x86_64::instructions::interrupts;
 
@@ -27,7 +27,7 @@ pub fn _print(args: core::fmt::Arguments) {
 /// Prints to the host through the serial interface.
 #[macro_export]
 macro_rules! serial_print {
-    ($($arg:tt)*) => ($crate::serial::_print(format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::serial::internal_print(format_args!($($arg)*)));
 }
 
 /// Prints to the host through the serial interface, appending a newline.
