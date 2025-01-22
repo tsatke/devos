@@ -43,12 +43,12 @@ impl PhysicalMemory {
 
     /// Calls [`PhysicalFrameAllocator::deallocate_frame`] on the current physical allocator.
     pub fn deallocate_frame(frame: PhysFrame) {
-        allocator().lock().deallocate_frame(frame)
+        allocator().lock().deallocate_frame(frame);
     }
 
     /// Calls [`PhysicalFrameAllocator::deallocate_frames`] on the current physical allocator.
     pub fn deallocate_frames(range: PhysFrameRangeInclusive) {
-        allocator().lock().deallocate_frames(range)
+        allocator().lock().deallocate_frames(range);
     }
 }
 
