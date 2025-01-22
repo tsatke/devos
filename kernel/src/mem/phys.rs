@@ -2,6 +2,7 @@ use crate::mem::heap::Heap;
 use alloc::vec;
 use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
+use core::iter::from_fn;
 use core::mem::swap;
 use limine::memory_map::{Entry, EntryType};
 use spin::Mutex;
@@ -26,18 +27,26 @@ impl PhysicalMemory {
         PHYS_ALLOC.is_initialized()
     }
 
+    pub fn allocate_frames_non_contiguous() -> impl Iterator<Item = PhysFrame> {
+        from_fn(|| Self::allocate_frame())
+    }
+
+    /// Calls [`PhysicalFrameAllocator::allocate_frame`] on the current physical allocator.
     pub fn allocate_frame() -> Option<PhysFrame> {
         allocator().lock().allocate_frame()
     }
 
+    /// Calls [`PhysicalFrameAllocator::allocate_frames`] on the current physical allocator.
     pub fn allocate_frames(n: usize) -> Option<PhysFrameRangeInclusive> {
         allocator().lock().allocate_frames(n)
     }
 
+    /// Calls [`PhysicalFrameAllocator::deallocate_frame`] on the current physical allocator.
     pub fn deallocate_frame(frame: PhysFrame) {
         allocator().lock().deallocate_frame(frame)
     }
 
+    /// Calls [`PhysicalFrameAllocator::deallocate_frames`] on the current physical allocator.
     pub fn deallocate_frames(range: PhysFrameRangeInclusive) {
         allocator().lock().deallocate_frames(range)
     }
@@ -56,6 +65,9 @@ pub(in crate::mem) fn init_stage1(entries: &'static [&'static Entry]) {
     PHYS_ALLOC.init_once(|| Mutex::new(stage1));
 }
 
+/// Initialize the second stage of physical memory management: a bitmap allocator.
+/// This allocator requires that the heap is initialized and that stage1 was previously
+/// initialized.
 pub(in crate::mem) fn init_stage2() {
     let mut guard = allocator().lock();
 

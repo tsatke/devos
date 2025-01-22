@@ -1,10 +1,10 @@
-use crate::mem::address_space::AddressSpace;
+use crate::mem::address_space::{virt_addr_from_page_table_indices, AddressSpace};
 use crate::mem::phys::PhysicalMemory;
-use crate::mem::virt_addr_from_page_table_indices;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 use log::info;
-use x86_64::structures::paging::{Page, PageSize, PageTableFlags, Size4KiB};
+use x86_64::structures::paging::page::PageRangeInclusive;
+use x86_64::structures::paging::{Page, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 static HEAP_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -14,25 +14,22 @@ static INITIAL_HEAP_SIZE: usize = 5 * 1024 * 1024; // 1 MiB
 #[global_allocator]
 static ALLOCATOR: linked_list_allocator::LockedHeap = linked_list_allocator::LockedHeap::empty();
 
-pub(in crate::mem) fn init(address_space: AddressSpace) {
+pub(in crate::mem) fn init(address_space: &AddressSpace) {
     assert!(PhysicalMemory::is_initialized());
-    let mut address_space = address_space;
 
     info!("initializing heap at {:p}", HEAP_START);
-    for vaddr in
-        (HEAP_START..HEAP_START + INITIAL_HEAP_SIZE as u64).step_by(Size4KiB::SIZE as usize)
-    {
-        let page = Page::<Size4KiB>::containing_address(vaddr);
-        let frame =
-            PhysicalMemory::allocate_frame().expect("should have enough memory to allocate heap");
-        address_space
-            .map(
-                page,
-                frame,
-                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-            )
-            .expect("should be able to map heap");
-    }
+    let page_range = PageRangeInclusive {
+        start: Page::<Size4KiB>::containing_address(HEAP_START),
+        end: Page::<Size4KiB>::containing_address(HEAP_START + INITIAL_HEAP_SIZE as u64),
+    };
+
+    address_space
+        .map_range(
+            page_range,
+            PhysicalMemory::allocate_frames_non_contiguous(),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        )
+        .expect("should be able to map heap");
 
     unsafe {
         ALLOCATOR

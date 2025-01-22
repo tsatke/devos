@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt, naked_functions)]
+#![feature(abi_x86_interrupt, naked_functions, negative_impls)]
 extern crate alloc;
 
 mod arch;

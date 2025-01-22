@@ -2,22 +2,20 @@ use crate::mem::phys::PhysicalMemory;
 use log::warn;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::MapToError;
+use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{
     Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable,
 };
 use x86_64::VirtAddr;
 
-#[derive(Debug, Copy, Clone)]
-pub struct AddressSpace {
+#[derive(Debug)]
+pub struct AddressSpaceMapper {
     level4_frame: PhysFrame,
     level4_vaddr: VirtAddr,
 }
 
-impl AddressSpace {
-    pub(in crate::mem) unsafe fn create_from(
-        level4_frame: PhysFrame,
-        level4_vaddr: VirtAddr,
-    ) -> Self {
+impl AddressSpaceMapper {
+    pub fn new(level4_frame: PhysFrame, level4_vaddr: VirtAddr) -> Self {
         Self {
             level4_frame,
             level4_vaddr,
@@ -55,6 +53,25 @@ impl AddressSpace {
             page_table
                 .map_to(page, frame, flags, &mut PhysicalMemory)?
                 .flush();
+        }
+
+        Ok(())
+    }
+
+    pub fn map_range<S: PageSize>(
+        &mut self,
+        pages: PageRangeInclusive<S>,
+        frames: impl Iterator<Item = PhysFrame<S>>,
+        flags: PageTableFlags,
+    ) -> Result<(), MapToError<S>>
+    where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        assert!(self.is_active()); // TODO: support mapping into non-active address spaces
+
+        let frames = frames.into_iter();
+        for (page, frame) in pages.zip(frames) {
+            self.map(page, frame, flags)?;
         }
 
         Ok(())

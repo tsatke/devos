@@ -5,10 +5,12 @@ edition = "2024"
 
 [dependencies]
 conquer-once.workspace = true
+derive_more.workspace = true
 limine.workspace = true
 linked_list_allocator.workspace = true
 log.workspace = true
 seq-macro.workspace = true
 spin.workspace = true
+thiserror.workspace = true
 uart_16550.workspace = true
 x86_64.workspace = true

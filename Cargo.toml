@@ -17,6 +17,7 @@ default-members = [
 
 [workspace.dependencies]
 conquer-once = { version = "0.4", default-features = false }
+derive_more = { version = "1.0.0", default-features = false, features = ["constructor"] }
 limine = "0.3.1"
 linked_list_allocator = "0.10"
 log = "0.4"
