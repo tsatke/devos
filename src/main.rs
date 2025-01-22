@@ -1,9 +1,9 @@
 use clap::Parser;
 
-static KERNEL_BINARY: &'static str = env!("KERNEL_BINARY");
-static BOOTABLE_ISO: &'static str = env!("BOOTABLE_ISO");
-static OVMF_CODE: &'static str = env!("OVMF_X86_64_CODE");
-static OVMF_VARS: &'static str = env!("OVMF_X86_64_VARS");
+static KERNEL_BINARY: &str = env!("KERNEL_BINARY");
+static BOOTABLE_ISO: &str = env!("BOOTABLE_ISO");
+static OVMF_CODE: &str = env!("OVMF_X86_64_CODE");
+static OVMF_VARS: &str = env!("OVMF_X86_64_VARS");
 
 #[derive(Parser)]
 struct Args {

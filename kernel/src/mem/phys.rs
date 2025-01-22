@@ -28,7 +28,7 @@ impl PhysicalMemory {
     }
 
     pub fn allocate_frames_non_contiguous() -> impl Iterator<Item = PhysFrame> {
-        from_fn(|| Self::allocate_frame())
+        from_fn(Self::allocate_frame)
     }
 
     /// Calls [`PhysicalFrameAllocator::allocate_frame`] on the current physical allocator.
@@ -226,7 +226,7 @@ impl PhysicalBitmapAllocator {
             .filter(|r| r.entry_type == EntryType::USABLE)
             .map(|r| r.base..r.base + r.length)
             .flat_map(|r| r.step_by(Size4KiB::SIZE as usize))
-            .map(|addr| PhysAddr::new(addr))
+            .map(PhysAddr::new)
             .map(Self::frame_address_to_index)
             .enumerate()
             .for_each(|(i, frame)| {

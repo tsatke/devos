@@ -19,8 +19,8 @@ static IDT: Lazy<RwLock<Pin<Box<InterruptDescriptorTable>>>> = Lazy::new(|| {
         .set_handler_fn(segment_not_present_handler);
 
     let idt = Box::pin(idt);
-    let idt = RwLock::new(idt);
-    idt
+    
+    RwLock::new(idt)
 });
 
 fn reload_idt() {

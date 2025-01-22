@@ -60,7 +60,7 @@ fn remap_with_recursive_page_table() -> (VirtAddr, PhysFrame) {
 
 fn recursive_index_to_virtual_address(recursive_index: usize) -> VirtAddr {
     let i = recursive_index as u64;
-    let addr = i << 39 | i << 30 | i << 21 | i << 12;
+    let addr = (i << 39) | (i << 30) | (i << 21) | (i << 12);
 
     let addr = ((addr << 16) as i64 >> 16) as u64; // correctly sign extend the address - 48-bit
 
@@ -68,10 +68,7 @@ fn recursive_index_to_virtual_address(recursive_index: usize) -> VirtAddr {
 }
 
 pub const fn virt_addr_from_page_table_indices(indices: &[u16; 4], offset: u64) -> VirtAddr {
-    let addr = (indices[0] as u64) << 39
-        | (indices[1] as u64) << 30
-        | (indices[2] as u64) << 21
-        | (indices[3] as u64) << 12
+    let addr = ((indices[0] as u64) << 39) | ((indices[1] as u64) << 30) | ((indices[2] as u64) << 21) | ((indices[3] as u64) << 12)
         | (offset & ((1 << 12) - 1));
     VirtAddr::new(sign_extend_vaddr(addr))
 }
