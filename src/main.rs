@@ -46,8 +46,6 @@ continue"#
     }
 
     let mut cmd = std::process::Command::new("qemu-system-x86_64");
-    // don't reboot on triple faults
-    cmd.arg("--no-reboot");
 
     // serial comms via console - needed for log output of the kernel
     cmd.arg("-serial");
