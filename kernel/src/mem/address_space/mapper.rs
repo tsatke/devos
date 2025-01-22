@@ -4,21 +4,26 @@ use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{
-    Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable,
+    Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable, Translate,
 };
-use x86_64::VirtAddr;
+use x86_64::{PhysAddr, VirtAddr};
 
 #[derive(Debug)]
 pub struct AddressSpaceMapper {
     level4_frame: PhysFrame,
-    level4_vaddr: VirtAddr,
+    page_table: RecursivePageTable<'static>,
 }
 
 impl AddressSpaceMapper {
     pub fn new(level4_frame: PhysFrame, level4_vaddr: VirtAddr) -> Self {
+        let page_table = {
+            let pt = unsafe { &mut *level4_vaddr.as_mut_ptr::<PageTable>() };
+            RecursivePageTable::new(pt).expect("should be a valid recursive page table")
+        };
+
         Self {
             level4_frame,
-            level4_vaddr,
+            page_table,
         }
     }
 
@@ -48,9 +53,8 @@ impl AddressSpaceMapper {
             }
         }
 
-        let mut page_table = self.recursive_page_table();
         unsafe {
-            page_table
+            self.page_table
                 .map_to(page, frame, flags, &mut PhysicalMemory)?
                 .flush();
         }
@@ -77,8 +81,7 @@ impl AddressSpaceMapper {
         Ok(())
     }
 
-    fn recursive_page_table(&mut self) -> RecursivePageTable {
-        let pt = unsafe { &mut *self.level4_vaddr.as_mut_ptr::<PageTable>() };
-        RecursivePageTable::new(pt).expect("should be a valid recursive page table")
+    pub fn translate(&self, vaddr: VirtAddr) -> Option<PhysAddr> {
+        self.page_table.translate_addr(vaddr)
     }
 }

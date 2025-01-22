@@ -10,7 +10,7 @@ use x86_64::structures::paging::{
     Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame,
     RecursivePageTable, Size4KiB,
 };
-use x86_64::VirtAddr;
+use x86_64::{PhysAddr, VirtAddr};
 
 mod mapper;
 
@@ -126,5 +126,10 @@ impl AddressSpace {
         for<'a> RecursivePageTable<'a>: Mapper<S>,
     {
         self.inner.write().map_range(pages.into(), frames, flags)
+    }
+
+    #[allow(dead_code)]
+    pub fn translate(&self, vaddr: VirtAddr) -> Option<PhysAddr> {
+        self.inner.read().translate(vaddr)
     }
 }
