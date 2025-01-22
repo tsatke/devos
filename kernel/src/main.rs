@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use core::slice::from_raw_parts_mut;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
 use limine::BaseRevision;
 use log::{error, info};
@@ -30,6 +31,14 @@ unsafe extern "C" fn main() -> ! {
 
     if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {
         if let Some(framebuffer) = framebuffer_response.framebuffers().next() {
+            let slice = unsafe {
+                from_raw_parts_mut(
+                    framebuffer.addr() as *mut u32,
+                    framebuffer.pitch() as usize * framebuffer.height() as usize / 4,
+                )
+            };
+            slice.fill(0x00_11_AA_11);
+
             for i in 0..100_u64 {
                 // Calculate the pixel offset using the framebuffer information we obtained above.
                 // We skip `i` scanlines (pitch is provided in bytes) and add `i * 4` to skip `i` pixels forward.
