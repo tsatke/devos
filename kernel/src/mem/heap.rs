@@ -36,6 +36,7 @@ pub(in crate::mem) fn init(address_space: &AddressSpace) {
             .lock()
             .init(HEAP_START.as_mut_ptr(), INITIAL_HEAP_SIZE);
     }
+
     HEAP_INITIALIZED.store(true, Relaxed);
 }
 
@@ -57,6 +58,10 @@ impl Heap {
 
     pub fn size() -> usize {
         ALLOCATOR.lock().size()
+    }
+
+    pub fn bottom() -> VirtAddr {
+        VirtAddr::new(ALLOCATOR.lock().bottom() as u64)
     }
 }
 

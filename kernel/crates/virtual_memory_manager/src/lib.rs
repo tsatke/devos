@@ -1,0 +1,116 @@
+#![no_std]
+
+extern crate alloc;
+
+use alloc::collections::BTreeSet;
+use thiserror::Error;
+use x86_64::VirtAddr;
+
+pub use segment::*;
+
+mod segment;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+#[error("segment already reserved")]
+pub struct AlreadyReserved;
+
+pub struct VirtualMemoryManager {
+    mem_start: VirtAddr,
+    mem_size: u64,
+    segments: BTreeSet<Segment>,
+}
+
+impl VirtualMemoryManager {
+    pub fn new(mem_start: VirtAddr, mem_size: u64) -> Self {
+        Self {
+            mem_start,
+            mem_size,
+            segments: Default::default(),
+        }
+    }
+
+    pub fn reserve(&mut self, n: usize) -> Option<Segment> {
+        let mut segment = Segment::new(self.mem_start, n as u64);
+        while let Some(existing) = self.find_overlapping(&segment) {
+            segment.start = existing.start + existing.len;
+        }
+        if segment.start + segment.len > self.mem_start + self.mem_size {
+            return None;
+        }
+
+        self.segments.insert(segment);
+
+        Some(Segment {
+            start: segment.start,
+            len: n as u64,
+        })
+    }
+
+    pub fn release(&mut self, segment: Segment) -> bool {
+        self.segments.remove(&segment)
+    }
+
+    pub fn mark_as_reserved(&mut self, segment: Segment) -> Result<(), AlreadyReserved> {
+        if self.find_overlapping(&segment).is_some() {
+            return Err(AlreadyReserved);
+        }
+        self.segments.insert(segment);
+
+        Ok(())
+    }
+
+    fn find_overlapping(&self, segment: &Segment) -> Option<&Segment> {
+        self.segments.iter().find(|existing| {
+            segment.start < existing.start + existing.len
+                && existing.start < segment.start + segment.len
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::format;
+
+    #[test]
+    fn test_reserve_release() {
+        let size = 50000_usize;
+        let mut vmm = VirtualMemoryManager::new(VirtAddr::new(0xabcd), size as u64);
+        for n in (0..=size).step_by(713) {
+            let segment = vmm
+                .reserve(n)
+                .expect(&format!("should be able to reserve segment of size {n}"));
+
+            assert_eq!(segment.len, n as u64);
+
+            vmm.release(segment);
+        }
+    }
+
+    #[test]
+    fn test_mark_as_used() {
+        let mut vmm = VirtualMemoryManager::new(VirtAddr::new(0xdeff), 400);
+        let segment0 = Segment::new(VirtAddr::new(0xdeff + 0), 100);
+        let segment1 = Segment::new(VirtAddr::new(0xdeff + 100), 100);
+        let segment1_5 = Segment::new(VirtAddr::new(0xdeff + 150), 100);
+        let segment2 = Segment::new(VirtAddr::new(0xdeff + 200), 100);
+        let segment3 = Segment::new(VirtAddr::new(0xdeff + 300), 100);
+
+        vmm.mark_as_reserved(segment0).unwrap();
+        vmm.mark_as_reserved(segment1).unwrap();
+        vmm.mark_as_reserved(segment2).unwrap();
+        vmm.mark_as_reserved(segment3).unwrap();
+
+        assert_eq!(vmm.mark_as_reserved(segment1_5), Err(AlreadyReserved));
+
+        vmm.release(segment1);
+        assert_eq!(vmm.mark_as_reserved(segment1_5), Err(AlreadyReserved));
+
+        vmm.mark_as_reserved(segment1).unwrap();
+        vmm.release(segment2);
+        assert_eq!(vmm.mark_as_reserved(segment1_5), Err(AlreadyReserved));
+
+        vmm.release(segment1);
+        vmm.mark_as_reserved(segment1_5).unwrap();
+    }
+}

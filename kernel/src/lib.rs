@@ -4,6 +4,7 @@
 extern crate alloc;
 
 mod arch;
+pub mod limine;
 mod log;
 mod mem;
 mod serial;

@@ -1,5 +1,5 @@
+use crate::limine::HHDM_REQUEST;
 use crate::mem::phys::PhysicalMemory;
-use crate::mem::HHDM_REQUEST;
 use conquer_once::spin::OnceCell;
 use mapper::AddressSpaceMapper;
 use spin::RwLock;
