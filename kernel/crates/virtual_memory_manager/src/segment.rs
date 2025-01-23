@@ -7,6 +7,7 @@ pub struct Segment {
 }
 
 impl Segment {
+    #[must_use]
     pub const fn new(start: VirtAddr, len: u64) -> Self {
         Self { start, len }
     }

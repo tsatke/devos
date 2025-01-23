@@ -17,10 +17,10 @@ struct Args {
 }
 
 fn main() {
-    println!("KERNEL_BINARY: {}", KERNEL_BINARY);
-    println!("BOOTABLE_ISO: {}", BOOTABLE_ISO);
-    println!("OVMF_CODE: {}", OVMF_CODE);
-    println!("OVMF_VARS: {}", OVMF_VARS);
+    println!("KERNEL_BINARY: {KERNEL_BINARY}");
+    println!("BOOTABLE_ISO: {BOOTABLE_ISO}");
+    println!("OVMF_CODE: {OVMF_CODE}");
+    println!("OVMF_VARS: {OVMF_VARS}");
 
     let args = Args::parse();
 
@@ -28,7 +28,7 @@ fn main() {
     {
         // create an lldb debug file to make debugging easy
         let content = format!(
-            r#"target create {KERNEL_BINARY}
+            r"target create {KERNEL_BINARY}
 
 # If the kernel is a position independent executable (PIE), you need to set the slide as the offset
 # at which the kernel is being loaded. For static executables, the slide is 0, in which case
@@ -39,7 +39,7 @@ fn main() {
 gdb-remote localhost:1234
 b kernel_main
 b rust_begin_unwind
-continue"#
+continue"
         );
         std::fs::write("debug.lldb", content).expect("unable to create debug file");
         println!("debug file is ready, run `lldb -s debug.lldb` to start debugging");

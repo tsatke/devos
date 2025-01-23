@@ -21,11 +21,12 @@ pub struct VirtualMemoryManager {
 }
 
 impl VirtualMemoryManager {
+    #[must_use]
     pub fn new(mem_start: VirtAddr, mem_size: u64) -> Self {
         Self {
             mem_start,
             mem_size,
-            segments: Default::default(),
+            segments: BTreeSet::default(),
         }
     }
 
@@ -50,6 +51,11 @@ impl VirtualMemoryManager {
         self.segments.remove(&segment)
     }
 
+    /// Mark a segment as reserved, preventing it from being reserved again.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the segment overlaps with an already reserved segment.
     pub fn mark_as_reserved(&mut self, segment: Segment) -> Result<(), AlreadyReserved> {
         if self.find_overlapping(&segment).is_some() {
             return Err(AlreadyReserved);
@@ -70,7 +76,6 @@ impl VirtualMemoryManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::format;
 
     #[test]
     fn test_reserve_release() {
@@ -79,7 +84,7 @@ mod tests {
         for n in (0..=size).step_by(713) {
             let segment = vmm
                 .reserve(n)
-                .expect(&format!("should be able to reserve segment of size {n}"));
+                .unwrap_or_else(|| panic!("should be able to reserve segment of size {n}"));
 
             assert_eq!(segment.len, n as u64);
 
@@ -90,7 +95,7 @@ mod tests {
     #[test]
     fn test_mark_as_used() {
         let mut vmm = VirtualMemoryManager::new(VirtAddr::new(0xdeff), 400);
-        let segment0 = Segment::new(VirtAddr::new(0xdeff + 0), 100);
+        let segment0 = Segment::new(VirtAddr::new(0xdeff), 100);
         let segment1 = Segment::new(VirtAddr::new(0xdeff + 100), 100);
         let segment1_5 = Segment::new(VirtAddr::new(0xdeff + 150), 100);
         let segment2 = Segment::new(VirtAddr::new(0xdeff + 200), 100);
