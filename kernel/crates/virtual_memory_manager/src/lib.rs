@@ -65,6 +65,10 @@ impl VirtualMemoryManager {
         Ok(())
     }
 
+    pub fn segments(&self) -> impl Iterator<Item = &Segment> {
+        self.segments.iter()
+    }
+
     fn find_overlapping(&self, segment: &Segment) -> Option<&Segment> {
         self.segments.iter().find(|existing| {
             segment.start < existing.start + existing.len

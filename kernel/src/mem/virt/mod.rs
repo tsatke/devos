@@ -1,7 +1,8 @@
-use crate::limine::KERNEL_FILE_REQUEST;
+use crate::limine::HHDM_REQUEST;
 use crate::mem::heap::Heap;
 use conquer_once::spin::OnceCell;
 use core::mem::ManuallyDrop;
+use log::debug;
 use spin::RwLock;
 use virtual_memory_manager::{AlreadyReserved, Segment, VirtualMemoryManager};
 use x86_64::VirtAddr;
@@ -20,17 +21,25 @@ pub fn init() {
         ))
     });
 
-    let response = KERNEL_FILE_REQUEST
-        .get_response()
-        .expect("should have a kernel file response");
-    let kernel_mapping = Segment::new(
-        VirtAddr::from_ptr(response.file().addr()),
-        response.file().size(),
-    );
-    VirtualMemory::mark_as_reserved(kernel_mapping)
-        .expect("kernel file should not be reserved yet");
+    {
+        // limine maps 4GiB at HHDM start + 0x00
+
+        // the kernel is part of those 4GiB, so we don't need to mark it as reserved (as long as it's smaller than 4GiB)
+
+        let hhdm = HHDM_REQUEST
+            .get_response()
+            .expect("should have a HHDM response");
+        let hhdm_start = VirtAddr::new(hhdm.offset());
+        let hhdm_segment = Segment::new(hhdm_start, 4 * 1024 * 1024 * 1024);
+        VirtualMemory::mark_as_reserved(hhdm_segment).expect("HHDM should not be reserved yet");
+    }
+
     VirtualMemory::mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
         .expect("heap should not be reserved yet");
+
+    vmm().read().segments().for_each(|segment| {
+        debug!("reserved segment: {:?}", segment);
+    });
 }
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
