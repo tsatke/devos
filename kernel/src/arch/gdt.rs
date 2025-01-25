@@ -13,8 +13,7 @@ static TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
         const STACK_SIZE: usize = 4096 * 5;
         static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE]; // should be a proper stack allocation
 
-        #[allow(unused_unsafe)] // this unsafe is very much used
-        let stack_start = VirtAddr::from_ptr(unsafe { &raw mut STACK });
+        let stack_start = VirtAddr::from_ptr(&raw mut STACK);
         stack_start + (STACK_SIZE as u64)
     };
     tss
