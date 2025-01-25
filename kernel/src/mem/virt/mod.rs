@@ -2,7 +2,6 @@ use crate::limine::HHDM_REQUEST;
 use crate::mem::heap::Heap;
 use conquer_once::spin::OnceCell;
 use core::mem::ManuallyDrop;
-use log::debug;
 use spin::RwLock;
 use virtual_memory_manager::{AlreadyReserved, Segment, VirtualMemoryManager};
 use x86_64::VirtAddr;
@@ -36,10 +35,6 @@ pub fn init() {
 
     VirtualMemory::mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
         .expect("heap should not be reserved yet");
-
-    vmm().read().segments().for_each(|segment| {
-        debug!("reserved segment: {:?}", segment);
-    });
 }
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
