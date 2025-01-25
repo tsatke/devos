@@ -3,10 +3,10 @@ use crate::mem::address_space::AddressSpace;
 use crate::mem::heap::Heap;
 use log::info;
 
-mod address_space;
+pub mod address_space;
 mod heap;
-mod phys;
-mod virt;
+pub mod phys;
+pub mod virt;
 
 pub fn init() {
     let response = MEMORY_MAP_REQUEST

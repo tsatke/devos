@@ -2,6 +2,7 @@ use crate::limine::HHDM_REQUEST;
 use crate::mem::heap::Heap;
 use conquer_once::spin::OnceCell;
 use core::mem::ManuallyDrop;
+use core::ops::Deref;
 use spin::RwLock;
 use virtual_memory_manager::{AlreadyReserved, Segment, VirtualMemoryManager};
 use x86_64::VirtAddr;
@@ -52,6 +53,14 @@ impl OwnedSegment {
 impl Drop for OwnedSegment {
     fn drop(&mut self) {
         VirtualMemory::release(self);
+    }
+}
+
+impl Deref for OwnedSegment {
+    type Target = Segment;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 

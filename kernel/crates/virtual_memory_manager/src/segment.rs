@@ -1,3 +1,5 @@
+use x86_64::structures::paging::page::PageRangeInclusive;
+use x86_64::structures::paging::{Page, PageSize};
 use x86_64::VirtAddr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -10,5 +12,15 @@ impl Segment {
     #[must_use]
     pub const fn new(start: VirtAddr, len: u64) -> Self {
         Self { start, len }
+    }
+}
+
+impl<S: PageSize> From<&Segment> for PageRangeInclusive<S> {
+    fn from(value: &Segment) -> Self {
+        assert!(value.len > 0);
+        Self {
+            start: Page::containing_address(value.start),
+            end: Page::containing_address(value.start + value.len - 1),
+        }
     }
 }

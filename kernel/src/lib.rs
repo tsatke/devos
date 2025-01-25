@@ -6,7 +6,7 @@ extern crate alloc;
 mod arch;
 pub mod limine;
 mod log;
-mod mem;
+pub mod mem;
 mod serial;
 
 pub fn init() {
