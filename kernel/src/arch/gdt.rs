@@ -3,7 +3,7 @@ use x86_64::instructions::tables::load_tss;
 use x86_64::registers::segmentation::{Segment, CS, DS};
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
-use x86_64::VirtAddr;
+use x86_64::{PrivilegeLevel, VirtAddr};
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
@@ -25,14 +25,16 @@ pub static GDT: Lazy<(GlobalDescriptorTable, Selectors)> = Lazy::new(|| {
     let kernel_code = gdt.append(Descriptor::kernel_code_segment());
     let kernel_data = gdt.append(Descriptor::kernel_data_segment());
     let tss = gdt.append(Descriptor::tss_segment(&TSS));
-    let user_data = gdt.append(Descriptor::user_data_segment());
-    let user_code = gdt.append(Descriptor::user_code_segment());
+    let mut user_code = gdt.append(Descriptor::user_code_segment());
+    user_code.set_rpl(PrivilegeLevel::Ring3);
+    let mut user_data = gdt.append(Descriptor::user_data_segment());
+    user_data.set_rpl(PrivilegeLevel::Ring3);
     (gdt, Selectors {
         kernel_code,
         kernel_data,
         tss,
-        user_data,
         user_code,
+        user_data,
     })
 });
 
@@ -41,8 +43,8 @@ pub struct Selectors {
     pub kernel_code: SegmentSelector,
     pub kernel_data: SegmentSelector,
     pub tss: SegmentSelector,
-    pub user_data: SegmentSelector,
     pub user_code: SegmentSelector,
+    pub user_data: SegmentSelector,
 }
 
 pub(in crate::arch) fn init() {
