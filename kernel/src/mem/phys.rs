@@ -207,7 +207,6 @@ impl PhysicalBitmapAllocator {
         let regions = stage1.regions;
         let stage_one_next_free = stage1.next_frame;
 
-        // TODO: we only need to consider all regions until the last one that is usable
         let highest_usable_address = regions.iter().fold(0, |highest_address, r| {
             if r.entry_type == EntryType::USABLE {
                 r.base + r.length
