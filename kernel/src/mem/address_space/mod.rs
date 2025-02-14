@@ -1,5 +1,4 @@
 use crate::limine::HHDM_REQUEST;
-use crate::mem::phys::PhysicalMemory;
 use conquer_once::spin::OnceCell;
 use mapper::AddressSpaceMapper;
 use spin::RwLock;
@@ -7,8 +6,7 @@ use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{
-    Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame,
-    RecursivePageTable, Size4KiB,
+    Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable,
 };
 use x86_64::{PhysAddr, VirtAddr};
 
@@ -17,45 +15,26 @@ mod mapper;
 static KERNEL_ADDRESS_SPACE: OnceCell<AddressSpace> = OnceCell::uninit();
 
 pub fn init() {
-    let (pt_vaddr, pt_frame) = remap_with_recursive_page_table();
+    let (pt_vaddr, pt_frame) = make_mapping_recursive();
     let address_space = unsafe { AddressSpace::create_from(pt_frame, pt_vaddr) };
     KERNEL_ADDRESS_SPACE.init_once(|| address_space);
 }
 
-fn remap_with_recursive_page_table() -> (VirtAddr, PhysFrame) {
+fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
     // switch to a recursive page table
     let offset = HHDM_REQUEST.get_response().unwrap().offset();
-    let (cr3_frame, cr3_flags) = Cr3::read();
+    let (cr3_frame, _) = Cr3::read();
     let cr3_phys_addr = cr3_frame.start_address();
     let cr3_virt_addr = VirtAddr::new(cr3_phys_addr.as_u64() + offset);
     let current_pt = unsafe { &mut *cr3_virt_addr.as_mut_ptr::<PageTable>() };
-    let mut offset_pt = unsafe { OffsetPageTable::new(current_pt, VirtAddr::new(offset)) };
-
-    let pt_frame = PhysicalMemory::allocate_frame().unwrap();
-    let recursive_index = 510;
+    let recursive_index = 510; // TODO: find a free index
+    current_pt[recursive_index].set_frame(
+        cr3_frame,
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+    );
     let pt_vaddr = recursive_index_to_virtual_address(recursive_index);
 
-    unsafe {
-        offset_pt
-            .map_to(
-                Page::<Size4KiB>::containing_address(pt_vaddr),
-                pt_frame,
-                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                &mut PhysicalMemory,
-            )
-            .unwrap()
-            .flush();
-    }
-
-    let new_pt = unsafe { &mut *(pt_vaddr.as_mut_ptr::<PageTable>()) };
-    new_pt.zero();
-    new_pt[256] = current_pt[256].clone();
-    new_pt[recursive_index].set_frame(pt_frame, PageTableFlags::PRESENT | PageTableFlags::WRITABLE);
-    new_pt[511] = current_pt[511].clone();
-
-    unsafe { Cr3::write(pt_frame, cr3_flags) };
-
-    (pt_vaddr, pt_frame)
+    (pt_vaddr, cr3_frame)
 }
 
 fn recursive_index_to_virtual_address(recursive_index: usize) -> VirtAddr {
