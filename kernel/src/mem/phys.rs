@@ -207,13 +207,21 @@ impl PhysicalBitmapAllocator {
         let regions = stage1.regions;
         let stage_one_next_free = stage1.next_frame;
 
-        let highest_usable_address = regions.iter().fold(0, |highest_address, r| {
-            if r.entry_type == EntryType::USABLE {
-                r.base + r.length
-            } else {
-                highest_address
-            }
-        });
+        /*
+        Limine guarantees that
+        1. USABLE regions do not overlap
+        2. USABLE regions are sorted by base address, lowest to highest
+        3. USABLE regions are 4KiB aligned (address and length)
+         */
+
+        let highest_usable_address = {
+            let last_usable_region = regions
+                .iter()
+                .rev()
+                .find(|r| r.entry_type == EntryType::USABLE)
+                .expect("no usable regions");
+            last_usable_region.base + last_usable_region.length
+        };
 
         let frame_count = (highest_usable_address / Size4KiB::SIZE) as usize;
 
