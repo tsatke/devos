@@ -27,7 +27,13 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
     let cr3_phys_addr = cr3_frame.start_address();
     let cr3_virt_addr = VirtAddr::new(cr3_phys_addr.as_u64() + offset);
     let current_pt = unsafe { &mut *cr3_virt_addr.as_mut_ptr::<PageTable>() };
-    let recursive_index = 510; // TODO: find a free index
+    let pos_bias = 500;
+    let pos = current_pt
+        .iter()
+        .skip(pos_bias)
+        .position(|e| e.is_unused())
+        .expect("should have a free index above 500");
+    let recursive_index = pos_bias + pos;
     current_pt[recursive_index].set_frame(
         cr3_frame,
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
