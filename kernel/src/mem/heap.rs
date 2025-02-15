@@ -9,7 +9,7 @@ use x86_64::VirtAddr;
 
 static HEAP_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static HEAP_START: VirtAddr = virt_addr_from_page_table_indices([257, 0, 0, 0], 0);
-static INITIAL_HEAP_SIZE: usize = 5 * 1024 * 1024; // 1 MiB
+static INITIAL_HEAP_SIZE: usize = 5 * 1024 * 1024; // 5 MiB
 
 #[global_allocator]
 static ALLOCATOR: linked_list_allocator::LockedHeap = linked_list_allocator::LockedHeap::empty();
