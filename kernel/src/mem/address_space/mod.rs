@@ -1,18 +1,25 @@
-use crate::limine::HHDM_REQUEST;
+use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
+use crate::mem::phys::PhysicalMemory;
 use conquer_once::spin::OnceCell;
+use limine::memory_map::EntryType;
+use log::{debug, info, trace};
 use mapper::AddressSpaceMapper;
 use spin::RwLock;
 use x86_64::registers::control::Cr3;
-use x86_64::structures::paging::mapper::MapToError;
+use x86_64::structures::paging::mapper::{
+    MapToError, MappedFrame, MapperAllSizes, PageTableFrameMapping, TranslateResult,
+};
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{
-    Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable,
+    MappedPageTable, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame,
+    RecursivePageTable, Translate,
 };
 use x86_64::{PhysAddr, VirtAddr};
 
 mod mapper;
 
 static KERNEL_ADDRESS_SPACE: OnceCell<AddressSpace> = OnceCell::uninit();
+pub static RECURSIVE_INDEX: OnceCell<usize> = OnceCell::uninit();
 
 pub fn init() {
     let (pt_vaddr, pt_frame) = make_mapping_recursive();
@@ -21,29 +28,174 @@ pub fn init() {
 }
 
 fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
-    // switch to a recursive page table
-    let offset = HHDM_REQUEST.get_response().unwrap().offset();
-    let (cr3_frame, _) = Cr3::read();
-    let cr3_phys_addr = cr3_frame.start_address();
-    let cr3_virt_addr = VirtAddr::new(cr3_phys_addr.as_u64() + offset);
-    let current_pt = unsafe { &mut *cr3_virt_addr.as_mut_ptr::<PageTable>() };
-    let pos_bias = 500;
-    let pos = current_pt
-        .iter()
-        .skip(pos_bias)
-        .position(|e| e.is_unused())
-        .expect("should have a free index above 500");
-    let recursive_index = pos_bias + pos;
-    current_pt[recursive_index].set_frame(
-        cr3_frame,
-        PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-    );
-    let pt_vaddr = recursive_index_to_virtual_address(recursive_index);
+    let hhdm_offset = HHDM_REQUEST
+        .get_response()
+        .expect("should have a HHDM response")
+        .offset();
 
-    (pt_vaddr, cr3_frame)
+    let (level_4_table, level_4_table_frame) = {
+        let frame = PhysicalMemory::allocate_frame().unwrap();
+        let pt = unsafe {
+            &mut *VirtAddr::new(frame.start_address().as_u64() + hhdm_offset)
+                .as_mut_ptr::<PageTable>()
+        };
+        pt.zero();
+        (pt, frame)
+    };
+
+    let mut current_pt = unsafe {
+        OffsetPageTable::new(
+            &mut *VirtAddr::new(Cr3::read().0.start_address().as_u64() + hhdm_offset)
+                .as_mut_ptr::<PageTable>(),
+            VirtAddr::new(hhdm_offset),
+        )
+    };
+
+    let mut new_pt = {
+        struct Offset(u64);
+        unsafe impl PageTableFrameMapping for Offset {
+            fn frame_to_pointer(&self, frame: PhysFrame) -> *mut PageTable {
+                VirtAddr::new(frame.start_address().as_u64() + self.0).as_mut_ptr::<PageTable>()
+            }
+        }
+        unsafe { MappedPageTable::new(level_4_table, Offset(hhdm_offset)) }
+    };
+
+    let kernel_addr = KERNEL_ADDRESS_REQUEST
+        .get_response()
+        .unwrap()
+        .virtual_base();
+    assert_eq!(
+        1,
+        MEMORY_MAP_REQUEST
+            .get_response()
+            .unwrap()
+            .entries()
+            .iter()
+            .filter(|e| e.entry_type == EntryType::KERNEL_AND_MODULES)
+            .count()
+    );
+    let kernel_size = MEMORY_MAP_REQUEST
+        .get_response()
+        .unwrap()
+        .entries()
+        .iter()
+        .find(|e| e.entry_type == EntryType::KERNEL_AND_MODULES)
+        .unwrap()
+        .length;
+
+    info!("remapping kernel");
+    remap(
+        &mut current_pt,
+        &mut new_pt,
+        VirtAddr::new(kernel_addr),
+        kernel_size as usize,
+    );
+
+    MEMORY_MAP_REQUEST
+        .get_response()
+        .unwrap()
+        .entries()
+        .iter()
+        .filter(|e| e.entry_type == EntryType::BOOTLOADER_RECLAIMABLE)
+        .for_each(|e| {
+            trace!("remapping bootloader reclaimable");
+            remap(
+                &mut current_pt,
+                &mut new_pt,
+                VirtAddr::new(e.base + hhdm_offset),
+                e.length as usize,
+            );
+        });
+
+    let recursive_index = (0..512)
+        .rposition(|p| level_4_table[p].is_unused())
+        .expect("should have an unused index in the level 4 table");
+    level_4_table[recursive_index].set_frame(
+        level_4_table_frame,
+        PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+    );
+    let vaddr = recursive_index_to_virtual_address(recursive_index);
+    debug!("recursive index: {:?}, vaddr: {:p}", recursive_index, vaddr);
+    RECURSIVE_INDEX.init_once(|| recursive_index);
+
+    info!("switching to recursive mapping");
+    unsafe {
+        let cr3_flags = Cr3::read().1;
+        Cr3::write(level_4_table_frame, cr3_flags);
+    }
+
+    info!("done");
+
+    (vaddr, level_4_table_frame)
 }
 
-fn recursive_index_to_virtual_address(recursive_index: usize) -> VirtAddr {
+fn remap(
+    current_pt: &mut OffsetPageTable,
+    new_pt: &mut impl MapperAllSizes,
+    start_vaddr: VirtAddr,
+    len: usize,
+) {
+    let mut current_addr = start_vaddr;
+
+    while current_addr.as_u64() < start_vaddr.as_u64() + len as u64 {
+        let result = current_pt.translate(current_addr);
+        let TranslateResult::Mapped {
+            frame,
+            offset: _,
+            flags,
+        } = result
+        else {
+            unreachable!()
+        };
+
+        let flags = flags.intersection(
+            PageTableFlags::PRESENT
+                | PageTableFlags::WRITABLE
+                | PageTableFlags::NO_EXECUTE
+                | PageTableFlags::HUGE_PAGE,
+        );
+
+        let step = frame.size();
+        unsafe {
+            match frame {
+                MappedFrame::Size4KiB(f) => {
+                    let _ = new_pt
+                        .map_to(
+                            Page::containing_address(current_addr),
+                            f,
+                            flags,
+                            &mut PhysicalMemory,
+                        )
+                        .unwrap();
+                }
+                MappedFrame::Size2MiB(f) => {
+                    let _ = new_pt
+                        .map_to(
+                            Page::containing_address(current_addr),
+                            f,
+                            flags,
+                            &mut PhysicalMemory,
+                        )
+                        .unwrap();
+                }
+                MappedFrame::Size1GiB(f) => {
+                    let _ = new_pt
+                        .map_to(
+                            Page::containing_address(current_addr),
+                            f,
+                            flags,
+                            &mut PhysicalMemory,
+                        )
+                        .unwrap();
+                }
+            };
+        }
+        current_addr += step;
+    }
+}
+
+pub const fn recursive_index_to_virtual_address(recursive_index: usize) -> VirtAddr {
     let i = recursive_index as u64;
     let addr = (i << 39) | (i << 30) | (i << 21) | (i << 12);
 

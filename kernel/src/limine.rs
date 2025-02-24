@@ -1,6 +1,6 @@
 use limine::request::{
-    FramebufferRequest, HhdmRequest, KernelFileRequest, MemoryMapRequest, RequestsEndMarker,
-    RequestsStartMarker, RsdpRequest,
+    HhdmRequest, KernelAddressRequest, KernelFileRequest, MemoryMapRequest,
+    RequestsEndMarker, RequestsStartMarker, RsdpRequest,
 };
 use limine::BaseRevision;
 
@@ -18,11 +18,11 @@ pub static BASE_REVISION: BaseRevision = BaseRevision::with_revision(3);
 
 #[used]
 #[unsafe(link_section = ".requests")]
-pub static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::new();
+pub static KERNEL_FILE_REQUEST: KernelFileRequest = KernelFileRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
-pub static KERNEL_FILE_REQUEST: KernelFileRequest = KernelFileRequest::new();
+pub static KERNEL_ADDRESS_REQUEST: KernelAddressRequest = KernelAddressRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]

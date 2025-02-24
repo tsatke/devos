@@ -1,8 +1,10 @@
-use crate::limine::HHDM_REQUEST;
+use crate::limine::{HHDM_REQUEST, MEMORY_MAP_REQUEST};
+use crate::mem::address_space::{recursive_index_to_virtual_address, RECURSIVE_INDEX};
 use crate::mem::heap::Heap;
 use conquer_once::spin::OnceCell;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
+use limine::memory_map::EntryType;
 use spin::RwLock;
 use virtual_memory_manager::{AlreadyReserved, Segment, VirtualMemoryManager};
 use x86_64::VirtAddr;
@@ -21,19 +23,41 @@ pub fn init() {
         ))
     });
 
+    // recursive mapping
     {
-        // limine maps 4GiB at HHDM start + 0x00
-
-        // the kernel is part of those 4GiB, so we don't need to mark it as reserved (as long as it's smaller than 4GiB)
-
-        let hhdm = HHDM_REQUEST
-            .get_response()
-            .expect("should have a HHDM response");
-        let hhdm_start = VirtAddr::new(hhdm.offset());
-        let hhdm_segment = Segment::new(hhdm_start, 4 * 1024 * 1024 * 1024);
-        VirtualMemory::mark_as_reserved(hhdm_segment).expect("HHDM should not be reserved yet");
+        let recursive_index = *RECURSIVE_INDEX
+            .get()
+            .expect("recursive index should be initialized");
+        let vaddr = recursive_index_to_virtual_address(recursive_index);
+        let len = 512 * 1024 * 1024 * 1024; // 512 GiB
+        let segment = Segment::new(vaddr, len);
+        VirtualMemory::mark_as_reserved(segment)
+            .expect("recursive index should not be reserved yet");
     }
 
+    // kernel code and bootloader reclaimable
+    {
+        let hhdm_offset = HHDM_REQUEST.get_response().unwrap().offset();
+        MEMORY_MAP_REQUEST
+            .get_response()
+            .unwrap()
+            .entries()
+            .iter()
+            .filter(|e| {
+                [
+                    EntryType::KERNEL_AND_MODULES,
+                    EntryType::BOOTLOADER_RECLAIMABLE,
+                ]
+                .contains(&e.entry_type)
+            })
+            .for_each(|e| {
+                let segment = Segment::new(VirtAddr::new(e.base + hhdm_offset), e.length);
+                VirtualMemory::mark_as_reserved(segment)
+                    .expect("segment should not be reserved yet");
+            });
+    }
+
+    // heap
     VirtualMemory::mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
         .expect("heap should not be reserved yet");
 }
