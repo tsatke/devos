@@ -81,6 +81,20 @@ impl AddressSpaceMapper {
         Ok(())
     }
 
+    pub fn unmap<S: PageSize>(&mut self, page: Page<S>) -> Option<PhysFrame<S>>
+    where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        assert!(self.is_active());
+
+        if let Ok((frame, flusher)) = self.page_table.unmap(page) {
+            flusher.flush();
+            Some(frame)
+        } else {
+            None
+        }
+    }
+
     pub fn translate(&self, vaddr: VirtAddr) -> Option<PhysAddr> {
         self.page_table.translate_addr(vaddr)
     }

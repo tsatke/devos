@@ -3,6 +3,7 @@
 #![feature(abi_x86_interrupt, naked_functions, negative_impls)]
 extern crate alloc;
 
+mod acpi;
 mod arch;
 pub mod limine;
 mod log;
@@ -14,4 +15,5 @@ pub fn init() {
     arch::init_no_heap();
     mem::init();
     arch::init_with_heap();
+    acpi::init();
 }

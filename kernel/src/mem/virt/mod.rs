@@ -7,6 +7,7 @@ use core::ops::Deref;
 use limine::memory_map::EntryType;
 use spin::RwLock;
 use virtual_memory_manager::{AlreadyReserved, Segment, VirtualMemoryManager};
+use x86_64::structures::paging::{PageSize, Size4KiB};
 use x86_64::VirtAddr;
 
 static VMM: OnceCell<RwLock<VirtualMemoryManager>> = OnceCell::uninit();
@@ -76,7 +77,7 @@ impl OwnedSegment {
 
 impl Drop for OwnedSegment {
     fn drop(&mut self) {
-        VirtualMemory::release(self);
+        VirtualMemory::release_owned(self);
     }
 }
 
@@ -92,18 +93,25 @@ pub struct VirtualMemory;
 
 impl VirtualMemory {
     #[allow(dead_code)]
-    pub fn reserve(n: usize) -> Option<OwnedSegment> {
+    pub fn reserve(pages: usize) -> Option<OwnedSegment> {
         vmm()
             .write()
-            .reserve(n)
+            .reserve(pages * 4096)
             .map(|segment| OwnedSegment { inner: segment })
     }
 
     pub fn mark_as_reserved(segment: Segment) -> Result<(), AlreadyReserved> {
+        assert!(segment.start.is_aligned(Size4KiB::SIZE));
+        assert_eq!(segment.len % Size4KiB::SIZE, 0);
+
         vmm().write().mark_as_reserved(segment)
     }
 
-    fn release(segment: &mut OwnedSegment) -> bool {
-        vmm().write().release(segment.inner)
+    fn release_owned(segment: &mut OwnedSegment) -> bool {
+        unsafe { Self::release(segment.inner) }
+    }
+
+    pub unsafe fn release(segment: Segment) -> bool {
+        vmm().write().release(segment)
     }
 }

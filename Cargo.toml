@@ -21,6 +21,7 @@ default-members = [
 clap = { version = "4.5", features = ["derive"] }
 
 [workspace.dependencies]
+acpi = "5.1"
 conquer-once = { version = "0.4", default-features = false }
 derive_more = { version = "1.0.0", default-features = false, features = ["constructor"] }
 limine = "0.3.1"

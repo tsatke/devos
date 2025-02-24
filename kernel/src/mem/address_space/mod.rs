@@ -267,6 +267,13 @@ impl AddressSpace {
         self.inner.write().map_range(pages.into(), frames, flags)
     }
 
+    pub fn unmap<S: PageSize>(&self, page: Page<S>) -> Option<PhysFrame<S>>
+    where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        self.inner.write().unmap(page)
+    }
+
     #[allow(dead_code)]
     pub fn translate(&self, vaddr: VirtAddr) -> Option<PhysAddr> {
         self.inner.read().translate(vaddr)
