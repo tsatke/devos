@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use jiff::tz::TimeZone;
 use jiff::Timestamp;
 use kernel::hpet::hpet;
 use kernel::limine::{BASE_REVISION, BOOT_TIME};
