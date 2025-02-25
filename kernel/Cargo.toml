@@ -10,6 +10,7 @@ acpi.workspace = true
 bitfield.workspace = true
 conquer-once.workspace = true
 derive_more.workspace = true
+jiff.workspace = true
 limine.workspace = true
 linked_list_allocator.workspace = true
 log.workspace = true

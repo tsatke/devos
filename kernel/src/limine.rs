@@ -1,5 +1,5 @@
 use limine::request::{
-    HhdmRequest, KernelAddressRequest, KernelFileRequest, MemoryMapRequest,
+    BootTimeRequest, HhdmRequest, KernelAddressRequest, KernelFileRequest, MemoryMapRequest,
     RequestsEndMarker, RequestsStartMarker, RsdpRequest,
 };
 use limine::BaseRevision;
@@ -15,6 +15,10 @@ pub static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 #[used]
 #[unsafe(link_section = ".requests")]
 pub static BASE_REVISION: BaseRevision = BaseRevision::with_revision(3);
+
+#[used]
+#[unsafe(link_section = ".requests")]
+pub static BOOT_TIME: BootTimeRequest = BootTimeRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]

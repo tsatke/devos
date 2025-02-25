@@ -1,8 +1,10 @@
 #![no_std]
 #![no_main]
 
+use jiff::tz::TimeZone;
+use jiff::Timestamp;
 use kernel::hpet::hpet;
-use kernel::limine::BASE_REVISION;
+use kernel::limine::{BASE_REVISION, BOOT_TIME};
 use log::{error, info};
 use x86_64::instructions::hlt;
 
@@ -12,11 +14,13 @@ unsafe extern "C" fn main() -> ! {
 
     kernel::init();
 
-    info!("counter: {}", hpet().read().main_counter_value());
-    info!("counter: {}", hpet().read().main_counter_value());
-    info!("counter: {}", hpet().read().main_counter_value());
-    info!("counter: {}", hpet().read().main_counter_value());
-    info!("counter: {}", hpet().read().main_counter_value());
+    for _ in 0..10 {
+        let counter = hpet().read().main_counter_value();
+        let secs = BOOT_TIME.get_response().unwrap().boot_time().as_secs();
+        let secs = secs + (counter / 1e9 as u64);
+        let ts = Timestamp::new(secs as i64, (counter % 1_000_000_000) as i32).unwrap();
+        info!("it is now {}", ts);
+    }
 
     info!("reached end of kernel_main");
     loop {
