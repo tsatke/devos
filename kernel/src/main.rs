@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use kernel::hpet::hpet;
 use kernel::limine::BASE_REVISION;
 use log::{error, info};
 use x86_64::instructions::hlt;
@@ -10,6 +11,12 @@ unsafe extern "C" fn main() -> ! {
     assert!(BASE_REVISION.is_supported());
 
     kernel::init();
+
+    info!("counter: {}", hpet().read().main_counter_value());
+    info!("counter: {}", hpet().read().main_counter_value());
+    info!("counter: {}", hpet().read().main_counter_value());
+    info!("counter: {}", hpet().read().main_counter_value());
+    info!("counter: {}", hpet().read().main_counter_value());
 
     info!("reached end of kernel_main");
     loop {

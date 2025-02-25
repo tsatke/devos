@@ -7,6 +7,7 @@ edition = "2024"
 virtual_memory_manager = { path = "crates/virtual_memory_manager" }
 
 acpi.workspace = true
+bitfield.workspace = true
 conquer-once.workspace = true
 derive_more.workspace = true
 limine.workspace = true
@@ -16,4 +17,5 @@ seq-macro.workspace = true
 spin.workspace = true
 thiserror.workspace = true
 uart_16550.workspace = true
+volatile.workspace = true
 x86_64.workspace = true

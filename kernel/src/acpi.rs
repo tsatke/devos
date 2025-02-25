@@ -9,7 +9,11 @@ use virtual_memory_manager::Segment;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
-pub static ACPI_TABLES: OnceCell<Mutex<AcpiTables<AcpiHandlerImpl>>> = OnceCell::uninit();
+static ACPI_TABLES: OnceCell<Mutex<AcpiTables<AcpiHandlerImpl>>> = OnceCell::uninit();
+
+pub fn acpi_tables() -> &'static Mutex<AcpiTables<AcpiHandlerImpl>> {
+    ACPI_TABLES.get().unwrap()
+}
 
 pub fn init() {
     let rsdp = PhysAddr::new(RSDP_REQUEST.get_response().unwrap().address() as u64);

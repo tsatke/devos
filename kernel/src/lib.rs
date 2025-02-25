@@ -5,6 +5,7 @@ extern crate alloc;
 
 mod acpi;
 mod arch;
+pub mod hpet;
 pub mod limine;
 mod log;
 pub mod mem;
@@ -16,4 +17,5 @@ pub fn init() {
     mem::init();
     arch::init_with_heap();
     acpi::init();
+    hpet::init();
 }
