@@ -3,14 +3,14 @@ use log::debug;
 pub mod gdt;
 pub mod idt;
 
-pub fn init_no_heap() {
+pub fn init_global() {
     gdt::init();
 
-    debug!("arch initialized (pre-heap)");
+    debug!("arch initialized (global)");
 }
 
-pub fn init_with_heap() {
+pub fn init_cpu() {
     idt::init();
 
-    debug!("arch initialized (post-heap)");
+    debug!("arch initialized (per-cpu)");
 }

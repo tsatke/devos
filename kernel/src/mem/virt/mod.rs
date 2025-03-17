@@ -46,7 +46,7 @@ pub fn init() {
             .iter()
             .filter(|e| {
                 [
-                    EntryType::KERNEL_AND_MODULES,
+                    EntryType::EXECUTABLE_AND_MODULES,
                     EntryType::BOOTLOADER_RECLAIMABLE,
                 ]
                 .contains(&e.entry_type)

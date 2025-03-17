@@ -1,4 +1,5 @@
 use crate::serial_println;
+use crate::smp::context::ExecutionContext;
 use log::{info, Level, Metadata, Record};
 
 pub(crate) fn init() {
@@ -27,13 +28,24 @@ impl log::Log for SerialLogger {
                 Level::Trace => "\x1b[1;90m",
             };
 
-            serial_println!(
-                "{}{:5}\x1b[0m [{}] {}",
-                color,
-                record.level(),
-                record.target(),
-                record.args()
-            );
+            if let Some(cpu) = ExecutionContext::try_load().map(|ctx| ctx.cpu_id()) {
+                serial_println!(
+                    "{}{:5}\x1b[0m cpu{} [{}] {}",
+                    color,
+                    record.level(),
+                    cpu,
+                    record.target(),
+                    record.args()
+                );
+            } else {
+                serial_println!(
+                    "{}{:5}\x1b[0m boot [{}] {}",
+                    color,
+                    record.level(),
+                    record.target(),
+                    record.args()
+                );
+            }
         }
     }
 

@@ -10,12 +10,12 @@ pub mod limine;
 mod log;
 pub mod mem;
 mod serial;
+pub mod smp;
 
 pub fn init() {
     log::init();
-    arch::init_no_heap();
+    arch::init_global();
     mem::init();
-    arch::init_with_heap();
     acpi::init();
     hpet::init();
 }

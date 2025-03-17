@@ -2,7 +2,7 @@ use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
 use crate::mem::phys::PhysicalMemory;
 use conquer_once::spin::OnceCell;
 use limine::memory_map::EntryType;
-use log::{debug, info, trace};
+use log::{debug, info};
 use mapper::AddressSpaceMapper;
 use spin::RwLock;
 use x86_64::registers::control::Cr3;
@@ -72,7 +72,7 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
             .unwrap()
             .entries()
             .iter()
-            .filter(|e| e.entry_type == EntryType::KERNEL_AND_MODULES)
+            .filter(|e| e.entry_type == EntryType::EXECUTABLE_AND_MODULES)
             .count()
     );
     let kernel_size = MEMORY_MAP_REQUEST
@@ -80,7 +80,7 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
         .unwrap()
         .entries()
         .iter()
-        .find(|e| e.entry_type == EntryType::KERNEL_AND_MODULES)
+        .find(|e| e.entry_type == EntryType::EXECUTABLE_AND_MODULES)
         .unwrap()
         .length;
 
@@ -99,7 +99,6 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
         .iter()
         .filter(|e| e.entry_type == EntryType::BOOTLOADER_RECLAIMABLE)
         .for_each(|e| {
-            trace!("remapping bootloader reclaimable");
             remap(
                 &mut current_pt,
                 &mut new_pt,

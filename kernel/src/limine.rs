@@ -1,6 +1,7 @@
+use limine::mp::RequestFlags;
 use limine::request::{
-    BootTimeRequest, HhdmRequest, KernelAddressRequest, KernelFileRequest, MemoryMapRequest,
-    RequestsEndMarker, RequestsStartMarker, RsdpRequest,
+    DateAtBootRequest, ExecutableAddressRequest, ExecutableFileRequest, HhdmRequest,
+    MemoryMapRequest, MpRequest, RequestsEndMarker, RequestsStartMarker, RsdpRequest,
 };
 use limine::BaseRevision;
 
@@ -18,15 +19,15 @@ pub static BASE_REVISION: BaseRevision = BaseRevision::with_revision(3);
 
 #[used]
 #[unsafe(link_section = ".requests")]
-pub static BOOT_TIME: BootTimeRequest = BootTimeRequest::new();
+pub static BOOT_TIME: DateAtBootRequest = DateAtBootRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
-pub static KERNEL_FILE_REQUEST: KernelFileRequest = KernelFileRequest::new();
+pub static KERNEL_FILE_REQUEST: ExecutableFileRequest = ExecutableFileRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
-pub static KERNEL_ADDRESS_REQUEST: KernelAddressRequest = KernelAddressRequest::new();
+pub static KERNEL_ADDRESS_REQUEST: ExecutableAddressRequest = ExecutableAddressRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -39,3 +40,7 @@ pub static HHDM_REQUEST: HhdmRequest = HhdmRequest::new();
 #[used]
 #[unsafe(link_section = ".requests")]
 pub static RSDP_REQUEST: RsdpRequest = RsdpRequest::new();
+
+#[used]
+#[unsafe(link_section = ".requests")]
+pub static mut MP_REQUEST: MpRequest = MpRequest::new().with_flags(RequestFlags::X2APIC);

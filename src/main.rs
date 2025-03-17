@@ -80,6 +80,9 @@ continue"
     cmd.arg("-cdrom");
     cmd.arg(BOOTABLE_ISO);
 
+    cmd.arg("-smp");
+    cmd.arg("4");
+
     let status = cmd.status().unwrap();
     assert!(status.success());
 }
