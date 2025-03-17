@@ -1,4 +1,4 @@
-use crate::arch;
+use crate::arch::{gdt, idt};
 use crate::limine::MP_REQUEST;
 use crate::smp::context::ExecutionContext;
 use alloc::boxed::Box;
@@ -50,7 +50,8 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
         );
     }
 
-    arch::init_cpu();
+    gdt::init();
+    idt::init();
 
     {
         let ctx = ExecutionContext::from(cpu);

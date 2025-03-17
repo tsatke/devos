@@ -14,7 +14,6 @@ pub mod smp;
 
 pub fn init() {
     log::init();
-    arch::init_global();
     mem::init();
     acpi::init();
     hpet::init();
