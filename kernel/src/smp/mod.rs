@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use log::{debug, info};
 use x86_64::instructions::hlt;
 use x86_64::registers::control::{Cr3, Cr3Flags};
-use x86_64::registers::model_specific::GsBase;
+use x86_64::registers::model_specific::KernelGsBase;
 use x86_64::structures::paging::PhysFrame;
 use x86_64::{PhysAddr, VirtAddr};
 
@@ -56,8 +56,8 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
 
     {
         let ctx = ExecutionContext::from(cpu);
-        let addr = VirtAddr::from_ptr(Box::into_raw(Box::new(ctx)));
-        GsBase::write(addr);
+        let addr = VirtAddr::from_ptr(Box::leak(Box::new(ctx)));
+        KernelGsBase::write(addr);
     }
 
     let ctx = ExecutionContext::load();
