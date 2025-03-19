@@ -8,9 +8,9 @@ mod arch;
 pub mod hpet;
 pub mod limine;
 mod log;
+pub mod mcore;
 pub mod mem;
 mod serial;
-pub mod smp;
 
 pub fn init() {
     log::init();

@@ -1,6 +1,6 @@
 use crate::arch::{gdt, idt};
 use crate::limine::MP_REQUEST;
-use crate::smp::context::ExecutionContext;
+use crate::mcore::context::ExecutionContext;
 use alloc::boxed::Box;
 use log::{debug, info};
 use x86_64::instructions::hlt;

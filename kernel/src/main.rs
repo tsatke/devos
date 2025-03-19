@@ -4,7 +4,7 @@
 use jiff::Timestamp;
 use kernel::hpet::hpet;
 use kernel::limine::{BASE_REVISION, BOOT_TIME};
-use kernel::smp;
+use kernel::mcore;
 use log::{error, info};
 use x86_64::instructions::hlt;
 
@@ -26,7 +26,7 @@ unsafe extern "C" fn main() -> ! {
         info!("it is now {}", ts);
     }
 
-    smp::start()
+    mcore::start()
 }
 
 #[panic_handler]

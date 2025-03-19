@@ -1,5 +1,5 @@
+use crate::mcore::context::ExecutionContext;
 use crate::serial_println;
-use crate::smp::context::ExecutionContext;
 use log::{info, Level, Metadata, Record};
 
 pub(crate) fn init() {
