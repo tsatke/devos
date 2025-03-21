@@ -539,6 +539,7 @@ dependencies = [
  "limine",
  "linked_list_allocator",
  "log",
+ "physical_memory_manager",
  "seq-macro",
  "spin",
  "thiserror",
@@ -654,6 +655,14 @@ name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
+
+[[package]]
+name = "physical_memory_manager"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+ "x86_64",
+]
 
 [[package]]
 name = "portable-atomic"

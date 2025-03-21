@@ -8,6 +8,7 @@ mod heap;
 pub mod phys;
 pub mod virt;
 
+#[allow(clippy::missing_panics_doc)]
 pub fn init() {
     let response = MEMORY_MAP_REQUEST
         .get_response()
@@ -24,6 +25,8 @@ pub fn init() {
     virt::init();
 
     phys::init_stage2();
+
+    heap::init_stage2();
 
     info!("memory initialized, {:?}", Heap);
 }

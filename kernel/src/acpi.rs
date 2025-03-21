@@ -1,6 +1,7 @@
 use crate::limine::RSDP_REQUEST;
 use crate::mem::address_space::AddressSpace;
 use crate::mem::virt::VirtualMemory;
+use crate::U64Ext;
 use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 use conquer_once::spin::OnceCell;
 use core::ptr::NonNull;
@@ -17,7 +18,7 @@ pub fn acpi_tables() -> &'static Mutex<AcpiTables<AcpiHandlerImpl>> {
 
 pub fn init() {
     let rsdp = PhysAddr::new(RSDP_REQUEST.get_response().unwrap().address() as u64);
-    let tables = unsafe { AcpiTables::from_rsdp(AcpiHandlerImpl, rsdp.as_u64() as usize) }
+    let tables = unsafe { AcpiTables::from_rsdp(AcpiHandlerImpl, rsdp.as_u64().into_usize()) }
         .expect("should be able to get ACPI tables from rsdp");
 
     ACPI_TABLES.init_once(|| Mutex::new(tables));
@@ -32,7 +33,7 @@ impl AcpiHandler for AcpiHandlerImpl {
         physical_address: usize,
         size: usize,
     ) -> PhysicalMapping<Self, T> {
-        assert!(size <= Size4KiB::SIZE as usize);
+        assert!(size <= Size4KiB::SIZE.into_usize());
 
         let phys_addr = PhysAddr::new(physical_address as u64);
 
@@ -52,7 +53,7 @@ impl AcpiHandler for AcpiHandlerImpl {
                 physical_address,
                 NonNull::new(segment.start.as_mut_ptr()).unwrap(),
                 size,
-                segment.len as usize,
+                segment.len.into_usize(),
                 Self,
             )
         }
@@ -61,7 +62,9 @@ impl AcpiHandler for AcpiHandlerImpl {
     fn unmap_physical_region<T>(region: &PhysicalMapping<Self, T>) {
         let vaddr = VirtAddr::from_ptr(region.virtual_start().as_ptr());
         let segment = Segment::new(vaddr, region.mapped_length() as u64);
-        unsafe { VirtualMemory::release(segment) };
+        unsafe {
+            let _ = VirtualMemory::release(segment);
+        }
         let address_space = AddressSpace::kernel();
 
         // don't deallocate physical, because we don't manage it - it's ACPI memory

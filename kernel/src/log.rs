@@ -28,7 +28,7 @@ impl log::Log for SerialLogger {
                 Level::Trace => "\x1b[1;90m",
             };
 
-            if let Some(cpu) = ExecutionContext::try_load().map(|ctx| ctx.cpu_id()) {
+            if let Some(cpu) = ExecutionContext::try_load().map(ExecutionContext::cpu_id) {
                 serial_println!(
                     "{}{:5}\x1b[0m cpu{} [{}] {}",
                     color,

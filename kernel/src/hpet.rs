@@ -16,10 +16,13 @@ use x86_64::PhysAddr;
 
 static HPET: OnceCell<RwLock<Hpet>> = OnceCell::uninit();
 
+/// # Panics
+/// This function panics if the HPET is not initialized yet.
 pub fn hpet() -> &'static RwLock<Hpet<'static>> {
     HPET.get().unwrap()
 }
 
+#[allow(clippy::missing_panics_doc)]
 pub fn init() {
     let acpi_tables = acpi_tables();
     let guard = acpi_tables.lock();
@@ -67,10 +70,12 @@ impl Hpet<'_> {
         });
     }
 
+    #[must_use]
     pub fn main_counter_value(&self) -> u64 {
         self.inner.main_counter_value().read()
     }
 
+    #[must_use]
     pub fn period_femtoseconds(&self) -> u32 {
         self.inner.capabilities_and_id().read().counter_clk_period()
     }

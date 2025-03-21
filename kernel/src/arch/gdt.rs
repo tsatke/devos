@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use alloc::vec;
 use x86_64::instructions::tables::load_tss;
 use x86_64::registers::segmentation::{Segment, CS, DS};
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
@@ -11,7 +12,7 @@ fn create_tss() -> TaskStateSegment {
     let mut tss = TaskStateSegment::new();
     tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
         const STACK_SIZE: usize = 4096 * 5;
-        let stack = Box::into_raw(Box::new([0_u8; STACK_SIZE]));
+        let stack = Box::into_raw(vec![0_u8; STACK_SIZE].into_boxed_slice());
 
         let stack_start = VirtAddr::from_ptr(stack);
         stack_start + (STACK_SIZE as u64)
@@ -39,13 +40,16 @@ fn create_gdt_and_tss() -> (GlobalDescriptorTable, Selectors) {
     user_code.set_rpl(PrivilegeLevel::Ring3);
     let mut user_data = gdt.append(Descriptor::user_data_segment());
     user_data.set_rpl(PrivilegeLevel::Ring3);
-    (gdt, Selectors {
-        kernel_code,
-        kernel_data,
-        tss,
-        user_code,
-        user_data,
-    })
+    (
+        gdt,
+        Selectors {
+            kernel_code,
+            kernel_data,
+            tss,
+            user_code,
+            user_data,
+        },
+    )
 }
 
 pub fn init() {

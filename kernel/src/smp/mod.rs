@@ -11,6 +11,7 @@ use x86_64::{PhysAddr, VirtAddr};
 
 pub mod context;
 
+#[allow(clippy::missing_panics_doc)]
 pub fn start() -> ! {
     let resp = unsafe {
         #[allow(static_mut_refs)] // we need this to set the `extra` field in the CPU structs

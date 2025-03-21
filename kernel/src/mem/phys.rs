@@ -1,13 +1,13 @@
 use crate::mem::heap::Heap;
 use alloc::vec;
-use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use core::iter::from_fn;
 use core::mem::swap;
 use limine::memory_map::{Entry, EntryType};
+use physical_memory_manager::{FrameState, PhysicalFrameAllocator, PhysicalMemoryManager};
 use spin::Mutex;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
-use x86_64::structures::paging::{FrameAllocator, PageSize, PhysFrame, Size4KiB};
+use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
 
 static PHYS_ALLOC: OnceCell<Mutex<MultiStageAllocator>> = OnceCell::uninit();
@@ -31,28 +31,30 @@ impl PhysicalMemory {
         from_fn(Self::allocate_frame)
     }
 
-    /// Calls [`PhysicalFrameAllocator::allocate_frame`] on the current physical allocator.
+    /// Calls [`FrameAllocator::allocate_frame`] on the current physical allocator.
+    #[must_use]
     pub fn allocate_frame() -> Option<PhysFrame> {
         allocator().lock().allocate_frame()
     }
 
-    /// Calls [`PhysicalFrameAllocator::allocate_frames`] on the current physical allocator.
+    /// Calls [`FrameAllocator::allocate_frames`] on the current physical allocator.
+    #[must_use]
     pub fn allocate_frames(n: usize) -> Option<PhysFrameRangeInclusive> {
         allocator().lock().allocate_frames(n)
     }
 
-    /// Calls [`PhysicalFrameAllocator::deallocate_frame`] on the current physical allocator.
+    /// Calls [`FrameAllocator::deallocate_frame`] on the current physical allocator.
     pub fn deallocate_frame(frame: PhysFrame) {
         allocator().lock().deallocate_frame(frame);
     }
 
-    /// Calls [`PhysicalFrameAllocator::deallocate_frames`] on the current physical allocator.
+    /// Calls [`FrameAllocator::deallocate_frames`] on the current physical allocator.
     pub fn deallocate_frames(range: PhysFrameRangeInclusive) {
         allocator().lock().deallocate_frames(range);
     }
 }
 
-unsafe impl FrameAllocator<Size4KiB> for PhysicalMemory {
+unsafe impl x86_64::structures::paging::FrameAllocator<Size4KiB> for PhysicalMemory {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
         Self::allocate_frame()
     }
@@ -74,12 +76,50 @@ pub(in crate::mem) fn init_stage2() {
     let MultiStageAllocator::Stage1(stage1) = &*guard else {
         unreachable!()
     };
-    let bitmap_allocator = PhysicalBitmapAllocator::create_from_stage1(stage1);
+
+    assert!(Heap::is_initialized());
+
+    let regions = stage1.regions;
+    let stage_one_next_free = stage1.next_frame;
+    /*
+    Limine guarantees that
+    1. USABLE regions do not overlap
+    2. USABLE regions are sorted by base address, lowest to highest
+    3. USABLE regions are 4KiB aligned (address and length)
+     */
+
+    let highest_usable_address = {
+        let last_usable_region = regions
+            .iter()
+            .rev()
+            .find(|r| r.entry_type == EntryType::USABLE)
+            .expect("no usable regions");
+        last_usable_region.base + last_usable_region.length
+    };
+
+    let mut frames = vec![FrameState::Unusable; (highest_usable_address / Size4KiB::SIZE) as usize];
+
+    regions
+        .iter()
+        .filter(|r| r.entry_type == EntryType::USABLE)
+        .map(|r| r.base..r.base + r.length)
+        .flat_map(|r| r.step_by(usize::try_from(Size4KiB::SIZE).expect("usize overflow")))
+        .enumerate()
+        .for_each(|(i, _)| {
+            let state = if i < stage_one_next_free {
+                FrameState::Allocated
+            } else {
+                FrameState::Free
+            };
+            frames[i] = state;
+        });
+
+    let bitmap_allocator = PhysicalMemoryManager::new(frames);
     let mut stage2 = MultiStageAllocator::Stage2(bitmap_allocator);
     swap(&mut *guard, &mut stage2);
 }
 
-pub trait PhysicalFrameAllocator {
+pub trait FrameAllocator {
     /// Allocates a single physical frame. If there is no more physical memory,
     /// this function returns `None`.
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
@@ -112,10 +152,10 @@ pub trait PhysicalFrameAllocator {
 
 enum MultiStageAllocator {
     Stage1(PhysicalBumpAllocator),
-    Stage2(PhysicalBitmapAllocator),
+    Stage2(PhysicalMemoryManager),
 }
 
-impl PhysicalFrameAllocator for MultiStageAllocator {
+impl FrameAllocator for MultiStageAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
         match self {
             Self::Stage1(a) => a.allocate_frame(),
@@ -133,14 +173,18 @@ impl PhysicalFrameAllocator for MultiStageAllocator {
     fn deallocate_frame(&mut self, frame: PhysFrame) {
         match self {
             Self::Stage1(a) => a.deallocate_frame(frame),
-            Self::Stage2(a) => a.deallocate_frame(frame),
+            Self::Stage2(a) => {
+                a.deallocate_frame(frame);
+            }
         }
     }
 
     fn deallocate_frames(&mut self, range: PhysFrameRangeInclusive) {
         match self {
             Self::Stage1(a) => a.deallocate_frames(range),
-            Self::Stage2(a) => a.deallocate_frames(range),
+            Self::Stage2(a) => {
+                a.deallocate_frames(range);
+            }
         }
     }
 }
@@ -168,7 +212,7 @@ impl PhysicalBumpAllocator {
     }
 }
 
-impl PhysicalFrameAllocator for PhysicalBumpAllocator {
+impl FrameAllocator for PhysicalBumpAllocator {
     fn allocate_frame(&mut self) -> Option<PhysFrame> {
         let frame = self.usable_frames().nth(self.next_frame);
         if frame.is_some() {
@@ -185,108 +229,5 @@ impl PhysicalFrameAllocator for PhysicalBumpAllocator {
 
     fn deallocate_frame(&mut self, _: PhysFrame) {
         unimplemented!("the stage1 physical frame allocator doesn't support deallocation of frames")
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum FrameState {
-    Free,
-    Allocated,
-    NotUsable,
-}
-
-struct PhysicalBitmapAllocator {
-    frames: Vec<FrameState>,
-    first_free: Option<usize>,
-}
-
-impl PhysicalBitmapAllocator {
-    fn create_from_stage1(stage1: &PhysicalBumpAllocator) -> Self {
-        assert!(Heap::is_initialized());
-
-        let regions = stage1.regions;
-        let stage_one_next_free = stage1.next_frame;
-
-        /*
-        Limine guarantees that
-        1. USABLE regions do not overlap
-        2. USABLE regions are sorted by base address, lowest to highest
-        3. USABLE regions are 4KiB aligned (address and length)
-         */
-
-        let highest_usable_address = {
-            let last_usable_region = regions
-                .iter()
-                .rev()
-                .find(|r| r.entry_type == EntryType::USABLE)
-                .expect("no usable regions");
-            last_usable_region.base + last_usable_region.length
-        };
-
-        let frame_count = (highest_usable_address / Size4KiB::SIZE) as usize;
-
-        let mut frames = vec![FrameState::NotUsable; frame_count];
-
-        regions
-            .iter()
-            .filter(|r| r.entry_type == EntryType::USABLE)
-            .map(|r| r.base..r.base + r.length)
-            .flat_map(|r| r.step_by(usize::try_from(Size4KiB::SIZE).expect("usize overflow")))
-            .map(PhysAddr::new)
-            .map(Self::frame_address_to_index)
-            .enumerate()
-            .for_each(|(i, frame)| {
-                if i < stage_one_next_free {
-                    frames[frame] = FrameState::Allocated;
-                } else {
-                    frames[frame] = FrameState::Free;
-                }
-            });
-
-        Self {
-            frames,
-            first_free: Some(stage_one_next_free),
-        }
-    }
-
-    fn frame_index_to_address(index: usize) -> PhysAddr {
-        PhysAddr::new(index as u64 * Size4KiB::SIZE)
-    }
-
-    fn frame_address_to_index(addr: PhysAddr) -> usize {
-        (addr.as_u64() / Size4KiB::SIZE) as usize
-    }
-}
-
-impl PhysicalFrameAllocator for PhysicalBitmapAllocator {
-    fn allocate_frames(&mut self, n: usize) -> Option<PhysFrameRangeInclusive> {
-        let start_index = self
-            .frames
-            .windows(n)
-            .skip(self.first_free.unwrap_or(0))
-            .position(|window| window.iter().all(|&state| state == FrameState::Free))?;
-        let end_index = start_index + n - 1;
-        self.frames[start_index..=end_index]
-            .iter_mut()
-            .for_each(|state| *state = FrameState::Allocated);
-        self.first_free = self
-            .frames
-            .iter()
-            .skip(end_index)
-            .position(|&state| state == FrameState::Free);
-        Some(PhysFrameRangeInclusive {
-            start: PhysFrame::containing_address(Self::frame_index_to_address(start_index)),
-            end: PhysFrame::containing_address(Self::frame_index_to_address(end_index)),
-        })
-    }
-
-    fn deallocate_frame(&mut self, frame: PhysFrame) {
-        let index = Self::frame_address_to_index(frame.start_address());
-        if self.first_free.is_some_and(|v| index < v) {
-            self.first_free = Some(index);
-        }
-
-        debug_assert_eq!(self.frames[index], FrameState::Allocated);
-        self.frames[index] = FrameState::Free;
     }
 }

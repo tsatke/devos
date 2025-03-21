@@ -14,11 +14,15 @@ unsafe extern "C" fn main() -> ! {
 
     kernel::init();
 
-    for _ in 0..10 {
+    for _ in 0..5 {
         let counter = hpet().read().main_counter_value();
         let secs = BOOT_TIME.get_response().unwrap().timestamp().as_secs();
-        let secs = secs + (counter / 1e9 as u64);
-        let ts = Timestamp::new(secs as i64, (counter % 1_000_000_000) as i32).unwrap();
+        let secs = secs + (counter / 1_000_000_000);
+        let ts = Timestamp::new(
+            i64::try_from(secs).expect("shouldn't have more seconds than i64::MAX"),
+            (counter % 1_000_000_000) as i32,
+        )
+        .unwrap();
         info!("it is now {}", ts);
     }
 

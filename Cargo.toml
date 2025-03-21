@@ -11,10 +11,12 @@ ovmf-prebuilt = "0.2.1"
 members = [
     "kernel",
     "kernel/crates/virtual_memory_manager",
+    "kernel/crates/physical_memory_manager",
 ]
 default-members = [
     ".",
     "kernel/crates/virtual_memory_manager",
+    "kernel/crates/physical_memory_manager",
 ]
 
 [dependencies]

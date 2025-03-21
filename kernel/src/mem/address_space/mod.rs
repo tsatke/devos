@@ -1,5 +1,6 @@
 use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
 use crate::mem::phys::PhysicalMemory;
+use crate::U64Ext;
 use conquer_once::spin::OnceCell;
 use limine::memory_map::EntryType;
 use log::{debug, info};
@@ -89,7 +90,7 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
         &mut current_pt,
         &mut new_pt,
         VirtAddr::new(kernel_addr),
-        kernel_size as usize,
+        kernel_size.into_usize(),
     );
 
     MEMORY_MAP_REQUEST
@@ -103,7 +104,7 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
                 &mut current_pt,
                 &mut new_pt,
                 VirtAddr::new(e.base + hhdm_offset),
-                e.length as usize,
+                e.length.into_usize(),
             );
         });
 
@@ -188,12 +189,13 @@ fn remap(
                         )
                         .unwrap();
                 }
-            };
+            }
         }
         current_addr += step;
     }
 }
 
+#[must_use]
 pub const fn recursive_index_to_virtual_address(recursive_index: usize) -> VirtAddr {
     let i = recursive_index as u64;
     let addr = (i << 39) | (i << 30) | (i << 21) | (i << 12);
@@ -203,6 +205,7 @@ pub const fn recursive_index_to_virtual_address(recursive_index: usize) -> VirtA
     VirtAddr::new(addr)
 }
 
+#[must_use]
 pub const fn virt_addr_from_page_table_indices(indices: [u16; 4], offset: u64) -> VirtAddr {
     let addr = ((indices[0] as u64) << 39)
         | ((indices[1] as u64) << 30)
@@ -212,6 +215,7 @@ pub const fn virt_addr_from_page_table_indices(indices: [u16; 4], offset: u64) -
     VirtAddr::new(sign_extend_vaddr(addr))
 }
 
+#[must_use]
 pub const fn sign_extend_vaddr(vaddr: u64) -> u64 {
     #[allow(clippy::cast_sign_loss, clippy::cast_possible_wrap)]
     let result = ((vaddr << 16) as i64 >> 16) as u64; // only works for 48-bit addresses
@@ -224,6 +228,8 @@ pub struct AddressSpace {
 }
 
 impl AddressSpace {
+    /// # Panics
+    /// Panics if the kernel address space is not initialized yet.
     pub fn kernel() -> &'static Self {
         KERNEL_ADDRESS_SPACE
             .get()
@@ -241,6 +247,8 @@ impl AddressSpace {
         self.inner.read().is_active()
     }
 
+    /// # Errors
+    /// Returns an error if the page is already mapped or flags are invalid.
     #[allow(dead_code)]
     pub fn map<S: PageSize>(
         &self,
@@ -254,6 +262,8 @@ impl AddressSpace {
         self.inner.write().map(page, frame, flags)
     }
 
+    /// # Errors
+    /// Returns an error if the pages are already mapped or flags are invalid.
     pub fn map_range<S: PageSize>(
         &self,
         pages: impl Into<PageRangeInclusive<S>>,
