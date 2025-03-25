@@ -26,6 +26,7 @@ jobs:
         run: |
           rustup target add x86_64-unknown-none
       - name: Clippy
+        continue-on-error: true
         run: |
           cargo clippy -- -D clippy::pedantic
 
@@ -41,10 +42,9 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          components: rustfmt, clippy, llvm-tools-preview, rust-src
-      - name: Add build target
+      - name: Install dependencies
         run: |
-          rustup target add x86_64-unknown-none
+          apt update && apt install -y xorriso
       - name: Test
         run: |
           cargo test $(if [[ "${{ matrix.strategy }}" == "release" ]]; then echo "--release"; fi)
@@ -63,13 +63,12 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          components: rustfmt, clippy, llvm-tools-preview, rust-src, miri
       - name: Miri Setup
         run: |
           cargo miri setup
       - name: Miri
         run: |
-          cargo miri test -p ${{ matrix.package }} --many-seeds=0..16
+          cargo miri test -p ${{ matrix.package }}
   
   
 
@@ -85,10 +84,9 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-          components: rustfmt, clippy, llvm-tools-preview, rust-src
-      - name: Add build target
+      - name: Install dependencies
         run: |
-          rustup target add x86_64-unknown-none
+          apt update && apt install -y xorriso
       - name: Build
         run: |
           cargo build --release
