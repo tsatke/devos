@@ -4,9 +4,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
-use x86_64::structures::paging::{
-    FrameAllocator, PageSize, PhysFrame, Size1GiB, Size2MiB, Size4KiB,
-};
+use x86_64::structures::paging::{PageSize, PhysFrame, Size1GiB, Size2MiB, Size4KiB};
 use x86_64::PhysAddr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -118,15 +116,6 @@ impl PhysicalMemoryManager {
         } else {
             None
         }
-    }
-}
-
-unsafe impl<S: PageSize> FrameAllocator<S> for PhysicalMemoryManager
-where
-    PhysicalMemoryManager: PhysicalFrameAllocator<S>,
-{
-    fn allocate_frame(&mut self) -> Option<PhysFrame<S>> {
-        <Self as PhysicalFrameAllocator<S>>::allocate_frame(self)
     }
 }
 

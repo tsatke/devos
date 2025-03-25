@@ -5,13 +5,18 @@ use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 use log::info;
 use x86_64::structures::paging::page::PageRangeInclusive;
-use x86_64::structures::paging::{Page, PageSize, PageTableFlags, Size4KiB};
+use x86_64::structures::paging::{Page, PageTableFlags, Size2MiB, Size4KiB};
 use x86_64::VirtAddr;
 
 static HEAP_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static HEAP_START: VirtAddr = virt_addr_from_page_table_indices([257, 0, 0, 0], 0);
-static INITIAL_HEAP_SIZE: usize = 1024 * 1024; // 1MiB
-pub static FINAL_HEAP_SIZE: usize = 32 * 1024 * 1024; // 32MiB
+
+/// Since stage1 (which is when we initialize the heap) is slow in allocating physical memory,
+/// we allocate a small portion of memory for the heap in stage1 and then allocate the rest in stage2.
+static INITIAL_HEAP_SIZE: usize = 2 * 1024 * 1024; // 2MiB
+
+/// The amount of heap that is available after the stage2 initialization.
+pub static HEAP_SIZE: usize = 32 * 1024 * 1024; // 32MiB
 
 #[global_allocator]
 static ALLOCATOR: linked_list_allocator::LockedHeap = linked_list_allocator::LockedHeap::empty();
@@ -20,9 +25,9 @@ pub(in crate::mem) fn init(address_space: &AddressSpace) {
     assert!(PhysicalMemory::is_initialized());
 
     info!("initializing heap at {:p}", HEAP_START);
-    let page_range = PageRangeInclusive {
-        start: Page::<Size4KiB>::containing_address(HEAP_START),
-        end: Page::<Size4KiB>::containing_address(HEAP_START + INITIAL_HEAP_SIZE as u64),
+    let page_range = PageRangeInclusive::<Size4KiB> {
+        start: Page::containing_address(HEAP_START),
+        end: Page::containing_address(HEAP_START + INITIAL_HEAP_SIZE as u64 - 1),
     };
 
     address_space
@@ -47,13 +52,11 @@ pub(in crate::mem) fn init(address_space: &AddressSpace) {
 pub(in crate::mem) fn init_stage2() {
     assert!(HEAP_INITIALIZED.load(Relaxed));
 
-    let new_start = HEAP_START + INITIAL_HEAP_SIZE as u64 + Size4KiB::SIZE;
+    let new_start = HEAP_START + INITIAL_HEAP_SIZE as u64;
 
-    let page_range = PageRangeInclusive {
-        start: Page::<Size4KiB>::containing_address(new_start),
-        end: Page::<Size4KiB>::containing_address(
-            new_start + (FINAL_HEAP_SIZE - INITIAL_HEAP_SIZE) as u64,
-        ),
+    let page_range = PageRangeInclusive::<Size2MiB> {
+        start: Page::containing_address(new_start),
+        end: Page::containing_address(new_start + (HEAP_SIZE - INITIAL_HEAP_SIZE) as u64),
     };
 
     let address_space = AddressSpace::kernel();
@@ -67,7 +70,7 @@ pub(in crate::mem) fn init_stage2() {
         .expect("should be able to map more heap");
 
     unsafe {
-        ALLOCATOR.lock().extend(FINAL_HEAP_SIZE - INITIAL_HEAP_SIZE);
+        ALLOCATOR.lock().extend(HEAP_SIZE - INITIAL_HEAP_SIZE);
     }
 }
 

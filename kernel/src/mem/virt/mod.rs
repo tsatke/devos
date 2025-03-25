@@ -1,6 +1,6 @@
 use crate::limine::{HHDM_REQUEST, MEMORY_MAP_REQUEST};
 use crate::mem::address_space::{recursive_index_to_virtual_address, RECURSIVE_INDEX};
-use crate::mem::heap::{Heap, FINAL_HEAP_SIZE};
+use crate::mem::heap::Heap;
 use conquer_once::spin::OnceCell;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
@@ -60,7 +60,7 @@ pub fn init() {
     }
 
     // heap
-    VirtualMemory::mark_as_reserved(Segment::new(Heap::bottom(), FINAL_HEAP_SIZE as u64))
+    VirtualMemory::mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
         .expect("heap should not be reserved yet");
 }
 
@@ -70,7 +70,6 @@ pub struct OwnedSegment {
 }
 
 impl OwnedSegment {
-    #[allow(dead_code)]
     #[must_use]
     pub fn leak(self) -> Segment {
         ManuallyDrop::new(self).inner
