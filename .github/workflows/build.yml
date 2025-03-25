@@ -44,7 +44,8 @@ jobs:
           toolchain: nightly
       - name: Install dependencies
         run: |
-          apt update && apt install -y xorriso
+          sudo apt update
+          sudo apt install -y xorriso
       - name: Test
         run: |
           cargo test $(if [[ "${{ matrix.strategy }}" == "release" ]]; then echo "--release"; fi)
@@ -86,7 +87,8 @@ jobs:
           toolchain: nightly
       - name: Install dependencies
         run: |
-          apt update && apt install -y xorriso
+          sudo apt update
+          sudo apt install -y xorriso
       - name: Build
         run: |
           cargo build --release
