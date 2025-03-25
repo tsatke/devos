@@ -267,6 +267,7 @@ mod tests {
         assert_eq!(Some(small_frame2), pmm.deallocate_frame(small_frame2));
     }
 
+    #[cfg(not(miri))] // this just takes too long
     #[test]
     fn test_allocate_deallocate_1gib() {
         let mut pmm = PhysicalMemoryManager::new(vec![FrameState::Free; 512 * 512 * 2]); // 2GiB
