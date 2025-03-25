@@ -240,7 +240,7 @@ impl AddressSpace {
     unsafe fn create_from(level4_frame: PhysFrame, level4_vaddr: VirtAddr) -> Self {
         Self {
             level4_frame,
-            inner: AddressSpaceMapper::new(level4_frame, level4_vaddr).into(),
+            inner: RwLock::new(AddressSpaceMapper::new(level4_frame, level4_vaddr)),
         }
     }
 

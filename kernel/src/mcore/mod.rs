@@ -64,6 +64,8 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
     let ctx = ExecutionContext::load();
     info!("cpu {} initialized", ctx.cpu_id());
 
+    debug!("ctx: {:#?}", ctx);
+
     loop {
         hlt();
     }

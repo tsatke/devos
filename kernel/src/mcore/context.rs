@@ -1,7 +1,9 @@
 use crate::mcore::mtask::scheduler::Scheduler;
+use crate::mcore::mtask::task::Task;
 use crate::U64Ext;
 use x86_64::registers::model_specific::KernelGsBase;
 
+#[derive(Debug)]
 pub struct ExecutionContext {
     cpu_id: usize,
     lapid_id: usize,
@@ -47,5 +49,10 @@ impl ExecutionContext {
     #[must_use]
     pub fn lapic_id(&self) -> usize {
         self.lapid_id
+    }
+
+    #[must_use]
+    pub fn task(&self) -> &Task {
+        self.scheduler.current_task()
     }
 }

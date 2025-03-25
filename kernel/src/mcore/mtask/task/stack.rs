@@ -2,6 +2,7 @@ use crate::mem::address_space::AddressSpace;
 use crate::mem::phys::PhysicalMemory;
 use crate::mem::virt::{OwnedSegment, VirtualMemory};
 use core::ffi::c_void;
+use core::fmt::{Debug, Formatter};
 use core::slice::from_raw_parts_mut;
 use thiserror::Error;
 use x86_64::registers::rflags::RFlags;
@@ -18,6 +19,14 @@ pub enum StackAllocationError {
 pub struct Stack {
     segment: OwnedSegment,
     rsp: usize,
+}
+
+impl Debug for Stack {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Stack")
+            .field("segment", &self.segment)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Drop for Stack {
