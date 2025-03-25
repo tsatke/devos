@@ -95,6 +95,20 @@ impl AddressSpaceMapper {
         }
     }
 
+    pub fn unmap_range<S: PageSize>(
+        &mut self,
+        pages: PageRangeInclusive<S>,
+        callback: impl Fn(PhysFrame<S>),
+    ) where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        assert!(self.is_active());
+
+        for page in pages {
+            self.unmap(page).map(&callback);
+        }
+    }
+
     pub fn translate(&self, vaddr: VirtAddr) -> Option<PhysAddr> {
         self.page_table.translate_addr(vaddr)
     }

@@ -1,9 +1,12 @@
+use crate::mcore::mtask::scheduler::Scheduler;
 use crate::U64Ext;
-use x86_64::registers::model_specific::GsBase;
+use x86_64::registers::model_specific::KernelGsBase;
 
 pub struct ExecutionContext {
     cpu_id: usize,
     lapid_id: usize,
+
+    scheduler: Scheduler,
 }
 
 impl From<&limine::mp::Cpu> for ExecutionContext {
@@ -11,6 +14,7 @@ impl From<&limine::mp::Cpu> for ExecutionContext {
         ExecutionContext {
             cpu_id: cpu.id as usize,
             lapid_id: cpu.extra.into_usize(),
+            scheduler: Scheduler::new_cpu_local(),
         }
     }
 }
@@ -18,7 +22,7 @@ impl From<&limine::mp::Cpu> for ExecutionContext {
 impl ExecutionContext {
     #[must_use]
     pub fn try_load() -> Option<&'static Self> {
-        let ctx = GsBase::read();
+        let ctx = KernelGsBase::read();
         if ctx.is_null() {
             None
         } else {

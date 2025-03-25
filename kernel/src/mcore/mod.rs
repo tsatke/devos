@@ -10,6 +10,7 @@ use x86_64::structures::paging::PhysFrame;
 use x86_64::{PhysAddr, VirtAddr};
 
 pub mod context;
+pub mod mtask;
 
 #[allow(clippy::missing_panics_doc)]
 pub fn start() -> ! {

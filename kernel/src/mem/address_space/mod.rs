@@ -224,6 +224,7 @@ pub const fn sign_extend_vaddr(vaddr: u64) -> u64 {
 
 #[derive(Debug)]
 pub struct AddressSpace {
+    level4_frame: PhysFrame,
     inner: RwLock<AddressSpaceMapper>,
 }
 
@@ -238,8 +239,13 @@ impl AddressSpace {
 
     unsafe fn create_from(level4_frame: PhysFrame, level4_vaddr: VirtAddr) -> Self {
         Self {
+            level4_frame,
             inner: AddressSpaceMapper::new(level4_frame, level4_vaddr).into(),
         }
+    }
+
+    pub fn cr3_value(&self) -> usize {
+        self.level4_frame.start_address().as_u64() as usize
     }
 
     #[allow(dead_code)]
@@ -281,6 +287,16 @@ impl AddressSpace {
         for<'a> RecursivePageTable<'a>: Mapper<S>,
     {
         self.inner.write().unmap(page)
+    }
+
+    pub fn unmap_range<S: PageSize>(
+        &self,
+        pages: impl Into<PageRangeInclusive<S>>,
+        callback: impl Fn(PhysFrame<S>),
+    ) where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        self.inner.write().unmap_range(pages.into(), callback)
     }
 
     #[allow(dead_code)]
