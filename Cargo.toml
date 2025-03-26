@@ -57,7 +57,7 @@ futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 kernel_api = { path = "kernel/api" }
 kernel_test_framework = { path = "kernel_test_framework" }
 linked_list_allocator = "0.10.5"
-linkme = "0.3.31"
+linkme = "0.3.32"
 log = "0.4.22"
 mkfs-ext2 = { git = "https://github.com/tsatke/mkfs" }
 mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
