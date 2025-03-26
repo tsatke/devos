@@ -63,7 +63,7 @@ mkfs-ext2 = { git = "https://github.com/tsatke/mkfs" }
 mkfs-filesystem = { git = "https://github.com/tsatke/mkfs" }
 netstack = { path = "kernel/netstack" }
 num_enum = { version = "0.7.0", default-features = false }
-raw-cpuid = { version = "11.0", default-features = false }
+raw-cpuid = { version = "11.5", default-features = false }
 seq-macro = "0.3.5"
 spin = "0.9.8"
 thiserror = { version = "2.0.9", default-features = false }
