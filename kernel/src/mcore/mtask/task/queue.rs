@@ -8,7 +8,14 @@ pub struct TaskQueue {
     inner: MpscQueue<Task>,
 }
 
+impl Default for TaskQueue {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskQueue {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             inner: MpscQueue::new_with_stub(Box::pin(Task::create_stub())),

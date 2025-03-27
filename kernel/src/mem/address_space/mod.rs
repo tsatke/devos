@@ -116,7 +116,7 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
         PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
     );
     let vaddr = recursive_index_to_virtual_address(recursive_index);
-    debug!("recursive index: {:?}, vaddr: {:p}", recursive_index, vaddr);
+    debug!("recursive index: {recursive_index:?}, vaddr: {vaddr:p}");
     RECURSIVE_INDEX.init_once(|| recursive_index);
 
     info!("switching to recursive mapping");
@@ -245,7 +245,7 @@ impl AddressSpace {
     }
 
     pub fn cr3_value(&self) -> usize {
-        self.level4_frame.start_address().as_u64() as usize
+        self.level4_frame.start_address().as_u64().into_usize()
     }
 
     #[allow(dead_code)]
@@ -296,7 +296,7 @@ impl AddressSpace {
     ) where
         for<'a> RecursivePageTable<'a>: Mapper<S>,
     {
-        self.inner.write().unmap_range(pages.into(), callback)
+        self.inner.write().unmap_range(pages.into(), callback);
     }
 
     #[allow(dead_code)]

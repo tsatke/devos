@@ -38,7 +38,7 @@ pub struct Task {
     /// This must be set during the context switch.
     last_stack_ptr: Pin<Box<usize>>,
     state: State,
-    stack: Option<Stack>,
+    _stack: Option<Stack>,
 
     links: Links<Self>,
 }
@@ -63,13 +63,18 @@ unsafe impl Linked<Links<Self>> for Task {
 }
 
 impl Task {
+    /// Creates a new stack in the specified process. Stack will be allocated immediately in the
+    /// current address space.
+    ///
+    /// # Errors
+    /// Returns an error if the stack could not be allocated.
     pub fn create_new(
         process: &Arc<Process>,
         entry_point: extern "C" fn(*mut c_void),
         arg: *mut c_void,
     ) -> Result<Self, StackAllocationError> {
         let tid = TaskId::new();
-        let name = format!("task-{}", tid);
+        let name = format!("task-{tid}");
         let process = Arc::downgrade(process);
         let should_terminate = AtomicBool::new(false);
         let state = State::Ready;
@@ -83,12 +88,12 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            stack: Some(stack),
+            _stack: Some(stack),
             links,
         })
     }
 
-    pub fn create_stub() -> Self {
+    pub(in crate::mcore::mtask) fn create_stub() -> Self {
         let tid = TaskId::new();
         let name = "stub".to_string();
         let process = Arc::downgrade(Process::root());
@@ -104,7 +109,7 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            stack,
+            _stack: stack,
             links,
         }
     }
@@ -119,9 +124,10 @@ impl Task {
     ///
     /// # Safety
     /// The caller must ensure that this is only called once per core.
+    #[must_use]
     pub unsafe fn create_current() -> Self {
         let tid = TaskId::new();
-        let name = format!("task-{}", tid);
+        let name = format!("task-{tid}");
         let process = Arc::downgrade(Process::root());
         let should_terminate = AtomicBool::new(false);
         let last_stack_ptr = Box::pin(0);
@@ -134,7 +140,7 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            stack,
+            _stack: stack,
             links: Links::default(),
         }
     }

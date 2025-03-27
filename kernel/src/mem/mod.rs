@@ -28,5 +28,5 @@ pub fn init() {
 
     heap::init_stage2();
 
-    info!("memory initialized, {:x?}", Heap);
+    info!("memory initialized, {Heap:x?}");
 }

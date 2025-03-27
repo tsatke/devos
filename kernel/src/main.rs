@@ -23,7 +23,7 @@ unsafe extern "C" fn main() -> ! {
             (counter % 1_000_000_000) as i32,
         )
         .unwrap();
-        info!("it is now {}", ts);
+        info!("it is now {ts}");
     }
 
     mcore::start()

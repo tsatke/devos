@@ -8,7 +8,7 @@ use core::ffi::c_void;
 use core::ptr;
 use log::{debug, info};
 use x86_64::instructions::hlt;
-use x86_64::registers::control::{Cr3, Cr3Flags, Cr4, Cr4Flags};
+use x86_64::registers::control::{Cr3, Cr3Flags};
 use x86_64::registers::model_specific::KernelGsBase;
 use x86_64::structures::paging::PhysFrame;
 use x86_64::{PhysAddr, VirtAddr};
@@ -29,7 +29,7 @@ pub fn start() -> ! {
         frame.start_address().as_u64() | flags.bits()
     };
 
-    debug!("read cr3_val: {:#x}", cr3_val);
+    debug!("read cr3_val: {cr3_val:#x}");
 
     // set the extra field in the CPU structs to the CR3 value
     resp.cpus_mut().iter_mut().for_each(|cpu| {
@@ -69,8 +69,10 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
     info!("cpu {} initialized", ctx.cpu_id());
 
     let new_task = Task::create_new(Process::root(), enter_task, ptr::null_mut()).unwrap();
-    ctx.scheduler().enqueue(new_task);
-    ctx.scheduler().reschedule();
+    unsafe {
+        ctx.scheduler().enqueue(new_task);
+        ctx.scheduler().reschedule();
+    }
 
     info!("back in the initial task, halting...");
 
@@ -80,7 +82,7 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
 }
 
 extern "C" fn enter_task(arg: *mut c_void) {
-    info!("hello from task with arg {:p}", arg);
+    info!("hello from task with arg {arg:p}");
 
     unsafe {
         ExecutionContext::load().scheduler().reschedule();

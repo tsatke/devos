@@ -14,6 +14,7 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
+    #[must_use]
     pub fn new_cpu_local() -> Self {
         let current_task = Box::pin(unsafe { Task::create_current() });
         let local_queue = TaskQueue::new();
@@ -28,6 +29,8 @@ impl Scheduler {
         self.local_queue.enqueue(task);
     }
 
+    /// # Safety
+    /// Trivially unsafe. If you don't know why, please don't call this function.
     pub unsafe fn reschedule(&mut self) {
         interrupts::disable();
 
@@ -41,9 +44,8 @@ impl Scheduler {
 
             if let Some(next_task_process) = next_task.process() {
                 break (next_task, next_task_process.address_space().cr3_value());
-            } else {
-                todo!("parent process died while tasks still exist");
             }
+            todo!("parent process died while tasks still exist");
         };
 
         let mut old_task = self.swap_current_task(next_task);
@@ -62,10 +64,10 @@ impl Scheduler {
     unsafe fn switch(old_stack_ptr: &mut usize, new_stack_ptr: usize, new_cr3_value: usize) {
         unsafe {
             switch_impl(
-                old_stack_ptr as *mut usize,
+                core::ptr::from_mut::<usize>(old_stack_ptr),
                 new_stack_ptr as *const u8,
                 new_cr3_value,
-            )
+            );
         }
     }
 

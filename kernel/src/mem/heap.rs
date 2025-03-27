@@ -24,7 +24,7 @@ static ALLOCATOR: linked_list_allocator::LockedHeap = linked_list_allocator::Loc
 pub(in crate::mem) fn init(address_space: &AddressSpace) {
     assert!(PhysicalMemory::is_initialized());
 
-    info!("initializing heap at {:p}", HEAP_START);
+    info!("initializing heap at {HEAP_START:p}");
     let page_range = PageRangeInclusive::<Size4KiB> {
         start: Page::containing_address(HEAP_START),
         end: Page::containing_address(HEAP_START + INITIAL_HEAP_SIZE as u64 - 1),

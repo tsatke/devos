@@ -1,6 +1,7 @@
 use crate::mem::address_space::AddressSpace;
 use crate::mem::phys::PhysicalMemory;
 use crate::mem::virt::{OwnedSegment, VirtualMemory};
+use crate::{U64Ext, UsizeExt};
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
 use core::slice::from_raw_parts_mut;
@@ -38,6 +39,11 @@ impl Drop for Stack {
 }
 
 impl Stack {
+    /// Allocates a new stack with the given number of pages.
+    ///
+    /// # Errors
+    /// Returns an error if stack memory couldn't be allocated, either
+    /// physical or virtual.
     pub fn allocate(
         pages: usize,
         entry_point: extern "C" fn(*mut c_void),
@@ -60,9 +66,10 @@ impl Stack {
             .map_err(|_| StackAllocationError::OutOfPhysicalMemory)?;
 
         // set up stack
-        let entry_point = entry_point as *const () as *const usize;
-        let stack =
-            unsafe { from_raw_parts_mut(segment.start.as_mut_ptr::<u8>(), segment.len as usize) };
+        let entry_point = (entry_point as *const ()).cast::<usize>();
+        let stack = unsafe {
+            from_raw_parts_mut(segment.start.as_mut_ptr::<u8>(), segment.len.into_usize())
+        };
         stack.fill(0xCD);
 
         let mut writer = StackWriter::new(stack);
@@ -75,7 +82,9 @@ impl Stack {
             rbp: rsp,
             rdi: arg as usize,
             rip: entry_point as usize,
-            rflags: (RFlags::IOPL_LOW | RFlags::INTERRUPT_FLAG).bits() as usize,
+            rflags: (RFlags::IOPL_LOW | RFlags::INTERRUPT_FLAG)
+                .bits()
+                .into_usize(),
             ..Default::default()
         });
 
@@ -84,8 +93,9 @@ impl Stack {
 }
 
 impl Stack {
+    #[must_use]
     pub fn initial_rsp(&self) -> VirtAddr {
-        self.segment.start + self.rsp as u64
+        self.segment.start + self.rsp.into_u64()
     }
 }
 
@@ -131,7 +141,10 @@ impl<'a> StackWriter<'a> {
         let ptr = self
             .stack
             .as_mut_ptr()
-            .wrapping_offset(self.offset as isize) as *mut T;
+            .wrapping_offset(
+                isize::try_from(self.offset).expect("stack offset should not overflow isize"),
+            )
+            .cast::<T>();
         unsafe { ptr.write(value) };
     }
 }
