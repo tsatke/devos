@@ -25,10 +25,13 @@ jobs:
       - name: Add build target
         run: |
           rustup target add x86_64-unknown-none
-      - name: Clippy
-        continue-on-error: true
+      - name: Install dependencies
         run: |
-          cargo clippy -- -D clippy::pedantic
+          sudo apt update
+          sudo apt install -y xorriso
+      - name: Clippy
+        run: |
+          cargo clippy -- -D clippy::all
 
   test:
     name: "Test"
