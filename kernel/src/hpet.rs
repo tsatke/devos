@@ -1,6 +1,6 @@
 use crate::acpi::acpi_tables;
 use crate::mem::address_space::AddressSpace;
-use crate::mem::virt::{OwnedSegment, VirtualMemory};
+use crate::mem::virt::{OwnedSegment, VirtualMemoryHigherHalf};
 use acpi::HpetInfo;
 use bitfield::bitfield;
 use conquer_once::spin::OnceCell;
@@ -30,7 +30,7 @@ pub fn init() {
     let hpet_info = HpetInfo::new(&guard).unwrap();
     let base_address = PhysAddr::try_new(hpet_info.base_address as u64).unwrap();
 
-    let segment = VirtualMemory::reserve(1).unwrap();
+    let segment = VirtualMemoryHigherHalf::reserve(1).unwrap();
     let address_space = AddressSpace::kernel();
     address_space
         .map(

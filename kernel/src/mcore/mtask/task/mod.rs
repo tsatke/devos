@@ -3,7 +3,7 @@ use crate::U64Ext;
 use alloc::boxed::Box;
 use alloc::format;
 use alloc::string::{String, ToString};
-use alloc::sync::{Arc, Weak};
+use alloc::sync::Arc;
 use cordyceps::mpsc_queue::Links;
 use cordyceps::Linked;
 use core::ffi::c_void;
@@ -29,7 +29,7 @@ pub struct Task {
     name: String,
     /// The parent process that this task belongs to.
     /// If upon rescheduling, the parent process is not alive, the task will be terminated.
-    process: Weak<Process>,
+    process: Arc<Process>,
     /// Whether this task should be terminated upon the next reschedule.
     /// This can be set at any point.
     should_terminate: AtomicBool,
@@ -75,7 +75,7 @@ impl Task {
     ) -> Result<Self, StackAllocationError> {
         let tid = TaskId::new();
         let name = format!("task-{tid}");
-        let process = Arc::downgrade(process);
+        let process = process.clone();
         let should_terminate = AtomicBool::new(false);
         let state = State::Ready;
         let stack = Stack::allocate(16, entry_point, arg, Self::exit_task)?;
@@ -96,7 +96,7 @@ impl Task {
     pub(in crate::mcore::mtask) fn create_stub() -> Self {
         let tid = TaskId::new();
         let name = "stub".to_string();
-        let process = Arc::downgrade(Process::root());
+        let process = Process::root().clone();
         let should_terminate = AtomicBool::new(false);
         let last_stack_ptr = Box::pin(0);
         let state = State::Finished;
@@ -128,7 +128,7 @@ impl Task {
     pub unsafe fn create_current() -> Self {
         let tid = TaskId::new();
         let name = format!("task-{tid}");
-        let process = Arc::downgrade(Process::root());
+        let process = Process::root().clone();
         let should_terminate = AtomicBool::new(false);
         let last_stack_ptr = Box::pin(0);
         let state = State::Running;
@@ -153,8 +153,8 @@ impl Task {
         &self.name
     }
 
-    pub fn process(&self) -> Option<Arc<Process>> {
-        self.process.upgrade()
+    pub fn process(&self) -> &Arc<Process> {
+        &self.process
     }
 
     pub fn should_terminate(&self) -> bool {

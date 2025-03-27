@@ -1,6 +1,6 @@
 use crate::mem::address_space::AddressSpace;
 use crate::mem::phys::PhysicalMemory;
-use crate::mem::virt::{OwnedSegment, VirtualMemory};
+use crate::mem::virt::{OwnedSegment, VirtualMemoryHigherHalf};
 use crate::{U64Ext, UsizeExt};
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
@@ -50,8 +50,8 @@ impl Stack {
         arg: *mut c_void,
         exit_fn: extern "C" fn(),
     ) -> Result<Self, StackAllocationError> {
-        let segment =
-            VirtualMemory::reserve(pages).ok_or(StackAllocationError::OutOfVirtualMemory)?;
+        let segment = VirtualMemoryHigherHalf::reserve(pages)
+            .ok_or(StackAllocationError::OutOfVirtualMemory)?;
 
         // we can use the address space since the segment is in higher half, which is the same
         // for all address spaces

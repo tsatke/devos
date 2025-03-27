@@ -33,7 +33,7 @@ pub fn init() {
         let vaddr = recursive_index_to_virtual_address(recursive_index);
         let len = 512 * 1024 * 1024 * 1024; // 512 GiB
         let segment = Segment::new(vaddr, len);
-        VirtualMemory::mark_as_reserved(segment)
+        VirtualMemoryHigherHalf::mark_as_reserved(segment)
             .expect("recursive index should not be reserved yet");
     }
 
@@ -54,13 +54,13 @@ pub fn init() {
             })
             .for_each(|e| {
                 let segment = Segment::new(VirtAddr::new(e.base + hhdm_offset), e.length);
-                VirtualMemory::mark_as_reserved(segment)
+                VirtualMemoryHigherHalf::mark_as_reserved(segment)
                     .expect("segment should not be reserved yet");
             });
     }
 
     // heap
-    VirtualMemory::mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
+    VirtualMemoryHigherHalf::mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
         .expect("heap should not be reserved yet");
 }
 
@@ -78,7 +78,7 @@ impl OwnedSegment {
 
 impl Drop for OwnedSegment {
     fn drop(&mut self) {
-        VirtualMemory::release_owned(self);
+        VirtualMemoryHigherHalf::release_owned(self);
     }
 }
 
@@ -90,9 +90,9 @@ impl Deref for OwnedSegment {
     }
 }
 
-pub struct VirtualMemory;
+pub struct VirtualMemoryHigherHalf;
 
-impl VirtualMemory {
+impl VirtualMemoryHigherHalf {
     #[allow(dead_code)]
     #[must_use]
     pub fn reserve(pages: usize) -> Option<OwnedSegment> {
@@ -116,7 +116,8 @@ impl VirtualMemory {
     }
 
     /// # Safety
-    /// The caller must ensure that the segment is not used after releasing it.
+    /// The caller must ensure that the segment is not used after releasing it,
+    /// and that the segment was previously reserved by this virtual memory manager.
     #[must_use]
     pub unsafe fn release(segment: Segment) -> bool {
         vmm().write().release(segment)

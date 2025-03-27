@@ -20,4 +20,8 @@ impl ProcessId {
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         ProcessId(COUNTER.fetch_add(1, Relaxed))
     }
+
+    pub fn is_root(&self) -> bool {
+        self.0 == 0
+    }
 }

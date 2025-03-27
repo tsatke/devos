@@ -34,7 +34,7 @@ impl Scheduler {
     pub unsafe fn reschedule(&mut self) {
         interrupts::disable();
 
-        let (next_task, cr3_value) = loop {
+        let (next_task, cr3_value) = {
             let Some(next_task) = self.next_task() else {
                 // this is our idle task implementation
                 interrupts::enable();
@@ -42,10 +42,8 @@ impl Scheduler {
                 return;
             };
 
-            if let Some(next_task_process) = next_task.process() {
-                break (next_task, next_task_process.address_space().cr3_value());
-            }
-            todo!("parent process died while tasks still exist");
+            let cr3_value = next_task.process().address_space().cr3_value();
+            (next_task, cr3_value)
         };
 
         let mut old_task = self.swap_current_task(next_task);

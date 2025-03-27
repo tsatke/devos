@@ -7,7 +7,7 @@ use crate::mcore::mtask::task::Task;
 use alloc::boxed::Box;
 use core::ffi::c_void;
 use core::ptr;
-use log::{debug, info};
+use log::{debug, info, trace};
 use x86_64::instructions::hlt;
 use x86_64::instructions::segmentation::{CS, DS};
 use x86_64::instructions::tables::load_tss;
@@ -50,7 +50,7 @@ pub fn start() -> ! {
 }
 
 unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
-    debug!("booting cpu {} with argument {}", cpu.id, cpu.extra);
+    trace!("booting cpu {} with argument {}", cpu.id, cpu.extra);
 
     // set the memory mapping that we got as a parameter
     unsafe {
@@ -85,12 +85,12 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
 
     // load it back and print a message
     let ctx = ExecutionContext::load();
-    info!("cpu {} initialized", ctx.cpu_id());
+    trace!("cpu {} initialized", ctx.cpu_id());
 
     let new_task = Task::create_new(Process::root(), enter_task, ptr::null_mut()).unwrap();
     unsafe {
         ctx.scheduler().enqueue(new_task);
-        ctx.scheduler().reschedule();
+        ctx.scheduler_mut().reschedule();
     }
 
     info!("back in the initial task, halting...");
@@ -102,9 +102,13 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
 
 extern "C" fn enter_task(arg: *mut c_void) {
     info!("hello from task with arg {arg:p}");
+    debug!(
+        "inside process {:?}",
+        ExecutionContext::load().current_process()
+    );
 
     unsafe {
-        ExecutionContext::load().scheduler().reschedule();
+        ExecutionContext::load().scheduler_mut().reschedule();
     }
 
     unreachable!("with the current implementation, we shouldn't get here");

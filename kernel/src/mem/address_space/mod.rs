@@ -2,6 +2,7 @@ use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
 use crate::mem::phys::PhysicalMemory;
 use crate::U64Ext;
 use conquer_once::spin::OnceCell;
+use core::fmt::{Debug, Formatter};
 use limine::memory_map::EntryType;
 use log::{debug, info};
 use mapper::AddressSpaceMapper;
@@ -222,10 +223,18 @@ pub const fn sign_extend_vaddr(vaddr: u64) -> u64 {
     result
 }
 
-#[derive(Debug)]
 pub struct AddressSpace {
     level4_frame: PhysFrame,
     inner: RwLock<AddressSpaceMapper>,
+}
+
+impl Debug for AddressSpace {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("AddressSpace")
+            .field("level4_frame", &self.level4_frame)
+            .field("active", &self.inner.read().is_active())
+            .finish_non_exhaustive()
+    }
 }
 
 impl AddressSpace {

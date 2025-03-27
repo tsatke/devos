@@ -1,5 +1,8 @@
+use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::scheduler::Scheduler;
+use crate::mcore::mtask::task::Task;
 use crate::U64Ext;
+use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 use x86_64::registers::model_specific::KernelGsBase;
 use x86_64::structures::gdt::GlobalDescriptorTable;
@@ -66,7 +69,29 @@ impl ExecutionContext {
     /// The caller must ensure that only one mutable reference
     /// to the scheduler exists at any time.
     #[allow(clippy::mut_from_ref)]
-    pub unsafe fn scheduler(&self) -> &mut Scheduler {
+    pub unsafe fn scheduler_mut(&self) -> &mut Scheduler {
         unsafe { &mut *self.scheduler.get() }
+    }
+
+    pub fn scheduler(&self) -> &Scheduler {
+        unsafe {
+            // Safety: this is safe because either:
+            // * there is a mutable reference that is used for rescheduling, in which case we are
+            //   not currently executing this
+            // * there is no mutable reference, in which case we are safe because we're not modifying
+            // * someone else has a mutable reference, in which case he violates the safety contract
+            //   if this is executed
+            //
+            // The above is true because everything in the context is cpu-local.
+            &*self.scheduler.get()
+        }
+    }
+
+    pub fn current_task(&self) -> &Task {
+        self.scheduler().current_task()
+    }
+
+    pub fn current_process(&self) -> &Arc<Process> {
+        self.current_task().process()
     }
 }
