@@ -2,26 +2,35 @@ use crate::mcore::mtask::scheduler::Scheduler;
 use crate::U64Ext;
 use core::cell::UnsafeCell;
 use x86_64::registers::model_specific::KernelGsBase;
+use x86_64::structures::gdt::GlobalDescriptorTable;
+use x86_64::structures::idt::InterruptDescriptorTable;
 
 #[derive(Debug)]
 pub struct ExecutionContext {
     cpu_id: usize,
     lapid_id: usize,
 
+    _gdt: &'static GlobalDescriptorTable,
+    _idt: &'static InterruptDescriptorTable,
+
     scheduler: UnsafeCell<Scheduler>,
 }
 
-impl From<&limine::mp::Cpu> for ExecutionContext {
-    fn from(cpu: &limine::mp::Cpu) -> Self {
+impl ExecutionContext {
+    pub fn new(
+        cpu: &limine::mp::Cpu,
+        gdt: &'static GlobalDescriptorTable,
+        idt: &'static InterruptDescriptorTable,
+    ) -> Self {
         ExecutionContext {
             cpu_id: cpu.id as usize,
             lapid_id: cpu.extra.into_usize(),
+            _gdt: gdt,
+            _idt: idt,
             scheduler: UnsafeCell::new(Scheduler::new_cpu_local()),
         }
     }
-}
 
-impl ExecutionContext {
     #[must_use]
     pub fn try_load() -> Option<&'static Self> {
         let ctx = KernelGsBase::read();

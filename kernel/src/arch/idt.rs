@@ -1,12 +1,8 @@
 use crate::arch::gdt;
-use alloc::boxed::Box;
-use conquer_once::spin::Lazy;
-use core::pin::Pin;
-use spin::RwLock;
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
-static IDT: Lazy<RwLock<Pin<Box<InterruptDescriptorTable>>>> = Lazy::new(|| {
+pub fn create_idt() -> InterruptDescriptorTable {
     let mut idt = InterruptDescriptorTable::new();
 
     unsafe {
@@ -24,17 +20,7 @@ static IDT: Lazy<RwLock<Pin<Box<InterruptDescriptorTable>>>> = Lazy::new(|| {
     idt.stack_segment_fault
         .set_handler_fn(stack_segment_fault_handler);
 
-    let idt = Box::pin(idt);
-
-    RwLock::new(idt)
-});
-
-fn reload_idt() {
-    unsafe { IDT.read().load_unsafe() };
-}
-
-pub fn init() {
-    reload_idt();
+    idt
 }
 
 extern "x86-interrupt" fn double_fault_handler(stack_frame: InterruptStackFrame, _: u64) -> ! {

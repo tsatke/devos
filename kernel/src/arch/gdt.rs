@@ -1,7 +1,5 @@
 use alloc::boxed::Box;
 use alloc::vec;
-use x86_64::instructions::tables::load_tss;
-use x86_64::registers::segmentation::{Segment, CS, DS};
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::{PrivilegeLevel, VirtAddr};
@@ -29,7 +27,7 @@ pub struct Selectors {
     pub user_data: SegmentSelector,
 }
 
-fn create_gdt_and_tss() -> (GlobalDescriptorTable, Selectors) {
+pub fn create_gdt_and_tss() -> (GlobalDescriptorTable, Selectors) {
     let mut gdt = GlobalDescriptorTable::new();
     let kernel_code = gdt.append(Descriptor::kernel_code_segment());
     let kernel_data = gdt.append(Descriptor::kernel_data_segment());
@@ -50,17 +48,4 @@ fn create_gdt_and_tss() -> (GlobalDescriptorTable, Selectors) {
             user_data,
         },
     )
-}
-
-pub fn init() {
-    let (gdt, sel) = create_gdt_and_tss();
-
-    let gdt = Box::leak(Box::new(gdt));
-
-    gdt.load();
-    unsafe {
-        CS::set_reg(sel.kernel_code);
-        DS::set_reg(sel.kernel_data);
-        load_tss(sel.tss);
-    }
 }

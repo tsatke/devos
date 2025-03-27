@@ -1,4 +1,5 @@
-use crate::arch::{gdt, idt};
+use crate::arch::gdt::create_gdt_and_tss;
+use crate::arch::idt::create_idt;
 use crate::limine::MP_REQUEST;
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
@@ -8,8 +9,11 @@ use core::ffi::c_void;
 use core::ptr;
 use log::{debug, info};
 use x86_64::instructions::hlt;
+use x86_64::instructions::segmentation::{CS, DS};
+use x86_64::instructions::tables::load_tss;
 use x86_64::registers::control::{Cr3, Cr3Flags};
 use x86_64::registers::model_specific::KernelGsBase;
+use x86_64::registers::segmentation::Segment;
 use x86_64::structures::paging::PhysFrame;
 use x86_64::{PhysAddr, VirtAddr};
 
@@ -48,6 +52,7 @@ pub fn start() -> ! {
 unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
     debug!("booting cpu {} with argument {}", cpu.id, cpu.extra);
 
+    // set the memory mapping that we got as a parameter
     unsafe {
         let flags = Cr3Flags::from_bits_truncate(cpu.extra);
         Cr3::write(
@@ -56,15 +61,29 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
         );
     }
 
-    gdt::init();
-    idt::init();
+    // set up the GDT
+    let (gdt, sel) = create_gdt_and_tss();
+    let gdt = Box::leak(Box::new(gdt));
+    gdt.load();
+    unsafe {
+        CS::set_reg(sel.kernel_code);
+        DS::set_reg(sel.kernel_data);
+        load_tss(sel.tss);
+    }
 
+    // set up the IDT
+    let idt = create_idt();
+    let idt = Box::leak(Box::new(idt));
+    idt.load();
+
+    // create the execution context for the CPU and store it
     {
-        let ctx = ExecutionContext::from(cpu);
+        let ctx = ExecutionContext::new(cpu, gdt, idt);
         let addr = VirtAddr::from_ptr(Box::leak(Box::new(ctx)));
         KernelGsBase::write(addr);
     }
 
+    // load it back and print a message
     let ctx = ExecutionContext::load();
     info!("cpu {} initialized", ctx.cpu_id());
 
