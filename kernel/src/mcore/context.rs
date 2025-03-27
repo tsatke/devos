@@ -1,6 +1,6 @@
 use crate::mcore::mtask::scheduler::Scheduler;
-use crate::mcore::mtask::task::Task;
 use crate::U64Ext;
+use core::cell::UnsafeCell;
 use x86_64::registers::model_specific::KernelGsBase;
 
 #[derive(Debug)]
@@ -8,7 +8,7 @@ pub struct ExecutionContext {
     cpu_id: usize,
     lapid_id: usize,
 
-    scheduler: Scheduler,
+    scheduler: UnsafeCell<Scheduler>,
 }
 
 impl From<&limine::mp::Cpu> for ExecutionContext {
@@ -16,7 +16,7 @@ impl From<&limine::mp::Cpu> for ExecutionContext {
         ExecutionContext {
             cpu_id: cpu.id as usize,
             lapid_id: cpu.extra.into_usize(),
-            scheduler: Scheduler::new_cpu_local(),
+            scheduler: UnsafeCell::new(Scheduler::new_cpu_local()),
         }
     }
 }
@@ -51,8 +51,12 @@ impl ExecutionContext {
         self.lapid_id
     }
 
-    #[must_use]
-    pub fn task(&self) -> &Task {
-        self.scheduler.current_task()
+    /// Creates and returns a mutable reference to the scheduler.
+    ///
+    /// # Safety
+    /// The caller must ensure that only one mutable reference
+    /// to the scheduler exists at any time.
+    pub unsafe fn scheduler(&self) -> &mut Scheduler {
+        unsafe { &mut *self.scheduler.get() }
     }
 }

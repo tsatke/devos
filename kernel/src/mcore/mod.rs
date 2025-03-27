@@ -1,10 +1,14 @@
 use crate::arch::{gdt, idt};
 use crate::limine::MP_REQUEST;
 use crate::mcore::context::ExecutionContext;
+use crate::mcore::mtask::process::Process;
+use crate::mcore::mtask::task::Task;
 use alloc::boxed::Box;
+use core::ffi::c_void;
+use core::ptr;
 use log::{debug, info};
 use x86_64::instructions::hlt;
-use x86_64::registers::control::{Cr3, Cr3Flags};
+use x86_64::registers::control::{Cr3, Cr3Flags, Cr4, Cr4Flags};
 use x86_64::registers::model_specific::KernelGsBase;
 use x86_64::structures::paging::PhysFrame;
 use x86_64::{PhysAddr, VirtAddr};
@@ -64,9 +68,23 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
     let ctx = ExecutionContext::load();
     info!("cpu {} initialized", ctx.cpu_id());
 
-    debug!("ctx: {:#?}", ctx);
+    let new_task = Task::create_new(Process::root(), enter_task, ptr::null_mut()).unwrap();
+    ctx.scheduler().enqueue(new_task);
+    ctx.scheduler().reschedule();
+
+    info!("back in the initial task, halting...");
 
     loop {
         hlt();
     }
+}
+
+extern "C" fn enter_task(arg: *mut c_void) {
+    info!("hello from task with arg {:p}", arg);
+
+    unsafe {
+        ExecutionContext::load().scheduler().reschedule();
+    }
+
+    unreachable!("with the current implementation, we shouldn't get here");
 }

@@ -7,6 +7,7 @@ use core::slice::from_raw_parts_mut;
 use thiserror::Error;
 use x86_64::registers::rflags::RFlags;
 use x86_64::structures::paging::{PageTableFlags, Size4KiB};
+use x86_64::VirtAddr;
 
 #[derive(Debug, Copy, Clone, Error)]
 pub enum StackAllocationError {
@@ -82,6 +83,12 @@ impl Stack {
     }
 }
 
+impl Stack {
+    pub fn initial_rsp(&self) -> VirtAddr {
+        self.segment.start + self.rsp as u64
+    }
+}
+
 #[repr(C, packed)]
 #[derive(Debug, Default)]
 struct Registers {
@@ -117,7 +124,8 @@ impl<'a> StackWriter<'a> {
     }
 
     fn push<T>(&mut self, value: T) {
-        self.offset
+        self.offset = self
+            .offset
             .checked_sub(size_of::<T>())
             .expect("should not underflow stack during setup");
         let ptr = self

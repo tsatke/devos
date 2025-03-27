@@ -3,10 +3,9 @@
 extern crate alloc;
 
 use alloc::collections::BTreeSet;
+pub use segment::*;
 use thiserror::Error;
 use x86_64::VirtAddr;
-
-pub use segment::*;
 
 mod segment;
 

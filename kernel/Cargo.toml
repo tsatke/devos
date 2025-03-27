@@ -10,6 +10,7 @@ virtual_memory_manager = { path = "crates/virtual_memory_manager" }
 acpi.workspace = true
 bitfield.workspace = true
 conquer-once.workspace = true
+cordyceps.workspace = true
 derive_more.workspace = true
 jiff.workspace = true
 limine.workspace = true

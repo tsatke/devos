@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 thiserror.workspace = true
 x86_64.workspace = true
+log = "0.4.27"

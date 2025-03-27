@@ -1,16 +1,23 @@
 use crate::mcore::mtask::process::Process;
+use crate::U64Ext;
 use alloc::boxed::Box;
 use alloc::format;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
+use cordyceps::mpsc_queue::Links;
+use cordyceps::Linked;
+use core::ffi::c_void;
 use core::pin::Pin;
+use core::ptr::NonNull;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 pub use id::*;
+pub use queue::*;
 pub use stack::*;
 pub use state::*;
 
 mod id;
+mod queue;
 mod stack;
 mod state;
 
@@ -32,9 +39,78 @@ pub struct Task {
     last_stack_ptr: Pin<Box<usize>>,
     state: State,
     stack: Option<Stack>,
+
+    links: Links<Self>,
+}
+
+impl Unpin for Task {}
+
+unsafe impl Linked<Links<Self>> for Task {
+    type Handle = Pin<Box<Self>>;
+
+    fn into_ptr(r: Self::Handle) -> NonNull<Self> {
+        NonNull::from(Box::leak(Pin::into_inner(r)))
+    }
+
+    unsafe fn from_ptr(ptr: NonNull<Self>) -> Self::Handle {
+        unsafe { Pin::new(Box::from_raw(ptr.as_ptr())) }
+    }
+
+    unsafe fn links(ptr: NonNull<Self>) -> NonNull<Links<Self>> {
+        let links = unsafe { &raw mut (*ptr.as_ptr()).links };
+        unsafe { NonNull::new_unchecked(links) }
+    }
 }
 
 impl Task {
+    pub fn create_new(
+        process: &Arc<Process>,
+        entry_point: extern "C" fn(*mut c_void),
+        arg: *mut c_void,
+    ) -> Result<Self, StackAllocationError> {
+        let tid = TaskId::new();
+        let name = format!("task-{}", tid);
+        let process = Arc::downgrade(process);
+        let should_terminate = AtomicBool::new(false);
+        let state = State::Ready;
+        let stack = Stack::allocate(16, entry_point, arg, Self::exit_task)?;
+        let last_stack_ptr = Box::pin(stack.initial_rsp().as_u64().into_usize());
+        let links = Links::default();
+        Ok(Self {
+            tid,
+            name,
+            process,
+            should_terminate,
+            last_stack_ptr,
+            state,
+            stack: Some(stack),
+            links,
+        })
+    }
+
+    pub fn create_stub() -> Self {
+        let tid = TaskId::new();
+        let name = "stub".to_string();
+        let process = Arc::downgrade(Process::root());
+        let should_terminate = AtomicBool::new(false);
+        let last_stack_ptr = Box::pin(0);
+        let state = State::Finished;
+        let stack = None;
+        let links = Links::new_stub();
+        Self {
+            tid,
+            name,
+            process,
+            should_terminate,
+            last_stack_ptr,
+            state,
+            stack,
+            links,
+        }
+    }
+
+    extern "C" fn exit_task() {}
+
     /// Creates a Task struct for the current state of the CPU.
     /// The task is inactive, and its values must be set by the scheduler
     /// first.
@@ -59,6 +135,7 @@ impl Task {
             last_stack_ptr,
             state,
             stack,
+            links: Links::default(),
         }
     }
 
@@ -84,5 +161,9 @@ impl Task {
 
     pub fn state(&self) -> State {
         self.state
+    }
+
+    pub fn last_stack_ptr(&mut self) -> &mut usize {
+        self.last_stack_ptr.as_mut().get_mut()
     }
 }
