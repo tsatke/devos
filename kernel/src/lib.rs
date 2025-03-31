@@ -3,7 +3,13 @@
 #![feature(abi_x86_interrupt, naked_functions, negative_impls)]
 extern crate alloc;
 
+use crate::hpet::hpet;
+use crate::limine::BOOT_TIME;
+use conquer_once::spin::OnceCell;
+use jiff::Timestamp;
+
 mod acpi;
+mod apic;
 mod arch;
 pub mod hpet;
 pub mod limine;
@@ -12,11 +18,28 @@ pub mod mcore;
 pub mod mem;
 mod serial;
 
+static BOOT_TIME_SECONDS: OnceCell<u64> = OnceCell::uninit();
+
 pub fn init() {
+    BOOT_TIME_SECONDS.init_once(|| BOOT_TIME.get_response().unwrap().timestamp().as_secs());
+
     log::init();
     mem::init();
     acpi::init();
+    apic::init();
     hpet::init();
+}
+
+pub fn now() -> Timestamp {
+    let counter = hpet().read().main_counter_value();
+    let secs = BOOT_TIME_SECONDS.get().unwrap();
+    let secs = secs + (counter / 1_000_000_000);
+    let ts = Timestamp::new(
+        i64::try_from(secs).expect("shouldn't have more seconds than i64::MAX"),
+        (counter % 1_000_000_000) as i32,
+    )
+    .unwrap();
+    ts
 }
 
 #[cfg(target_pointer_width = "64")]

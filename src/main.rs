@@ -81,7 +81,7 @@ continue"
     cmd.arg(BOOTABLE_ISO);
 
     cmd.arg("-smp");
-    cmd.arg("4");
+    cmd.arg("1");
 
     let status = cmd.status().unwrap();
     assert!(status.success());

@@ -93,6 +93,9 @@ impl Deref for OwnedSegment {
 pub struct VirtualMemoryHigherHalf;
 
 impl VirtualMemoryHigherHalf {
+    /// Returns a segment of virtual memory that is reserved for the kernel.
+    /// The size is exactly `pages * 4096` bytes.
+    /// The start address of the returned segment is aligned to `4096` bytes.
     #[allow(dead_code)]
     #[must_use]
     pub fn reserve(pages: usize) -> Option<OwnedSegment> {
@@ -100,6 +103,7 @@ impl VirtualMemoryHigherHalf {
             .write()
             .reserve(pages * 4096)
             .map(|segment| OwnedSegment { inner: segment })
+            .inspect(|segment| assert!(segment.start.is_aligned(Size4KiB::SIZE)))
     }
 
     /// # Errors

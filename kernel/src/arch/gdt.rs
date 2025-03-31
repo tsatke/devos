@@ -1,5 +1,6 @@
 use alloc::boxed::Box;
 use alloc::vec;
+use log::debug;
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::{PrivilegeLevel, VirtAddr};
@@ -11,6 +12,7 @@ fn create_tss() -> TaskStateSegment {
     tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
         const STACK_SIZE: usize = 4096 * 5;
         let stack = Box::into_raw(vec![0_u8; STACK_SIZE].into_boxed_slice());
+        debug!("double fault stack at {stack:p}");
 
         let stack_start = VirtAddr::from_ptr(stack);
         stack_start + (STACK_SIZE as u64)
@@ -38,14 +40,11 @@ pub fn create_gdt_and_tss() -> (GlobalDescriptorTable, Selectors) {
     user_code.set_rpl(PrivilegeLevel::Ring3);
     let mut user_data = gdt.append(Descriptor::user_data_segment());
     user_data.set_rpl(PrivilegeLevel::Ring3);
-    (
-        gdt,
-        Selectors {
-            kernel_code,
-            kernel_data,
-            tss,
-            user_code,
-            user_data,
-        },
-    )
+    (gdt, Selectors {
+        kernel_code,
+        kernel_data,
+        tss,
+        user_code,
+        user_data,
+    })
 }

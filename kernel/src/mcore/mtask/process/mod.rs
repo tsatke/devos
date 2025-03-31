@@ -22,7 +22,7 @@ pub struct Process {
     ppid: RwLock<ProcessId>,
 
     address_space: Option<AddressSpace>,
-    lower_half_memory: RwLock<VirtualMemoryManager>,
+    _lower_half_memory: RwLock<VirtualMemoryManager>,
 }
 
 impl Debug for Process {
@@ -63,7 +63,7 @@ impl Process {
                 name: "root".to_string(),
                 ppid: RwLock::new(pid),
                 address_space: None,
-                lower_half_memory: RwLock::new(VirtualMemoryManager::new(
+                _lower_half_memory: RwLock::new(VirtualMemoryManager::new(
                     VirtAddr::new(0x00),
                     0x0000_7FFF_FFFF_FFFF,
                 )),

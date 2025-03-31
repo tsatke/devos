@@ -13,7 +13,9 @@ use x86_64::{PhysAddr, VirtAddr};
 static ACPI_TABLES: OnceCell<Mutex<AcpiTables<AcpiHandlerImpl>>> = OnceCell::uninit();
 
 pub fn acpi_tables() -> &'static Mutex<AcpiTables<AcpiHandlerImpl>> {
-    ACPI_TABLES.get().unwrap()
+    ACPI_TABLES
+        .get()
+        .expect("ACPI tables should be initialized")
 }
 
 pub fn init() {

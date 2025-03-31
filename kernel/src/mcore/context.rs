@@ -1,9 +1,10 @@
+use crate::mcore::lapic::Lapic;
 use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::scheduler::Scheduler;
 use crate::mcore::mtask::task::Task;
-use crate::U64Ext;
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
+use spin::Mutex;
 use x86_64::registers::model_specific::KernelGsBase;
 use x86_64::structures::gdt::GlobalDescriptorTable;
 use x86_64::structures::idt::InterruptDescriptorTable;
@@ -11,7 +12,9 @@ use x86_64::structures::idt::InterruptDescriptorTable;
 #[derive(Debug)]
 pub struct ExecutionContext {
     cpu_id: usize,
-    lapid_id: usize,
+    lapic_id: usize,
+
+    lapic: Mutex<Lapic>,
 
     _gdt: &'static GlobalDescriptorTable,
     _idt: &'static InterruptDescriptorTable,
@@ -24,10 +27,12 @@ impl ExecutionContext {
         cpu: &limine::mp::Cpu,
         gdt: &'static GlobalDescriptorTable,
         idt: &'static InterruptDescriptorTable,
+        lapic: Lapic,
     ) -> Self {
         ExecutionContext {
             cpu_id: cpu.id as usize,
-            lapid_id: cpu.extra.into_usize(),
+            lapic_id: cpu.lapic_id as usize,
+            lapic: Mutex::new(lapic),
             _gdt: gdt,
             _idt: idt,
             scheduler: UnsafeCell::new(Scheduler::new_cpu_local()),
@@ -58,9 +63,13 @@ impl ExecutionContext {
         self.cpu_id
     }
 
-    #[must_use]
     pub fn lapic_id(&self) -> usize {
-        self.lapid_id
+        self.lapic_id
+    }
+
+    #[must_use]
+    pub fn lapic(&self) -> &Mutex<Lapic> {
+        &self.lapic
     }
 
     /// Creates and returns a mutable reference to the scheduler.
