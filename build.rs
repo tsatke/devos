@@ -127,7 +127,7 @@ fn limine() -> PathBuf {
     let status = std::process::Command::new("git")
         .arg("clone")
         .arg("https://github.com/limine-bootloader/limine.git")
-        .arg("--branch=v8.x-binary")
+        .arg("--branch=v9.x-binary")
         .arg("--depth=1")
         .arg(&limine_dir)
         .stderr(Stdio::inherit())
