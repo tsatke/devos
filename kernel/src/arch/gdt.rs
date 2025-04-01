@@ -5,17 +5,21 @@ use x86_64::structures::tss::TaskStateSegment;
 use x86_64::{PrivilegeLevel, VirtAddr};
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
+pub const PAGE_FAULT_IST_INDEX: u16 = 1;
 
 fn create_tss() -> TaskStateSegment {
     let mut tss = TaskStateSegment::new();
-    tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
-        const STACK_SIZE: usize = 4096 * 5;
-        let stack = Box::into_raw(vec![0_u8; STACK_SIZE].into_boxed_slice());
-
-        let stack_start = VirtAddr::from_ptr(stack);
-        stack_start + (STACK_SIZE as u64)
-    };
+    tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = allocate_ist_stack();
+    tss.interrupt_stack_table[PAGE_FAULT_IST_INDEX as usize] = allocate_ist_stack();
     tss
+}
+
+fn allocate_ist_stack() -> VirtAddr {
+    const STACK_SIZE: usize = 4096 * 5;
+    let stack = Box::into_raw(vec![0_u8; STACK_SIZE].into_boxed_slice());
+
+    let stack_start = VirtAddr::from_ptr(stack);
+    stack_start + (STACK_SIZE as u64)
 }
 
 #[allow(dead_code)]

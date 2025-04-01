@@ -31,12 +31,14 @@ pub fn create_idt() -> InterruptDescriptorTable {
         idt.double_fault
             .set_handler_fn(double_fault_handler)
             .set_stack_index(gdt::DOUBLE_FAULT_IST_INDEX);
+        idt.page_fault
+            .set_handler_fn(page_fault_handler)
+            .set_stack_index(gdt::PAGE_FAULT_IST_INDEX);
     }
     idt.general_protection_fault
         .set_handler_fn(general_protection_fault_handler);
     idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
     idt.invalid_tss.set_handler_fn(invalid_tss_handler);
-    idt.page_fault.set_handler_fn(page_fault_handler);
     idt.segment_not_present
         .set_handler_fn(segment_not_present_handler);
     idt.stack_segment_fault
@@ -92,6 +94,26 @@ extern "x86-interrupt" fn page_fault_handler(
     error_code: PageFaultErrorCode,
 ) {
     let accessed_address = Cr2::read().ok();
+
+    // if we know the address...
+    if let Some(addr) = accessed_address {
+        // ...and we have initialized multitasking...
+        if let Some(ctx) = ExecutionContext::try_load() {
+            let task = ctx.current_task();
+            // ...and the current task has stack...
+            if let Some(stack) = task.stack() {
+                // ...then the accessed address must not be within the guard page of the stack,
+                // otherwise we have a stack overflow
+                assert!(
+                    !stack.guard_page().contains(addr),
+                    "STACK OVERFLOW DETECTED in process '{}' task '{}'",
+                    task.process().name(),
+                    task.name(),
+                );
+            }
+        }
+    }
+
     panic!(
         "EXCEPTION: PAGE FAULT:\naccessed address: {accessed_address:?}\nerror code: {error_code:#X}\n{stack_frame:#?}"
     );

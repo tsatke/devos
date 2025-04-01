@@ -6,8 +6,9 @@ use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
 use core::slice::from_raw_parts_mut;
 use thiserror::Error;
+use virtual_memory_manager::Segment;
 use x86_64::registers::rflags::RFlags;
-use x86_64::structures::paging::{PageTableFlags, Size4KiB};
+use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 #[derive(Debug, Copy, Clone, Error)]
@@ -20,7 +21,8 @@ pub enum StackAllocationError {
 
 pub struct Stack {
     segment: OwnedSegment,
-    rsp: usize,
+    mapped_segment: Segment,
+    rsp: VirtAddr,
 }
 
 impl Debug for Stack {
@@ -53,12 +55,15 @@ impl Stack {
         let segment = VirtualMemoryHigherHalf::reserve(pages)
             .ok_or(StackAllocationError::OutOfVirtualMemory)?;
 
+        let mapped_segment =
+            Segment::new(segment.start + Size4KiB::SIZE, segment.len - Size4KiB::SIZE);
+
         // we can use the address space since the segment is in higher half, which is the same
         // for all address spaces
         let address_space = AddressSpace::kernel();
         address_space
             .map_range::<Size4KiB>(
-                &*segment,
+                &mapped_segment,
                 PhysicalMemory::allocate_frames_non_contiguous(),
                 // FIXME: must be user accessible for user tasks, but can only be user accessible if in lower half, otherwise it can be modified by unrelated tasks/processes
                 PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
@@ -68,7 +73,10 @@ impl Stack {
         // set up stack
         let entry_point = (entry_point as *const ()).cast::<usize>();
         let stack = unsafe {
-            from_raw_parts_mut(segment.start.as_mut_ptr::<u8>(), segment.len.into_usize())
+            from_raw_parts_mut(
+                mapped_segment.start.as_mut_ptr::<u8>(),
+                mapped_segment.len.into_usize(),
+            )
         };
         stack.fill(0xCD);
 
@@ -88,14 +96,37 @@ impl Stack {
             ..Default::default()
         });
 
-        Ok(Self { segment, rsp })
+        let rsp = mapped_segment.start + rsp.into_u64();
+        Ok(Self {
+            segment,
+            mapped_segment,
+            rsp,
+        })
     }
 }
 
 impl Stack {
     #[must_use]
     pub fn initial_rsp(&self) -> VirtAddr {
-        self.segment.start + self.rsp.into_u64()
+        self.rsp
+    }
+
+    /// Returns the segment of the guard page, which is the lowest page of the stack segment.
+    #[must_use]
+    pub fn guard_page(&self) -> Segment {
+        Segment::new(self.segment.start, Size4KiB::SIZE)
+    }
+
+    /// Returns the full stack segment, including the guard page (which is not mapped).
+    #[must_use]
+    pub fn segment(&self) -> &OwnedSegment {
+        &self.segment
+    }
+
+    /// Returns the mapped segment, which is the part of the stack that is actually mapped in memory.
+    #[must_use]
+    pub fn mapped_segment(&self) -> Segment {
+        self.mapped_segment
     }
 }
 

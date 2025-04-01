@@ -38,7 +38,7 @@ pub struct Task {
     /// This must be set during the context switch.
     last_stack_ptr: Pin<Box<usize>>,
     state: State,
-    _stack: Option<Stack>,
+    stack: Option<Stack>,
 
     links: Links<Self>,
 }
@@ -88,7 +88,7 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            _stack: Some(stack),
+            stack: Some(stack),
             links,
         })
     }
@@ -109,7 +109,7 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            _stack: stack,
+            stack,
             links,
         }
     }
@@ -140,7 +140,7 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            _stack: stack,
+            stack,
             links: Links::default(),
         }
     }
@@ -167,6 +167,10 @@ impl Task {
 
     pub fn state(&self) -> State {
         self.state
+    }
+
+    pub fn stack(&self) -> &Option<Stack> {
+        &self.stack
     }
 
     pub fn last_stack_ptr(&mut self) -> &mut usize {

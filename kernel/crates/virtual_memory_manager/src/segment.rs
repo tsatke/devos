@@ -13,6 +13,11 @@ impl Segment {
     pub const fn new(start: VirtAddr, len: u64) -> Self {
         Self { start, len }
     }
+
+    #[must_use]
+    pub fn contains(&self, addr: VirtAddr) -> bool {
+        self.start <= addr && addr < self.start + self.len
+    }
 }
 
 impl<S: PageSize> From<&Segment> for PageRangeInclusive<S> {

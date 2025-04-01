@@ -77,6 +77,10 @@ impl Process {
         *self.ppid.read()
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
     #[allow(clippy::missing_panics_doc)] // this panic must not happen, so the caller shouldn't have to care about it
     pub fn parent(&self) -> Arc<Process> {
         process_tree()
