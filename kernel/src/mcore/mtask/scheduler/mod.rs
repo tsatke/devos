@@ -1,32 +1,24 @@
+use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::scheduler::switch::switch_impl;
-use crate::mcore::mtask::task::{Task, TaskQueue};
+use crate::mcore::mtask::task::Task;
 use alloc::boxed::Box;
 use core::mem::swap;
 use core::pin::Pin;
 use x86_64::instructions::{hlt, interrupts};
 
+pub mod global;
 mod switch;
 
 #[derive(Debug)]
 pub struct Scheduler {
     current_task: Pin<Box<Task>>,
-    local_queue: TaskQueue,
 }
 
 impl Scheduler {
     #[must_use]
     pub fn new_cpu_local() -> Self {
         let current_task = Box::pin(unsafe { Task::create_current() });
-        let local_queue = TaskQueue::new();
-        Self {
-            current_task,
-            local_queue,
-        }
-    }
-
-    pub fn enqueue(&self, task: Task) {
-        let task = Box::pin(task);
-        self.local_queue.enqueue(task);
+        Self { current_task }
     }
 
     /// # Safety
@@ -48,7 +40,7 @@ impl Scheduler {
 
         let mut old_task = self.swap_current_task(next_task);
         let old_stack_ptr = old_task.last_stack_ptr() as *mut usize;
-        self.local_queue.enqueue(old_task);
+        GlobalTaskQueue::enqueue(old_task);
 
         unsafe {
             Self::switch(
@@ -69,6 +61,7 @@ impl Scheduler {
         }
     }
 
+    #[must_use]
     pub fn current_task(&self) -> &Task {
         &self.current_task
     }
@@ -79,13 +72,8 @@ impl Scheduler {
         next_task
     }
 
+    #[allow(clippy::unused_self)]
     fn next_task(&self) -> Option<Pin<Box<Task>>> {
-        if let Some(thread) = self.local_queue.dequeue() {
-            return Some(thread);
-        }
-
-        // TODO: try global queue for more work
-
-        None
+        GlobalTaskQueue::dequeue()
     }
 }

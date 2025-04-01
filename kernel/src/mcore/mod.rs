@@ -4,6 +4,7 @@ use crate::arch::idt::create_idt;
 use crate::limine::MP_REQUEST;
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
+use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::task::Task;
 use crate::now;
 use alloc::boxed::Box;
@@ -98,7 +99,7 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
     trace!("cpu {} initialized", ctx.cpu_id());
 
     let new_task = Task::create_new(Process::root(), enter_task, ptr::null_mut()).unwrap();
-    ctx.scheduler().enqueue(new_task);
+    GlobalTaskQueue::enqueue(Box::pin(new_task));
 
     interrupts::enable();
 
