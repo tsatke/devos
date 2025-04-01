@@ -1,5 +1,7 @@
 use crate::arch::gdt;
 use crate::mcore::context::ExecutionContext;
+use log::error;
+use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
@@ -103,13 +105,22 @@ extern "x86-interrupt" fn page_fault_handler(
             // ...and the current task has stack...
             if let Some(stack) = task.stack() {
                 // ...then the accessed address must not be within the guard page of the stack,
-                // otherwise we have a stack overflow
-                assert!(
-                    !stack.guard_page().contains(addr),
-                    "STACK OVERFLOW DETECTED in process '{}' task '{}'",
-                    task.process().name(),
-                    task.name(),
-                );
+                // otherwise we have a stack overflow...
+                if stack.guard_page().contains(addr) {
+                    error!(
+                        "STACK OVERFLOW DETECTED in process '{}' task '{}', terminating...",
+                        task.process().name(),
+                        task.name(),
+                    );
+                }
+
+                // ...in which case we mark the task for termination...
+                task.set_should_terminate(true);
+                // ...and halt, waiting for the scheduler to terminate the task
+                interrupts::enable();
+                loop {
+                    hlt();
+                }
             }
         }
     }

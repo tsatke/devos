@@ -103,6 +103,9 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
 
     interrupts::enable();
 
+    // This is our idle-task now.
+    // TODO: pin this task to this CPU
+    // TODO: make this task lowest (idle) priority, so that it doesn't get scheduled if there are any other tasks
     loop {
         hlt();
     }
