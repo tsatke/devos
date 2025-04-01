@@ -1,10 +1,8 @@
 #![no_std]
 #![no_main]
 
-use jiff::Timestamp;
-use kernel::hpet::hpet;
-use kernel::limine::{BASE_REVISION, BOOT_TIME};
-use kernel::mcore;
+use kernel::limine::BASE_REVISION;
+use kernel::{mcore, now};
 use log::{error, info};
 use x86_64::instructions::hlt;
 
@@ -15,14 +13,7 @@ unsafe extern "C" fn main() -> ! {
     kernel::init();
 
     for _ in 0..5 {
-        let counter = hpet().read().main_counter_value();
-        let secs = BOOT_TIME.get_response().unwrap().timestamp().as_secs();
-        let secs = secs + (counter / 1_000_000_000);
-        let ts = Timestamp::new(
-            i64::try_from(secs).expect("shouldn't have more seconds than i64::MAX"),
-            (counter % 1_000_000_000) as i32,
-        )
-        .unwrap();
+        let ts = now();
         info!("it is now {ts}");
     }
 

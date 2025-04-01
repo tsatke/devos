@@ -93,13 +93,17 @@ impl Deref for OwnedSegment {
 pub struct VirtualMemoryHigherHalf;
 
 impl VirtualMemoryHigherHalf {
-    #[allow(dead_code)]
+    /// Returns a segment of virtual memory that is reserved for the kernel.
+    /// The size is exactly `pages * 4096` bytes.
+    /// The start address of the returned segment is aligned to `4096` bytes.
+    #[allow(clippy::missing_panics_doc)] // panic must not happen, so the caller shouldn't have to care about it
     #[must_use]
     pub fn reserve(pages: usize) -> Option<OwnedSegment> {
         vmm()
             .write()
             .reserve(pages * 4096)
             .map(|segment| OwnedSegment { inner: segment })
+            .inspect(|segment| assert!(segment.start.is_aligned(Size4KiB::SIZE)))
     }
 
     /// # Errors

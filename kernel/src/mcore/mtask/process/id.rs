@@ -21,6 +21,7 @@ impl ProcessId {
         ProcessId(COUNTER.fetch_add(1, Relaxed))
     }
 
+    #[must_use]
     pub fn is_root(&self) -> bool {
         self.0 == 0
     }

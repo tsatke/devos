@@ -22,7 +22,7 @@ pub struct Process {
     ppid: RwLock<ProcessId>,
 
     address_space: Option<AddressSpace>,
-    lower_half_memory: RwLock<VirtualMemoryManager>,
+    _lower_half_memory: RwLock<VirtualMemoryManager>,
 }
 
 impl Debug for Process {
@@ -63,7 +63,7 @@ impl Process {
                 name: "root".to_string(),
                 ppid: RwLock::new(pid),
                 address_space: None,
-                lower_half_memory: RwLock::new(VirtualMemoryManager::new(
+                _lower_half_memory: RwLock::new(VirtualMemoryManager::new(
                     VirtAddr::new(0x00),
                     0x0000_7FFF_FFFF_FFFF,
                 )),
@@ -77,6 +77,7 @@ impl Process {
         *self.ppid.read()
     }
 
+    #[allow(clippy::missing_panics_doc)] // this panic must not happen, so the caller shouldn't have to care about it
     pub fn parent(&self) -> Arc<Process> {
         process_tree()
             .read()
@@ -115,7 +116,8 @@ pub struct Children<'a> {
 }
 
 impl Children<'_> {
-    pub fn iter(&self) -> Option<impl Iterator<Item = &Arc<Process>>> {
+    #[must_use]
+    pub fn get(&self) -> Option<impl Iterator<Item = &Arc<Process>>> {
         self.guard.children.get(&self.pid).map(|x| x.iter())
     }
 }
@@ -126,8 +128,8 @@ pub struct ChildrenMut<'a> {
 }
 
 impl ChildrenMut<'_> {
-    pub fn iter_mut(&mut self) -> Option<impl Iterator<Item = &Arc<Process>>> {
-        self.guard.children.get_mut(&self.pid).map(|x| x.iter())
+    pub fn get_mut(&mut self) -> Option<impl Iterator<Item = &mut Arc<Process>>> {
+        self.guard.children.get_mut(&self.pid).map(|x| x.iter_mut())
     }
 
     pub fn insert(&mut self, process: Arc<Process>) {

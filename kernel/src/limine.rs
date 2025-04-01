@@ -1,7 +1,8 @@
 use limine::mp::RequestFlags;
 use limine::request::{
     DateAtBootRequest, ExecutableAddressRequest, ExecutableFileRequest, HhdmRequest,
-    MemoryMapRequest, MpRequest, RequestsEndMarker, RequestsStartMarker, RsdpRequest,
+    MemoryMapRequest, MpRequest, RequestsEndMarker, RequestsStartMarker, RsdpRequest
+    ,
 };
 use limine::BaseRevision;
 

@@ -1,16 +1,19 @@
+use crate::apic::io_apic;
 use crate::arch::gdt::create_gdt_and_tss;
 use crate::arch::idt::create_idt;
 use crate::limine::MP_REQUEST;
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::task::Task;
+use crate::now;
 use alloc::boxed::Box;
+use core::arch::asm;
 use core::ffi::c_void;
 use core::ptr;
 use log::{debug, info, trace};
-use x86_64::instructions::hlt;
-use x86_64::instructions::segmentation::{CS, DS};
+use x86_64::instructions::segmentation::{CS, DS, SS};
 use x86_64::instructions::tables::load_tss;
+use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::{Cr3, Cr3Flags};
 use x86_64::registers::model_specific::KernelGsBase;
 use x86_64::registers::segmentation::Segment;
@@ -18,6 +21,7 @@ use x86_64::structures::paging::PhysFrame;
 use x86_64::{PhysAddr, VirtAddr};
 
 pub mod context;
+mod lapic;
 pub mod mtask;
 
 #[allow(clippy::missing_panics_doc)]
@@ -68,6 +72,7 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
     unsafe {
         CS::set_reg(sel.kernel_code);
         DS::set_reg(sel.kernel_data);
+        SS::set_reg(sel.kernel_data);
         load_tss(sel.tss);
     }
 
@@ -76,40 +81,84 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
     let idt = Box::leak(Box::new(idt));
     idt.load();
 
+    let lapic = lapic::init();
+
     // create the execution context for the CPU and store it
     {
-        let ctx = ExecutionContext::new(cpu, gdt, idt);
+        let ctx = ExecutionContext::new(cpu, gdt, idt, lapic);
         let addr = VirtAddr::from_ptr(Box::leak(Box::new(ctx)));
         KernelGsBase::write(addr);
     }
+
+    init_interrupts();
 
     // load it back and print a message
     let ctx = ExecutionContext::load();
     trace!("cpu {} initialized", ctx.cpu_id());
 
     let new_task = Task::create_new(Process::root(), enter_task, ptr::null_mut()).unwrap();
-    unsafe {
-        ctx.scheduler().enqueue(new_task);
-        ctx.scheduler_mut().reschedule();
-    }
+    ctx.scheduler().enqueue(new_task);
 
-    info!("back in the initial task, halting...");
+    interrupts::enable();
 
     loop {
         hlt();
     }
 }
 
+fn init_interrupts() {
+    let mut io_apic = io_apic().lock();
+    unsafe {
+        const OFFSET: u8 = 32;
+        io_apic.init(OFFSET);
+
+        // TODO: redirect interrupt vectors
+
+        // for vector in 0..u8::MAX - OFFSET {
+        //     let mut entry = RedirectionTableEntry::default();
+        //     entry.set_mode(IrqMode::Fixed);
+        //     entry.set_flags(IrqFlags::LEVEL_TRIGGERED | IrqFlags::LOW_ACTIVE);
+        //     entry.set_vector(vector);
+        //     entry.set_dest(u8::try_from(lapic_id).expect("invalid lapic id"));
+        //
+        //     io_apic.set_table_entry(vector, entry);
+        //     io_apic.enable_irq(vector);
+        // }
+    }
+}
+
 extern "C" fn enter_task(arg: *mut c_void) {
+    #[cfg(target_arch = "x86_64")]
+    {
+        let rsp: u64;
+        unsafe {
+            asm!("mov {}, rsp", out(reg) rsp);
+        }
+        let rsp_addr = VirtAddr::new(rsp);
+        assert!(
+            rsp_addr.is_aligned(16_u64),
+            "stack pointer is not aligned to 16 bytes, got {rsp_addr:p}"
+        );
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    compile_error!("unsupported architecture");
+
     info!("hello from task with arg {arg:p}");
     debug!(
         "inside process {:?}",
         ExecutionContext::load().current_process()
     );
 
-    unsafe {
-        ExecutionContext::load().scheduler_mut().reschedule();
-    }
+    let mut last_time = None;
 
-    unreachable!("with the current implementation, we shouldn't get here");
+    loop {
+        let now = now();
+        if let Some(then) = last_time {
+            let since = now.since(then).unwrap();
+            info!("time since last schedule: {since:?}");
+        }
+        last_time = Some(now);
+
+        hlt();
+    }
 }

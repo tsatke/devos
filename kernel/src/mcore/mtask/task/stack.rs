@@ -73,13 +73,13 @@ impl Stack {
         stack.fill(0xCD);
 
         let mut writer = StackWriter::new(stack);
-        writer.push(0xDEAD_BEEF_0BAD_F00D_u64); // marker at stack bottom
+        writer.push(0xDEAD_BEEF_0BAD_F00D_DEAD_BEEF_0BAD_F00D_u128); // marker at stack bottom
         debug_assert_eq!(size_of_val(&exit_fn), size_of::<u64>());
         writer.push(exit_fn);
         let rsp = writer.offset - size_of::<Registers>();
         writer.push(Registers {
             rsp,
-            rbp: rsp,
+            rbp: 0,
             rdi: arg as usize,
             rip: entry_point as usize,
             rflags: (RFlags::IOPL_LOW | RFlags::INTERRUPT_FLAG)
@@ -112,8 +112,8 @@ struct Registers {
     r8: usize,
     rdi: usize,
     rsi: usize,
-    rsp: usize,
     rbp: usize,
+    rsp: usize,
     rdx: usize,
     rcx: usize,
     rbx: usize,
