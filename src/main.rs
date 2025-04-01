@@ -14,6 +14,8 @@ struct Args {
     debug: bool,
     #[arg(long, help = "Run QEMU without a display")]
     headless: bool,
+    #[arg(long, help = "Number of CPU cores to emulate", default_value_t = 4)]
+    smp: u8,
 }
 
 fn main() {
@@ -81,7 +83,7 @@ continue"
     cmd.arg(BOOTABLE_ISO);
 
     cmd.arg("-smp");
-    cmd.arg("4");
+    cmd.arg(args.smp.to_string());
 
     let status = cmd.status().unwrap();
     assert!(status.success());
