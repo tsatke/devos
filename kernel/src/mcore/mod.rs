@@ -6,11 +6,12 @@ use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::task::Task;
-use crate::now;
+use crate::time::TimestampExt;
 use alloc::boxed::Box;
 use core::arch::asm;
 use core::ffi::c_void;
 use core::ptr;
+use jiff::Timestamp;
 use log::{debug, info, trace};
 use x86_64::instructions::segmentation::{CS, DS, SS};
 use x86_64::instructions::tables::load_tss;
@@ -147,11 +148,8 @@ extern "C" fn enter_task(arg: *mut c_void) {
     #[cfg(not(target_arch = "x86_64"))]
     compile_error!("unsupported architecture");
 
-    info!("hello from task with arg {arg:p}");
-    debug!(
-        "inside process {:?}",
-        ExecutionContext::load().current_process()
+    info!(
+        "hello from task with arg {arg:p}, current time: {}",
+        Timestamp::now()
     );
-
-    info!("current time: {}", now());
 }

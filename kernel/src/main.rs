@@ -2,8 +2,8 @@
 #![no_main]
 
 use kernel::limine::BASE_REVISION;
-use kernel::{mcore, now};
-use log::{error, info};
+use kernel::mcore;
+use log::error;
 use x86_64::instructions::hlt;
 
 #[unsafe(export_name = "kernel_main")]
@@ -11,11 +11,6 @@ unsafe extern "C" fn main() -> ! {
     assert!(BASE_REVISION.is_supported());
 
     kernel::init();
-
-    for _ in 0..5 {
-        let ts = now();
-        info!("it is now {ts}");
-    }
 
     mcore::start()
 }
