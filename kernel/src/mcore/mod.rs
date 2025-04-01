@@ -11,7 +11,6 @@ use alloc::boxed::Box;
 use core::arch::asm;
 use core::ffi::c_void;
 use core::ptr;
-use jiff::Timestamp;
 use log::{debug, info, trace};
 use x86_64::instructions::segmentation::{CS, DS, SS};
 use x86_64::instructions::tables::load_tss;
@@ -154,22 +153,5 @@ extern "C" fn enter_task(arg: *mut c_void) {
         ExecutionContext::load().current_process()
     );
 
-    print_time(None);
-
-    loop {
-        hlt();
-    }
-}
-
-#[allow(unconditional_recursion)]
-fn print_time(last_time: Option<Timestamp>) {
-    let now = now();
-    if let Some(then) = last_time {
-        let since = now.since(then).unwrap();
-        info!("time since last schedule: {since:?}");
-    }
-
-    hlt();
-
-    print_time(Some(now));
+    info!("current time: {}", now());
 }

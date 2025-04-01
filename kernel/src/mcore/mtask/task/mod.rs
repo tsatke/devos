@@ -1,3 +1,4 @@
+use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
 use crate::U64Ext;
 use alloc::boxed::Box;
@@ -12,9 +13,11 @@ use core::ptr::NonNull;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 pub use id::*;
+use log::trace;
 pub use queue::*;
 pub use stack::*;
 pub use state::*;
+use x86_64::instructions::hlt;
 
 mod id;
 mod queue;
@@ -78,7 +81,7 @@ impl Task {
         let process = process.clone();
         let should_terminate = AtomicBool::new(false);
         let state = State::Ready;
-        let stack = Stack::allocate(16, entry_point, arg, Self::exit_task)?;
+        let stack = Stack::allocate(16, entry_point, arg, Self::exit)?;
         let last_stack_ptr = Box::pin(stack.initial_rsp().as_u64().into_usize());
         let links = Links::default();
         Ok(Self {
@@ -114,7 +117,15 @@ impl Task {
         }
     }
 
-    extern "C" fn exit_task() {}
+    extern "C" fn exit() {
+        let task = ExecutionContext::load().current_task();
+        trace!("exiting task {}", task.name());
+
+        task.set_should_terminate(true);
+        loop {
+            hlt();
+        }
+    }
 
     /// Creates a Task struct for the current state of the CPU.
     /// The task is inactive, and its values must be set by the scheduler
