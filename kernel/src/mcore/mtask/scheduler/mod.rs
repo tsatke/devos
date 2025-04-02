@@ -5,7 +5,6 @@ use alloc::boxed::Box;
 use core::cell::UnsafeCell;
 use core::mem::swap;
 use core::pin::Pin;
-use log::trace;
 use x86_64::instructions::interrupts;
 
 pub mod global;
@@ -51,9 +50,7 @@ impl Scheduler {
         } else {
             old_task.last_stack_ptr() as *mut usize
         };
-        if old_task.should_terminate() {
-            trace!("task '{}' terminated", old_task.name());
-        } else {
+        if !old_task.should_terminate() {
             GlobalTaskQueue::enqueue(old_task);
         }
 

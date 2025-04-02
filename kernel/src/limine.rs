@@ -1,8 +1,6 @@
-use limine::mp::RequestFlags;
 use limine::request::{
     DateAtBootRequest, ExecutableAddressRequest, ExecutableFileRequest, HhdmRequest,
-    MemoryMapRequest, MpRequest, RequestsEndMarker, RequestsStartMarker, RsdpRequest
-    ,
+    MemoryMapRequest, MpRequest, RequestsEndMarker, RequestsStartMarker, RsdpRequest,
 };
 use limine::BaseRevision;
 
@@ -44,4 +42,4 @@ pub static RSDP_REQUEST: RsdpRequest = RsdpRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
-pub static mut MP_REQUEST: MpRequest = MpRequest::new().with_flags(RequestFlags::X2APIC);
+pub static mut MP_REQUEST: MpRequest = MpRequest::new();

@@ -9,14 +9,14 @@ virtual_memory_manager = { path = "crates/virtual_memory_manager" }
 
 acpi.workspace = true
 bitfield.workspace = true
+bitflags.workspace = true
 conquer-once.workspace = true
 cordyceps.workspace = true
-derive_more.workspace = true
 jiff.workspace = true
 limine.workspace = true
 linked_list_allocator.workspace = true
+linkme.workspace = true
 log.workspace = true
-seq-macro.workspace = true
 spin.workspace = true
 thiserror.workspace = true
 uart_16550.workspace = true

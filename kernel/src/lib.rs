@@ -3,12 +3,14 @@
 #![feature(abi_x86_interrupt, naked_functions, negative_impls)]
 extern crate alloc;
 
+use crate::driver::pci;
 use crate::limine::BOOT_TIME;
 use conquer_once::spin::OnceCell;
 
 mod acpi;
 mod apic;
 mod arch;
+pub mod driver;
 pub mod hpet;
 pub mod limine;
 mod log;
@@ -19,6 +21,12 @@ pub mod time;
 
 static BOOT_TIME_SECONDS: OnceCell<u64> = OnceCell::uninit();
 
+/// # Panics
+/// Panics if there was no boot time provided by limine.
+fn init_boot_time() {
+    BOOT_TIME_SECONDS.init_once(|| BOOT_TIME.get_response().unwrap().timestamp().as_secs());
+}
+
 pub fn init() {
     init_boot_time();
 
@@ -27,12 +35,8 @@ pub fn init() {
     acpi::init();
     apic::init();
     hpet::init();
-}
-
-/// # Panics
-/// Panics if there was no boot time provided by limine.
-fn init_boot_time() {
-    BOOT_TIME_SECONDS.init_once(|| BOOT_TIME.get_response().unwrap().timestamp().as_secs());
+    mcore::init();
+    pci::init();
 }
 
 #[cfg(target_pointer_width = "64")]

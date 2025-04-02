@@ -6,13 +6,11 @@ use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::task::Task;
-use crate::time::TimestampExt;
 use alloc::boxed::Box;
 use core::arch::asm;
 use core::ffi::c_void;
 use core::ptr;
-use jiff::Timestamp;
-use log::{debug, info, trace};
+use log::{info, trace};
 use x86_64::instructions::segmentation::{CS, DS, SS};
 use x86_64::instructions::tables::load_tss;
 use x86_64::instructions::{hlt, interrupts};
@@ -27,7 +25,7 @@ mod lapic;
 pub mod mtask;
 
 #[allow(clippy::missing_panics_doc)]
-pub fn start() -> ! {
+pub fn init() {
     let resp = unsafe {
         #[allow(static_mut_refs)] // we need this to set the `extra` field in the CPU structs
         MP_REQUEST.get_response_mut()
@@ -39,8 +37,6 @@ pub fn start() -> ! {
         frame.start_address().as_u64() | flags.bits()
     };
 
-    debug!("read cr3_val: {cr3_val:#x}");
-
     // set the extra field in the CPU structs to the CR3 value
     resp.cpus_mut().iter_mut().for_each(|cpu| {
         cpu.extra = cr3_val;
@@ -48,14 +44,14 @@ pub fn start() -> ! {
 
     // then call the `cpu_init` function on each CPU (no-op on bootstrap CPU)
     resp.cpus().iter().for_each(|cpu| {
-        cpu.goto_address.write(cpu_init);
+        cpu.goto_address.write(cpu_init_and_idle);
     });
 
     // then call the `cpu_init` function on the bootstrap CPU
-    unsafe { cpu_init(resp.cpus()[0]) }
+    unsafe { cpu_init_and_return(resp.cpus()[0]) }
 }
 
-unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
+unsafe extern "C" fn cpu_init_and_return(cpu: &limine::mp::Cpu) {
     trace!("booting cpu {} with argument {}", cpu.id, cpu.extra);
 
     // set the memory mapping that we got as a parameter
@@ -96,14 +92,27 @@ unsafe extern "C" fn cpu_init(cpu: &limine::mp::Cpu) -> ! {
 
     // load it back and print a message
     let ctx = ExecutionContext::load();
-    trace!("cpu {} initialized", ctx.cpu_id());
-
-    let new_task = Task::create_new(Process::root(), enter_task, ptr::null_mut()).unwrap();
-    GlobalTaskQueue::enqueue(Box::pin(new_task));
+    info!("cpu {} initialized", ctx.cpu_id());
 
     interrupts::enable();
 
-    // This is our idle-task now.
+    // spawn short-lived task to make sure that stack alignment is correct
+    GlobalTaskQueue::enqueue(Box::pin(
+        Task::create_new(Process::root(), task_check_stack_alignment, ptr::null_mut()).unwrap(),
+    ));
+}
+
+unsafe extern "C" fn cpu_init_and_idle(cpu: &limine::mp::Cpu) -> ! {
+    unsafe { cpu_init_and_return(cpu) };
+
+    turn_idle()
+}
+
+/// Makes the current task an idle task.
+///
+/// This adapts the current task priority and affinity.
+pub fn turn_idle() -> ! {
+    // This is an idle-task now.
     // TODO: pin this task to this CPU
     // TODO: make this task lowest (idle) priority, so that it doesn't get scheduled if there are any other tasks
     loop {
@@ -132,7 +141,7 @@ fn init_interrupts() {
     }
 }
 
-extern "C" fn enter_task(arg: *mut c_void) {
+extern "C" fn task_check_stack_alignment(_arg: *mut c_void) {
     #[cfg(target_arch = "x86_64")]
     {
         let rsp: u64;
@@ -147,9 +156,4 @@ extern "C" fn enter_task(arg: *mut c_void) {
     }
     #[cfg(not(target_arch = "x86_64"))]
     compile_error!("unsupported architecture");
-
-    info!(
-        "hello from task with arg {arg:p}, current time: {}",
-        Timestamp::now()
-    );
 }

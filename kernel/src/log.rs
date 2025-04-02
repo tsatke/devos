@@ -1,12 +1,10 @@
 use crate::mcore::context::ExecutionContext;
 use crate::serial_println;
-use log::{info, Level, Metadata, Record};
+use log::{Level, Metadata, Record};
 
 pub(crate) fn init() {
     log::set_logger(&SerialLogger).unwrap();
     log::set_max_level(::log::LevelFilter::Trace);
-
-    info!("logging initialized");
 }
 
 pub struct SerialLogger;

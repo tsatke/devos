@@ -4,7 +4,6 @@ use crate::mem::virt::{OwnedSegment, VirtualMemoryHigherHalf};
 use acpi::{InterruptModel, PlatformInfo};
 use conquer_once::spin::OnceCell;
 use core::ops::{Deref, DerefMut};
-use log::debug;
 use spin::Mutex;
 use x86_64::instructions::port::Port;
 use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
@@ -77,10 +76,6 @@ pub fn init() {
         inner: unsafe { x2apic::ioapic::IoApic::new(start_addr.as_u64()) },
     };
     IO_APIC.init_once(|| Mutex::new(ioapic));
-    debug!(
-        "initialized ioapic with id {} at physical address {phys_addr:p}, mapped to {start_addr:p}",
-        apic.id,
-    );
 }
 
 #[allow(clippy::similar_names)]
