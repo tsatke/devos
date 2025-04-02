@@ -342,6 +342,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "foundation"
+version = "0.1.0"
+
+[[package]]
 name = "generator"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -430,6 +434,7 @@ dependencies = [
  "bitflags 2.9.0",
  "conquer-once",
  "cordyceps",
+ "foundation",
  "jiff",
  "limine",
  "linked_list_allocator",

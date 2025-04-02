@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+foundation = { path = "crates/foundation" }
 physical_memory_manager = { path = "crates/physical_memory_manager" }
 virtual_memory_manager = { path = "crates/virtual_memory_manager" }
 

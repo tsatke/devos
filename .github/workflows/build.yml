@@ -59,6 +59,7 @@ jobs:
     strategy:
       matrix:
         package:
+          - foundation
           - physical_memory_manager
           - virtual_memory_manager
     steps:

@@ -10,11 +10,13 @@ ovmf-prebuilt = "0.2.2"
 [workspace]
 members = [
     "kernel",
+    "kernel/crates/foundation",
     "kernel/crates/virtual_memory_manager",
     "kernel/crates/physical_memory_manager",
 ]
 default-members = [
     ".",
+    "kernel/crates/foundation",
     "kernel/crates/virtual_memory_manager",
     "kernel/crates/physical_memory_manager",
 ]
