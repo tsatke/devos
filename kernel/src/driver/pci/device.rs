@@ -62,6 +62,7 @@ pub enum ProbeResult {
 }
 
 impl PciDevice {
+    #[must_use]
     pub fn probe(bus: u8, slot: u8, function: u8) -> ProbeResult {
         let vendor_id = unsafe { read_config_word(bus, slot, function, OFFSET_VENDOR_ID) };
         if vendor_id == 0xFFFF {
@@ -106,18 +107,22 @@ impl PciDevice {
         }
     }
 
+    #[must_use]
     pub fn class(&self) -> u8 {
         self.class
     }
 
+    #[must_use]
     pub fn subclass(&self) -> u8 {
         self.subclass
     }
 
+    #[must_use]
     pub fn status(&self) -> Status {
         Status::from_bits_truncate(self.status.read())
     }
 
+    #[must_use]
     pub fn bist(&self) -> BIST {
         BIST::from_bits_truncate(self.bist.read())
     }
@@ -128,42 +133,52 @@ impl PciDevice {
         self.command.write(command);
     }
 
+    #[must_use]
     pub fn bus(&self) -> u8 {
         self.bus
     }
 
+    #[must_use]
     pub fn slot(&self) -> u8 {
         self.slot
     }
 
+    #[must_use]
     pub fn function(&self) -> u8 {
         self.function
     }
 
+    #[must_use]
     pub fn vendor_id(&self) -> u16 {
         self.vendor_id
     }
 
+    #[must_use]
     pub fn device_id(&self) -> u16 {
         self.device_id
     }
 
+    #[must_use]
     pub fn command(&self) -> &PciRegister<u16> {
         &self.command
     }
 
+    #[must_use]
     pub fn rev(&self) -> u8 {
         self.rev
     }
 
+    #[must_use]
     pub fn prog(&self) -> u8 {
         self.prog
     }
 
+    #[must_use]
     pub fn header_type(&self) -> u8 {
         self.header_type
     }
 
+    #[must_use]
     pub fn base_addresses(&self) -> &[BaseAddressRegister; 6] {
         &self.base_addresses
     }
@@ -172,10 +187,12 @@ impl PciDevice {
         &mut self.base_addresses
     }
 
+    #[must_use]
     pub fn interrupt_pin(&self) -> &PciRegister<u8> {
         &self.interrupt_pin
     }
 
+    #[must_use]
     pub fn interrupt_line(&self) -> &PciRegister<u8> {
         &self.interrupt_line
     }

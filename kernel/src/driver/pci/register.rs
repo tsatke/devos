@@ -48,26 +48,35 @@ impl From<PciRegister<u32>> for BaseAddressRegister {
 impl BaseAddressRegister {
     /// Returns the lowest 3 bits of the bar. Bit0 is set if the bar is an I/O space bar.
     /// Bit2 is set if the bar is a 64bit bar. Bit1 should never be set.
+    #[must_use]
     pub fn bar_type(&self) -> u8 {
         (self.0.read() & 0b111) as u8
     }
 
+    #[must_use]
     pub fn prefetchable(&self) -> bool {
         (self.0.read() & 0b1000) > 0
     }
 
+    #[must_use]
     pub fn is_mem_64bit(&self) -> bool {
         self.bar_type() == 0b100
     }
 
+    #[must_use]
     pub fn is_mem_32bit(&self) -> bool {
         self.bar_type() == 0
     }
 
+    #[must_use]
     pub fn is_io(&self) -> bool {
         self.bar_type() == 1
     }
 
+    /// # Panics
+    ///
+    /// Panics if the bar is a 64bit bar and `next` is not provided.
+    #[must_use]
     pub fn addr(&self, next: Option<&BaseAddressRegister>) -> usize {
         let v = self.0.read();
         if self.is_io() {
@@ -90,6 +99,7 @@ impl BaseAddressRegister {
         !(v & if self.is_io() { !0b11 } else { !0b111 }) as usize + 1
     }
 
+    #[must_use]
     pub fn exists(&self) -> bool {
         self.0.read() != 0
     }
@@ -105,6 +115,7 @@ pub struct PciRegister<T> {
 }
 
 impl<T> PciRegister<T> {
+    #[must_use]
     pub fn new(bus: u8, slot: u8, function: u8, offset: u8) -> Self {
         Self {
             bus,
@@ -125,12 +136,13 @@ impl<T> PciRegister<T>
 where
     T: PciRegisterOps,
 {
+    #[must_use]
     pub fn read(&self) -> T {
         T::read_pci_register(self.bus, self.slot, self.function, self.offset)
     }
 
     pub fn write(&mut self, value: T) {
-        T::write_pci_register(self.bus, self.slot, self.function, self.offset, value)
+        T::write_pci_register(self.bus, self.slot, self.function, self.offset, value);
     }
 
     pub fn update(&mut self, f: impl FnOnce(T) -> T) {

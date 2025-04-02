@@ -46,26 +46,28 @@ pub unsafe fn iterate_all() -> impl Iterator<Item = PciDevice> {
 
 pub unsafe fn read_config_double_word(bus: u8, slot: u8, function: u8, offset: u8) -> u32 {
     unsafe {
-        read_config_word(bus, slot, function, offset) as u32
-            | ((read_config_word(bus, slot, function, offset + 2) as u32) << 16)
+        u32::from(read_config_word(bus, slot, function, offset))
+            | (u32::from(read_config_word(bus, slot, function, offset + 2)) << 16)
     }
 }
 
 pub unsafe fn read_config_word(bus: u8, slot: u8, function: u8, offset: u8) -> u16 {
     #[cfg(debug_assertions)]
-    if offset & 1 > 0 {
-        panic!("can not read unaligned word, use read_config_half_word instead");
-    }
+    assert_eq!(
+        offset & 1,
+        0,
+        "can not read unaligned word, use read_config_half_word instead"
+    );
 
     let mut config_address = Port::<u32>::new(CONFIG_ADDRESS);
     let mut config_data = Port::<u32>::new(CONFIG_DATA);
 
     let mut address: u32 = 0;
     address |= 1 << 31; // enable bit
-    address |= (bus as u32) << 16;
-    address |= (slot as u32) << 11;
-    address |= (function as u32) << 8;
-    address |= (offset as u32) & 0xFC;
+    address |= u32::from(bus) << 16;
+    address |= u32::from(slot) << 11;
+    address |= u32::from(function) << 8;
+    address |= u32::from(offset) & 0xFC;
     unsafe { config_address.write(address) };
 
     unsafe {
@@ -79,37 +81,39 @@ pub unsafe fn read_config_half_word(bus: u8, slot: u8, function: u8, offset: u8)
     if offset & 1 > 0 {
         return (word >> 8) as u8;
     }
-    word as u8
+    (word & 0x00FF) as u8
 }
 
 pub unsafe fn write_config_double_word(bus: u8, slot: u8, function: u8, offset: u8, value: u32) {
     unsafe {
-        write_config_word(bus, slot, function, offset, value as u16);
+        write_config_word(bus, slot, function, offset, (value & 0x0000_FFFF) as u16);
         write_config_word(bus, slot, function, offset + 2, (value >> 16) as u16);
     }
 }
 
 pub unsafe fn write_config_word(bus: u8, slot: u8, function: u8, offset: u8, value: u16) {
     #[cfg(debug_assertions)]
-    if offset & 1 > 0 {
-        panic!("can not write unaligned word, use write_config_half_word instead");
-    }
+    assert_eq!(
+        offset & 1,
+        0,
+        "can not write unaligned word, use write_config_half_word instead"
+    );
 
     let mut config_address = Port::<u32>::new(CONFIG_ADDRESS);
     let mut config_data = Port::<u32>::new(CONFIG_DATA);
 
     let mut address: u32 = 0;
     address |= 1 << 31; // enable bit
-    address |= (bus as u32) << 16;
-    address |= (slot as u32) << 11;
-    address |= (function as u32) << 8;
-    address |= (offset as u32) & 0xFC;
+    address |= u32::from(bus) << 16;
+    address |= u32::from(slot) << 11;
+    address |= u32::from(function) << 8;
+    address |= u32::from(offset) & 0xFC;
     unsafe { config_address.write(address) };
 
     unsafe {
         let mut i = config_data.read();
         i &= !(0xFFFF << ((offset & 2) * 8));
-        i |= (value as u32) << ((offset & 2) * 8);
+        i |= u32::from(value) << ((offset & 2) * 8);
         config_data.write(i);
     }
 }
@@ -118,10 +122,10 @@ pub unsafe fn write_config_half_word(bus: u8, slot: u8, function: u8, offset: u8
     let mut word = unsafe { read_config_word(bus, slot, function, offset & (!1)) };
     if offset & 1 > 0 {
         word &= 0x00FF;
-        word |= (value as u16) << 8;
+        word |= u16::from(value) << 8;
     } else {
         word &= 0xFF00;
-        word |= value as u16;
+        word |= u16::from(value);
     }
     unsafe { write_config_word(bus, slot, function, offset & (!1), word) };
 }

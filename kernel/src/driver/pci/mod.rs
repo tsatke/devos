@@ -26,6 +26,10 @@ pub struct PciDriverDescriptor {
     pub init: fn(PciDevice) -> Result<(), Box<dyn Error>>,
 }
 
+/// # Panics
+///
+/// Panics if there are multiple specific or multiple generic drivers that would match
+/// the same device.
 pub fn init() {
     if log_enabled!(Level::Trace) {
         PCI_DRIVERS
@@ -50,14 +54,14 @@ pub fn init() {
                         && driver.typ == PciDriverType::Generic
                     {
                         return Some(other_driver);
-                    } else {
-                        panic!(
-                            "found two drivers for the same device: {} and {}",
-                            other_driver.name, driver.name
-                        );
                     }
+
+                    panic!(
+                        "found two drivers for the same device: {} and {}",
+                        other_driver.name, driver.name
+                    );
                 } else {
-                    return Some(driver);
+                    Some(driver)
                 }
             });
         if let Some(driver) = driver {
@@ -70,7 +74,7 @@ pub fn init() {
                 );
             }
         } else {
-            warn!("no driver found for device {}", device);
+            warn!("no driver found for device {device}");
         }
     });
 }

@@ -30,7 +30,7 @@ pub fn vga_devices() -> &'static Mutex<Vec<VgaDevice>> {
 
 #[derive(Debug)]
 pub struct VgaDevice {
-    device: PciDevice,
+    _device: PciDevice,
     physical_memory: PhysFrameRangeInclusive,
 }
 
@@ -58,13 +58,14 @@ impl TryFrom<PciDevice> for VgaDevice {
         let end = PhysFrame::containing_address(PhysAddr::new(addr + size - 1));
 
         Ok(Self {
-            device,
+            _device: device,
             physical_memory: PhysFrameRangeInclusive { start, end },
         })
     }
 }
 
 impl VgaDevice {
+    #[must_use]
     pub fn physical_memory(&self) -> &PhysFrameRangeInclusive {
         &self.physical_memory
     }
