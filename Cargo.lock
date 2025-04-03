@@ -304,6 +304,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "elf"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
+
+[[package]]
 name = "errno"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -434,6 +440,7 @@ dependencies = [
  "bitflags 2.9.0",
  "conquer-once",
  "cordyceps",
+ "elf",
  "foundation",
  "jiff",
  "limine",
@@ -441,6 +448,7 @@ dependencies = [
  "linkme",
  "log",
  "physical_memory_manager",
+ "rustc-demangle",
  "spin",
  "thiserror",
  "uart_16550",
@@ -749,6 +757,12 @@ dependencies = [
  "untrusted",
  "windows-sys 0.52.0",
 ]
+
+[[package]]
+name = "rustc-demangle"
+version = "0.1.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
 
 [[package]]
 name = "rustix"
