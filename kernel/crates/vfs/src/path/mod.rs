@@ -1,12 +1,17 @@
-mod filenames;
-
+use alloc::borrow::ToOwned;
 use core::fmt::{Display, Formatter};
+use core::ops::Deref;
 use core::ptr;
 
 pub use filenames::*;
+pub use owned::*;
+
+mod filenames;
+mod owned;
 
 pub const FILEPATH_SEPARATOR: char = '/';
 
+#[derive(Debug, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct Path {
     inner: str,
@@ -15,6 +20,26 @@ pub struct Path {
 impl Display for Path {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", &self.inner)
+    }
+}
+
+impl AsRef<Path> for &str {
+    fn as_ref(&self) -> &Path {
+        Path::new(self)
+    }
+}
+
+impl AsRef<str> for &Path {
+    fn as_ref(&self) -> &str {
+        &self.inner
+    }
+}
+
+impl Deref for Path {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -41,6 +66,14 @@ impl Path {
     #[must_use]
     pub fn file_name(&self) -> Option<&str> {
         self.filenames().last()
+    }
+}
+
+impl ToOwned for Path {
+    type Owned = OwnedPath;
+
+    fn to_owned(&self) -> Self::Owned {
+        Self::Owned::new(self.inner.to_owned())
     }
 }
 

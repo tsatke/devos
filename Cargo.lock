@@ -348,10 +348,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
-name = "foundation"
-version = "0.1.0"
-
-[[package]]
 name = "generator"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -441,7 +437,6 @@ dependencies = [
  "conquer-once",
  "cordyceps",
  "elf",
- "foundation",
  "jiff",
  "limine",
  "linked_list_allocator",
@@ -452,6 +447,7 @@ dependencies = [
  "spin",
  "thiserror",
  "uart_16550",
+ "vfs",
  "virtual_memory_manager",
  "volatile 0.6.1",
  "x2apic",
@@ -1113,6 +1109,14 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "vfs"
+version = "0.1.0"
+dependencies = [
+ "spin",
+ "thiserror",
+]
 
 [[package]]
 name = "virtual_memory_manager"
