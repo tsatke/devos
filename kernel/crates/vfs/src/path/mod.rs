@@ -2,13 +2,19 @@ use alloc::borrow::{Cow, ToOwned};
 use core::fmt::{Display, Formatter};
 use core::ops::Deref;
 use core::ptr;
+
+pub use absolute::*;
+pub use absolute_owned::*;
 pub use filenames::*;
 pub use owned::*;
 
+mod absolute;
+mod absolute_owned;
 mod filenames;
 mod owned;
 
 pub const FILEPATH_SEPARATOR: char = '/';
+pub const ROOT: &AbsolutePath = unsafe { &*(ptr::from_ref::<str>("/") as *const AbsolutePath) };
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(transparent)]

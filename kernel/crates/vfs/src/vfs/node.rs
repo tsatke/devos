@@ -53,7 +53,7 @@ impl VfsNode {
 
 #[cfg(test)]
 mod tests {
-    use crate::path::AbsolutePath;
+    use crate::path::{AbsolutePath, ROOT};
     use crate::testing::TestFs;
     use crate::{CloseError, Vfs};
     use alloc::vec;
@@ -64,7 +64,7 @@ mod tests {
         fs.insert_file("/foo/bar.txt", vec![0_u8; 1]);
 
         let mut vfs = Vfs::new();
-        vfs.mount(AbsolutePath::ROOT, fs).unwrap();
+        vfs.mount(ROOT, fs).unwrap();
 
         let node = vfs
             .open(AbsolutePath::try_new("/foo/bar.txt").unwrap())
@@ -90,7 +90,7 @@ mod tests {
         fs.insert_file("/foo/bar.txt", vec![0_u8; 1]);
 
         let mut vfs = Vfs::new();
-        vfs.mount(AbsolutePath::ROOT, fs).unwrap();
+        vfs.mount(ROOT, fs).unwrap();
 
         let node = vfs
             .open(AbsolutePath::try_new("/foo/bar.txt").unwrap())

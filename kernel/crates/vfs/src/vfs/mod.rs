@@ -1,11 +1,11 @@
 use crate::fs::FileSystem;
-use crate::path::{AbsoluteOwnedPath, AbsolutePath};
+use crate::node::VfsNode;
+use crate::path::{AbsoluteOwnedPath, AbsolutePath, ROOT};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use spin::RwLock;
 
-use crate::node::VfsNode;
 pub use error::*;
 
 mod error;
@@ -102,13 +102,13 @@ impl Vfs {
             }
             current = parent;
         }
-        self.file_systems.get(AbsolutePath::ROOT).cloned()
+        self.file_systems.get(ROOT).cloned()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::path::AbsolutePath;
+    use crate::path::{AbsolutePath, ROOT};
     use crate::testing::TestFs;
     use crate::Vfs;
     use alloc::vec;
@@ -120,7 +120,7 @@ mod tests {
         fs.insert_file("/foo/bar.txt", (0_u8..=u8::MAX).collect::<Vec<u8>>());
 
         let mut vfs = Vfs::new();
-        vfs.mount(AbsolutePath::ROOT, fs).unwrap();
+        vfs.mount(ROOT, fs).unwrap();
 
         for offset in 0..12 {
             for len in 0..14 {
@@ -149,7 +149,7 @@ mod tests {
         fs.insert_file("/foo/bar.txt", vec![0x00; 1]);
 
         let mut vfs = Vfs::new();
-        vfs.mount(AbsolutePath::ROOT, fs).unwrap();
-        assert!(vfs.mount(AbsolutePath::ROOT, TestFs::default()).is_err());
+        vfs.mount(ROOT, fs).unwrap();
+        assert!(vfs.mount(ROOT, TestFs::default()).is_err());
     }
 }
