@@ -54,7 +54,7 @@ unsafe extern "C" fn main() -> ! {
 }
 
 #[panic_handler]
-fn rust_panic(info: &core::panic::PanicInfo) -> ! {
+fn rust_panic(info: &PanicInfo) -> ! {
     handle_panic(info);
     loop {
         hlt();
