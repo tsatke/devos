@@ -1,5 +1,4 @@
-use crate::path::absolute_owned::AbsoluteOwnedPath;
-use crate::path::{Path, PathNotAbsoluteError};
+use crate::path::{AbsoluteOwnedPath, Path, PathNotAbsoluteError};
 use alloc::borrow::ToOwned;
 use core::ops::Deref;
 use core::ptr;
