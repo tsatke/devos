@@ -4,6 +4,7 @@ extern crate alloc;
 
 use alloc::string::ToString;
 use core::arch::asm;
+use core::panic::PanicInfo;
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 use elf::endian::{AnyEndian, LittleEndian};
 use elf::file::Class;
@@ -54,6 +55,13 @@ unsafe extern "C" fn main() -> ! {
 
 #[panic_handler]
 fn rust_panic(info: &core::panic::PanicInfo) -> ! {
+    handle_panic(info);
+    loop {
+        hlt();
+    }
+}
+
+fn handle_panic(info: &PanicInfo) {
     let location = info.location().unwrap();
     error!(
         "kernel panicked at {}:{}:{}:",
@@ -66,9 +74,6 @@ fn rust_panic(info: &core::panic::PanicInfo) -> ! {
     stacktrace(|frame, addr, sym| {
         error!("\t{frame:2}: {addr:p} @ {sym}");
     });
-    loop {
-        hlt();
-    }
 }
 
 fn stacktrace<F>(f: F)

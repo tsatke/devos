@@ -40,7 +40,7 @@ fn main() {
 
 gdb-remote localhost:1234
 b kernel_main
-b rust_begin_unwind
+b handle_panic
 continue"
         );
         std::fs::write("debug.lldb", content).expect("unable to create debug file");
