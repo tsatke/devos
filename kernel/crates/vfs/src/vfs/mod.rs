@@ -1,5 +1,4 @@
 use crate::fs::FileSystem;
-use crate::node::VfsNode;
 use crate::path::{OwnedPath, Path};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
@@ -18,13 +17,26 @@ pub struct Vfs {
     file_systems: BTreeMap<OwnedPath, Arc<RwLock<dyn FileSystem>>>, // TODO: maybe a trie would be better here?
 }
 
+impl Default for Vfs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Vfs {
+    #[must_use]
     pub const fn new() -> Self {
         Self {
             file_systems: BTreeMap::new(),
         }
     }
 
+    /// Mounts a file system at the given mount point.
+    /// The mount point must be an empty directory.
+    ///
+    /// # Errors
+    /// This function returns an error if the mount point is already mounted,
+    /// not an empty directory or if another error occurs during mounting.
     pub fn mount<P, F>(&mut self, mount_point: P, fs: F) -> Result<(), MountError>
     where
         P: AsRef<Path>,
@@ -42,6 +54,11 @@ impl Vfs {
         Ok(())
     }
 
+    /// Unmounts the file system at the given mount point.
+    ///
+    /// # Errors
+    /// This function returns an error if the mount point is not mounted,
+    /// or if another error occurs during unmounting.
     pub fn unmount<P>(&mut self, mount_point: P) -> Result<(), UnmountError>
     where
         P: AsRef<Path>,
@@ -51,13 +68,6 @@ impl Vfs {
             .remove(&owned)
             .map(|_| ())
             .ok_or(UnmountError::NotMounted)
-    }
-
-    pub fn open<P>(&self, path: P) -> Result<VfsNode, OpenError>
-    where
-        P: AsRef<Path>,
-    {
-        todo!()
     }
 }
 

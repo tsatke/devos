@@ -1,15 +1,37 @@
-use alloc::borrow::ToOwned;
+use alloc::borrow::{Cow, ToOwned};
 use core::fmt::{Display, Formatter};
 use core::ops::Deref;
 use core::ptr;
-
 pub use filenames::*;
 pub use owned::*;
+use thiserror::Error;
 
 mod filenames;
 mod owned;
 
 pub const FILEPATH_SEPARATOR: char = '/';
+
+#[derive(Debug, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct AbsolutePath {
+    inner: Path,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+#[error("path is not absolute")]
+pub struct PathNotAbsoluteError;
+
+impl TryFrom<&Path> for &AbsolutePath {
+    type Error = PathNotAbsoluteError;
+
+    fn try_from(value: &Path) -> Result<Self, Self::Error> {
+        if value.is_absolute() {
+            Ok(unsafe { &*(ptr::from_ref::<Path>(value) as *const AbsolutePath) })
+        } else {
+            Err(PathNotAbsoluteError)
+        }
+    }
+}
 
 #[derive(Debug, Eq, PartialEq)]
 #[repr(transparent)]
@@ -20,6 +42,12 @@ pub struct Path {
 impl Display for Path {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", &self.inner)
+    }
+}
+
+impl AsRef<Path> for &Path {
+    fn as_ref(&self) -> &Path {
+        self
     }
 }
 
@@ -55,7 +83,7 @@ impl Path {
 
     #[must_use]
     pub fn is_absolute(&self) -> bool {
-        self.inner.starts_with(FILEPATH_SEPARATOR)
+        self.starts_with(FILEPATH_SEPARATOR)
     }
 
     #[must_use]
@@ -65,7 +93,29 @@ impl Path {
 
     #[must_use]
     pub fn file_name(&self) -> Option<&str> {
-        self.filenames().last()
+        self.filenames().next_back()
+    }
+
+    #[must_use]
+    pub fn parent(&self) -> Option<&Path> {
+        let mut chars = self.char_indices();
+        chars.rfind(|&(_, c)| c != FILEPATH_SEPARATOR);
+        chars.rfind(|&(_, c)| c == FILEPATH_SEPARATOR);
+        chars
+            .rfind(|&(_, c)| c != FILEPATH_SEPARATOR)
+            .map(|v| v.0 + 1)
+            .map(|offset| Path::new(&self.inner[..offset]))
+    }
+
+    #[must_use]
+    pub fn make_absolute(&self) -> Cow<Self> {
+        if self.is_absolute() {
+            Cow::Borrowed(self)
+        } else {
+            let mut p = OwnedPath::new("/");
+            p.push(self);
+            Cow::Owned(p)
+        }
     }
 }
 
@@ -79,7 +129,48 @@ impl ToOwned for Path {
 
 #[cfg(test)]
 mod tests {
-    use crate::path::Path;
+    use crate::path::{OwnedPath, Path};
+    use alloc::borrow::Cow;
+
+    #[test]
+    fn test_make_absolute() {
+        for (path, expected) in [
+            ("", Cow::Owned(OwnedPath::new("/"))),
+            ("/", Cow::Borrowed(Path::new("/"))),
+            ("//", Cow::Borrowed(Path::new("//"))),
+            ("foo", Cow::Owned(OwnedPath::new("/foo"))),
+            ("/foo", Cow::Borrowed(Path::new("/foo"))),
+            ("foo/bar", Cow::Owned(OwnedPath::new("/foo/bar"))),
+            ("/foo/bar", Cow::Borrowed(Path::new("/foo/bar"))),
+            ("//foo/bar", Cow::Borrowed(Path::new("//foo/bar"))),
+            ("///foo/bar", Cow::Borrowed(Path::new("///foo/bar"))),
+        ] {
+            assert_eq!(Path::new(path).make_absolute(), expected);
+        }
+    }
+
+    #[test]
+    fn test_parent() {
+        for (path, parent) in [
+            ("/foo/bar/baz", Some("/foo/bar")),
+            ("/foo/bar", Some("/foo")),
+            ("/foo//bar", Some("/foo")),
+            ("///foo/bar", Some("///foo")),
+            ("foo", None),
+            ("/foo", None),
+            ("//foo", None),
+            ("foo/", None),
+            ("/foo/", None),
+            ("/foo/bar/baz/", Some("/foo/bar")),
+            ("/foo/bar/baz//", Some("/foo/bar")),
+            ("/foo/bar/baz///", Some("/foo/bar")),
+            ("/foo/bar//baz///", Some("/foo/bar")),
+            ("/foo/bar///baz///", Some("/foo/bar")),
+            ("///foo///bar///baz///", Some("///foo///bar")),
+        ] {
+            assert_eq!(Path::new(path).parent(), parent.map(Path::new));
+        }
+    }
 
     #[test]
     fn test_file_name() {

@@ -40,6 +40,7 @@ impl OwnedPath {
         Self { inner: s.into() }
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.inner
     }
