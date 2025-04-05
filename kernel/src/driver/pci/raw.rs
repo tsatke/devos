@@ -1,4 +1,5 @@
 use crate::driver::pci::device::{PciDevice, ProbeResult};
+use virtio_drivers::transport::pci::bus::{ConfigurationAccess, DeviceFunction};
 use x86_64::instructions::port::Port;
 
 const CONFIG_ADDRESS: u16 = 0xCF8;
@@ -6,6 +7,8 @@ const CONFIG_DATA: u16 = 0xCFC;
 
 pub const OFFSET_VENDOR_ID: u8 = 0x00;
 pub const OFFSET_DEVICE_ID: u8 = 0x02;
+pub const OFFSET_SUBSYSTEM_VENDOR_ID: u8 = 0x2C;
+pub const OFFSET_SUBSYSTEM_ID: u8 = 0x2E;
 pub const OFFSET_STATUS: u8 = 0x06;
 pub const OFFSET_COMMAND: u8 = 0x04;
 pub const OFFSET_REVISION_ID: u8 = 0x08;
@@ -128,4 +131,28 @@ pub unsafe fn write_config_half_word(bus: u8, slot: u8, function: u8, offset: u8
         word |= u16::from(value);
     }
     unsafe { write_config_word(bus, slot, function, offset & (!1), word) };
+}
+
+pub struct PortCam;
+
+impl ConfigurationAccess for PortCam {
+    fn read_word(&self, device_function: DeviceFunction, register_offset: u8) -> u32 {
+        let bus = device_function.bus;
+        let slot = device_function.device;
+        let function = device_function.function;
+
+        unsafe { read_config_double_word(bus, slot, function, register_offset) }
+    }
+
+    fn write_word(&mut self, device_function: DeviceFunction, register_offset: u8, data: u32) {
+        let bus = device_function.bus;
+        let slot = device_function.device;
+        let function = device_function.function;
+
+        unsafe { write_config_double_word(bus, slot, function, register_offset, data) }
+    }
+
+    unsafe fn unsafe_clone(&self) -> Self {
+        Self
+    }
 }

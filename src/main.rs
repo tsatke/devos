@@ -70,6 +70,9 @@ continue"
         cmd.arg("-nographic");
     }
 
+    cmd.arg("-m");
+    cmd.arg("4G");
+
     // OVMF firmware
     cmd.arg("-drive");
     cmd.arg(format!(
@@ -85,6 +88,17 @@ continue"
     cmd.arg("-smp");
     cmd.arg(args.smp.to_string());
 
+    cmd.arg("-drive");
+    cmd.arg("id=virtio-disk0,file=.gitignore,format=raw,if=none");
+    cmd.arg("-device");
+    cmd.arg("virtio-blk-pci,drive=virtio-disk0");
+
+    cmd.arg("-device");
+    cmd.arg("virtio-gpu");
+    cmd.arg("-vga");
+    cmd.arg("none");
+
+    println!("{cmd:?}");
     let status = cmd.status().unwrap();
     assert!(status.success());
 }

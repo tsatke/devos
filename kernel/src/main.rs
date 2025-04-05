@@ -3,6 +3,7 @@
 extern crate alloc;
 
 use alloc::string::ToString;
+use alloc::vec;
 use core::arch::asm;
 use core::panic::PanicInfo;
 use core::slice::{from_raw_parts, from_raw_parts_mut};
@@ -10,12 +11,15 @@ use elf::endian::{AnyEndian, LittleEndian};
 use elf::file::Class;
 use elf::symbol::SymbolTable;
 use elf::ElfBytes;
+use jiff::Timestamp;
+use kernel::driver::block::block_devices;
 use kernel::driver::vga::{vga_devices, VgaDevice};
 use kernel::limine::{BASE_REVISION, KERNEL_FILE_REQUEST};
 use kernel::mem::address_space::AddressSpace;
 use kernel::mem::virt::VirtualMemoryHigherHalf;
+use kernel::time::TimestampExt;
 use kernel::{mcore, U64Ext};
-use log::error;
+use log::{error, info};
 use rustc_demangle::demangle;
 use x86_64::instructions::hlt;
 use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
@@ -27,28 +31,17 @@ unsafe extern "C" fn main() -> ! {
 
     kernel::init();
 
-    if let Some(&vga_phys_mem) = vga_devices()
-        .lock()
-        .iter()
-        .next()
-        .map(VgaDevice::physical_memory)
-    {
-        let size = vga_phys_mem.size();
-        let pages = size.div_ceil(Size4KiB::SIZE);
-        let segment = VirtualMemoryHigherHalf::reserve(pages.into_usize())
-            .expect("should have enough memory for framebuffer");
-        AddressSpace::kernel()
-            .map_range(
-                &*segment,
-                vga_phys_mem,
-                PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
-            )
-            .unwrap();
-        let slice = unsafe {
-            from_raw_parts_mut(segment.start.as_mut_ptr::<u8>(), segment.len.into_usize())
-        };
-        slice.fill(0xCE);
-    }
+    let blk1 = block_devices().read().get(0).cloned().unwrap();
+    let mut guard = blk1.write();
+    let mut data = vec![0_u8; 512];
+    let start = Timestamp::now();
+    guard.read(0, &mut data);
+    let end = Timestamp::now();
+    info!(
+        "read (took {:?}): {}",
+        end - start,
+        str::from_utf8(&data).unwrap()
+    );
 
     mcore::turn_idle()
 }

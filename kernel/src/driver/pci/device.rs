@@ -2,7 +2,8 @@ use crate::driver::pci::raw::{
     read_config_half_word, read_config_word, OFFSET_BAR0, OFFSET_BAR1, OFFSET_BAR2, OFFSET_BAR3, OFFSET_BAR4,
     OFFSET_BAR5, OFFSET_BIST, OFFSET_CLASS, OFFSET_COMMAND, OFFSET_DEVICE_ID,
     OFFSET_HEADER_TYPE, OFFSET_INTERRUPT_LINE, OFFSET_INTERRUPT_PIN, OFFSET_PROG_IF, OFFSET_REVISION_ID,
-    OFFSET_STATUS, OFFSET_SUBCLASS, OFFSET_VENDOR_ID,
+    OFFSET_STATUS, OFFSET_SUBCLASS, OFFSET_SUBSYSTEM_ID, OFFSET_SUBSYSTEM_VENDOR_ID,
+    OFFSET_VENDOR_ID,
 };
 use crate::driver::pci::register::{BaseAddressRegister, PciRegister};
 use bitflags::bitflags;
@@ -14,6 +15,8 @@ pub struct PciDevice {
     function: u8,
     vendor_id: u16,
     device_id: u16,
+    subsystem_vendor_id: u16,
+    subsystem_id: u16,
     status: PciRegister<u16>,
     command: PciRegister<u16>,
     rev: u8,
@@ -35,6 +38,8 @@ impl Debug for PciDevice {
             .field("function", &self.function)
             .field("vendor_id", &self.vendor_id)
             .field("device_id", &self.device_id)
+            .field("subsystem_vendor_id", &self.subsystem_vendor_id)
+            .field("subsystem_id", &self.subsystem_id)
             .field("class", &self.class)
             .field("subclass", &self.subclass)
             .field("prog", &self.prog)
@@ -48,8 +53,14 @@ impl Display for PciDevice {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "id {:04x}:{:04x}, slot {:02x}:{:02x}.{:x}",
-            self.vendor_id, self.device_id, self.bus, self.slot, self.function,
+            "id {:04x}:{:04x} (subsystem {:04x}:{:04x}), slot {:02x}:{:02x}.{:x}",
+            self.vendor_id,
+            self.device_id,
+            self.subsystem_vendor_id,
+            self.subsystem_id,
+            self.bus,
+            self.slot,
+            self.function,
         )
     }
 }
@@ -85,6 +96,13 @@ impl PciDevice {
                 function,
                 vendor_id: read_config_word(bus, slot, function, OFFSET_VENDOR_ID),
                 device_id: read_config_word(bus, slot, function, OFFSET_DEVICE_ID),
+                subsystem_vendor_id: read_config_word(
+                    bus,
+                    slot,
+                    function,
+                    OFFSET_SUBSYSTEM_VENDOR_ID,
+                ),
+                subsystem_id: read_config_word(bus, slot, function, OFFSET_SUBSYSTEM_ID),
                 status: PciRegister::new(bus, slot, function, OFFSET_STATUS),
                 command: PciRegister::new(bus, slot, function, OFFSET_COMMAND),
                 rev: read_config_half_word(bus, slot, function, OFFSET_REVISION_ID),
@@ -156,6 +174,16 @@ impl PciDevice {
     #[must_use]
     pub fn device_id(&self) -> u16 {
         self.device_id
+    }
+
+    #[must_use]
+    pub fn subsystem_vendor_id(&self) -> u16 {
+        self.subsystem_vendor_id
+    }
+
+    #[must_use]
+    pub fn subsystem_id(&self) -> u16 {
+        self.subsystem_id
     }
 
     #[must_use]

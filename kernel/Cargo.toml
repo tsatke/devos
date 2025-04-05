@@ -23,6 +23,7 @@ rustc-demangle.workspace = true
 spin.workspace = true
 thiserror.workspace = true
 uart_16550.workspace = true
+virtio-drivers.workspace = true
 volatile.workspace = true
 x2apic.workspace = true
 x86_64.workspace = true

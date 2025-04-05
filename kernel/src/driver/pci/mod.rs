@@ -6,6 +6,8 @@ use core::error::Error;
 use linkme::distributed_slice;
 use log::{debug, error, log_enabled, trace, warn, Level};
 
+pub use raw::PortCam;
+
 pub mod device;
 mod raw;
 pub mod register;
