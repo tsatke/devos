@@ -12,6 +12,77 @@ pub const FILEPATH_SEPARATOR: char = '/';
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(transparent)]
+pub struct AbsolutePath {
+    inner: Path,
+}
+
+impl AbsolutePath {
+    pub const ROOT: &'static Self = unsafe { &*(ptr::from_ref::<str>("/") as *const AbsolutePath) };
+
+    /// Creates a new [`AbsolutePath`] from a string slice.
+    ///
+    /// # Errors
+    /// Returns an error if the path is not absolute.
+    pub fn try_new(path: &str) -> Result<&Self, PathNotAbsoluteError> {
+        path.try_into()
+    }
+
+    unsafe fn new_unchecked(path: &Path) -> &Self {
+        unsafe { &*(ptr::from_ref::<Path>(path) as *const AbsolutePath) }
+    }
+
+    #[must_use]
+    pub fn parent(&self) -> Option<&AbsolutePath> {
+        self.inner
+            .parent()
+            .map(|v| unsafe { AbsolutePath::new_unchecked(v) })
+    }
+}
+
+impl Deref for AbsolutePath {
+    type Target = Path;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl AsRef<AbsolutePath> for AbsolutePath {
+    fn as_ref(&self) -> &AbsolutePath {
+        self
+    }
+}
+
+impl TryFrom<&str> for &AbsolutePath {
+    type Error = PathNotAbsoluteError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        Path::new(value).try_into()
+    }
+}
+
+impl TryFrom<&Path> for &AbsolutePath {
+    type Error = PathNotAbsoluteError;
+
+    fn try_from(value: &Path) -> Result<Self, Self::Error> {
+        if value.is_absolute() {
+            Ok(unsafe { &*(ptr::from_ref::<Path>(value) as *const AbsolutePath) })
+        } else {
+            Err(PathNotAbsoluteError)
+        }
+    }
+}
+
+impl ToOwned for AbsolutePath {
+    type Owned = AbsoluteOwnedPath;
+
+    fn to_owned(&self) -> Self::Owned {
+        unsafe { AbsoluteOwnedPath::new_unchecked(self.inner.to_owned()) }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[repr(transparent)]
 pub struct Path {
     inner: str,
 }
@@ -85,11 +156,11 @@ impl Path {
     }
 
     #[must_use]
-    pub fn make_absolute(&self) -> Cow<Self> {
-        if self.is_absolute() {
-            Cow::Borrowed(self)
+    pub fn make_absolute(&self) -> Cow<AbsolutePath> {
+        if let Ok(path) = AbsolutePath::try_new(self) {
+            Cow::Borrowed(path)
         } else {
-            let mut p = OwnedPath::new("/");
+            let mut p = AbsoluteOwnedPath::new();
             p.push(self);
             Cow::Owned(p)
         }
@@ -106,21 +177,24 @@ impl ToOwned for Path {
 
 #[cfg(test)]
 mod tests {
-    use crate::path::{OwnedPath, Path};
+    use crate::path::Path;
     use alloc::borrow::Cow;
 
     #[test]
     fn test_make_absolute() {
         for (path, expected) in [
-            ("", Cow::Owned(OwnedPath::new("/"))),
-            ("/", Cow::Borrowed(Path::new("/"))),
-            ("//", Cow::Borrowed(Path::new("//"))),
-            ("foo", Cow::Owned(OwnedPath::new("/foo"))),
-            ("/foo", Cow::Borrowed(Path::new("/foo"))),
-            ("foo/bar", Cow::Owned(OwnedPath::new("/foo/bar"))),
-            ("/foo/bar", Cow::Borrowed(Path::new("/foo/bar"))),
-            ("//foo/bar", Cow::Borrowed(Path::new("//foo/bar"))),
-            ("///foo/bar", Cow::Borrowed(Path::new("///foo/bar"))),
+            ("", Cow::Owned("/".try_into().unwrap())),
+            ("/", Cow::Borrowed("/".try_into().unwrap())),
+            ("//", Cow::Borrowed("//".try_into().unwrap())),
+            ("foo", Cow::Owned("/foo".try_into().unwrap())),
+            ("/foo", Cow::Borrowed("/foo".try_into().unwrap())),
+            ("foo/bar", Cow::Owned("/foo/bar".try_into().unwrap())),
+            ("/foo/bar", Cow::Borrowed("/foo/bar".try_into().unwrap())),
+            ("//foo/bar", Cow::Borrowed("//foo/bar".try_into().unwrap())),
+            (
+                "///foo/bar",
+                Cow::Borrowed("///foo/bar".try_into().unwrap()),
+            ),
         ] {
             assert_eq!(Path::new(path).make_absolute(), expected);
         }

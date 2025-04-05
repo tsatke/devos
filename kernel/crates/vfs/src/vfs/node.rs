@@ -1,11 +1,11 @@
 use crate::fs::{FileSystem, FsHandle};
-use crate::path::OwnedPath;
+use crate::path::AbsoluteOwnedPath;
 use crate::ReadError;
 use alloc::sync::Weak;
 use spin::RwLock;
 
 pub struct VfsNode {
-    _path: OwnedPath,
+    _path: AbsoluteOwnedPath,
     fs_handle: FsHandle,
     fs: Weak<RwLock<dyn FileSystem>>,
 }
@@ -21,7 +21,7 @@ impl Drop for VfsNode {
 
 impl VfsNode {
     pub(crate) fn new(
-        path: OwnedPath,
+        path: AbsoluteOwnedPath,
         fs_handle: FsHandle,
         fs: Weak<RwLock<dyn FileSystem>>,
     ) -> Self {
@@ -53,6 +53,7 @@ impl VfsNode {
 
 #[cfg(test)]
 mod tests {
+    use crate::path::AbsolutePath;
     use crate::testing::TestFs;
     use crate::{CloseError, Vfs};
     use alloc::vec;
@@ -63,9 +64,11 @@ mod tests {
         fs.insert_file("/foo/bar.txt", vec![0_u8; 1]);
 
         let mut vfs = Vfs::new();
-        vfs.mount("/", fs).unwrap();
+        vfs.mount(AbsolutePath::ROOT, fs).unwrap();
 
-        let node = vfs.open("/foo/bar.txt").unwrap();
+        let node = vfs
+            .open(AbsolutePath::try_new("/foo/bar.txt").unwrap())
+            .unwrap();
         let fs = node.fs.upgrade().expect("file system should still exist");
 
         // save the fs_handle so that we can try to close it after drop
@@ -87,9 +90,11 @@ mod tests {
         fs.insert_file("/foo/bar.txt", vec![0_u8; 1]);
 
         let mut vfs = Vfs::new();
-        vfs.mount("/", fs).unwrap();
+        vfs.mount(AbsolutePath::ROOT, fs).unwrap();
 
-        let node = vfs.open("/foo/bar.txt").unwrap();
+        let node = vfs
+            .open(AbsolutePath::try_new("/foo/bar.txt").unwrap())
+            .unwrap();
         let fs = node.fs.upgrade().expect("file system should still exist");
 
         // closing the node's fs_handle must not return an error now, because the

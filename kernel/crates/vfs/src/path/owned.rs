@@ -1,8 +1,85 @@
-use crate::path::{Path, FILEPATH_SEPARATOR};
+use crate::path::{AbsolutePath, Path, FILEPATH_SEPARATOR};
 use alloc::string::String;
 use core::borrow::Borrow;
 use core::fmt::Display;
-use core::ops::Deref;
+use core::ops::{Deref, DerefMut};
+use thiserror::Error;
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[repr(transparent)]
+pub struct AbsoluteOwnedPath {
+    inner: OwnedPath,
+}
+
+impl Default for AbsoluteOwnedPath {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl AbsoluteOwnedPath {
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            inner: OwnedPath::new("/"),
+        }
+    }
+
+    pub(crate) unsafe fn new_unchecked(inner: OwnedPath) -> Self {
+        Self { inner }
+    }
+}
+
+impl TryFrom<&str> for AbsoluteOwnedPath {
+    type Error = PathNotAbsoluteError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let path = OwnedPath::new(value);
+        path.try_into()
+    }
+}
+
+impl Deref for AbsoluteOwnedPath {
+    type Target = OwnedPath;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for AbsoluteOwnedPath {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+#[error("path is not absolute")]
+pub struct PathNotAbsoluteError;
+
+impl TryFrom<OwnedPath> for AbsoluteOwnedPath {
+    type Error = PathNotAbsoluteError;
+
+    fn try_from(value: OwnedPath) -> Result<Self, Self::Error> {
+        if value.is_absolute() {
+            Ok(AbsoluteOwnedPath { inner: value })
+        } else {
+            Err(PathNotAbsoluteError)
+        }
+    }
+}
+
+impl AsRef<AbsolutePath> for AbsoluteOwnedPath {
+    fn as_ref(&self) -> &AbsolutePath {
+        unsafe { AbsolutePath::new_unchecked(&self.inner) }
+    }
+}
+
+impl Borrow<AbsolutePath> for AbsoluteOwnedPath {
+    fn borrow(&self) -> &AbsolutePath {
+        unsafe { AbsolutePath::new_unchecked(&self.inner) }
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct OwnedPath {

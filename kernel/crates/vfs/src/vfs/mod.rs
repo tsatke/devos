@@ -1,5 +1,5 @@
 use crate::fs::FileSystem;
-use crate::path::{OwnedPath, Path};
+use crate::path::{AbsoluteOwnedPath, AbsolutePath};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
@@ -17,7 +17,7 @@ pub mod testing;
 type Fs = Arc<RwLock<dyn FileSystem>>;
 
 pub struct Vfs {
-    file_systems: BTreeMap<OwnedPath, Fs>, // TODO: maybe a trie would be better here?
+    file_systems: BTreeMap<AbsoluteOwnedPath, Fs>, // TODO: maybe a trie would be better here?
 }
 
 impl Default for Vfs {
@@ -35,22 +35,17 @@ impl Vfs {
     }
 
     /// Mounts a file system at the given mount point.
-    /// The mount point must be absolute and point to an empty directory.
+    /// The mount point must point to an empty directory.
     ///
     /// # Errors
     /// This function returns an error if the mount point is already mounted,
     /// not an empty directory or if another error occurs during mounting.
-    ///
-    /// # Panics
-    /// This function panics if the mount point is not absolute.
-    // TODO: remove panic, maybe separate type AbsolutePath? but how to unify with Path, OwnedPath and ToOwned?
     pub fn mount<P, F>(&mut self, mount_point: P, fs: F) -> Result<(), MountError>
     where
-        P: AsRef<Path>,
+        P: AsRef<AbsolutePath>,
         F: FileSystem + 'static,
     {
         let mount_point = mount_point.as_ref();
-        assert!(mount_point.is_absolute());
         let mount_point = mount_point.to_owned();
         if self.file_systems.contains_key(&mount_point) {
             return Err(MountError::AlreadyMounted);
@@ -70,7 +65,7 @@ impl Vfs {
     /// or if another error occurs during unmounting.
     pub fn unmount<P>(&mut self, mount_point: P) -> Result<(), UnmountError>
     where
-        P: AsRef<Path>,
+        P: AsRef<AbsolutePath>,
     {
         let owned = mount_point.as_ref().to_owned();
         self.file_systems
@@ -86,7 +81,7 @@ impl Vfs {
     /// or if another error occurs during opening.
     pub fn open<P>(&self, path: P) -> Result<VfsNode, OpenError>
     where
-        P: AsRef<Path>,
+        P: AsRef<AbsolutePath>,
     {
         let path = path.as_ref();
         let fs = self.find_mount(path).ok_or(OpenError::NotFound)?;
@@ -96,7 +91,7 @@ impl Vfs {
             .map(|handle| VfsNode::new(path.to_owned(), handle, Arc::downgrade(&fs)))
     }
 
-    fn find_mount(&self, path: &Path) -> Option<Fs> {
+    fn find_mount(&self, path: &AbsolutePath) -> Option<Fs> {
         let mut current = path;
         if let Some(fs) = self.file_systems.get(current) {
             return Some(fs.clone());
@@ -107,12 +102,13 @@ impl Vfs {
             }
             current = parent;
         }
-        self.file_systems.get(Path::new("/")).cloned()
+        self.file_systems.get(AbsolutePath::ROOT).cloned()
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::path::AbsolutePath;
     use crate::testing::TestFs;
     use crate::Vfs;
     use alloc::vec;
@@ -124,13 +120,15 @@ mod tests {
         fs.insert_file("/foo/bar.txt", (0_u8..=u8::MAX).collect::<Vec<u8>>());
 
         let mut vfs = Vfs::new();
-        vfs.mount("/", fs).unwrap();
+        vfs.mount(AbsolutePath::ROOT, fs).unwrap();
 
         for offset in 0..12 {
             for len in 0..14 {
                 let offset = offset * 10;
                 let len = len * 10;
-                let node = vfs.open("/foo/bar.txt").unwrap();
+                let node = vfs
+                    .open(AbsolutePath::try_new("/foo/bar.txt").unwrap())
+                    .unwrap();
                 let mut buf = vec![0_u8; len];
                 let bytes_read = node.read(&mut buf, offset).unwrap();
                 assert_eq!(bytes_read, len, "offset: {}, len: {}", offset, len);
@@ -151,7 +149,7 @@ mod tests {
         fs.insert_file("/foo/bar.txt", vec![0x00; 1]);
 
         let mut vfs = Vfs::new();
-        vfs.mount("/", fs).unwrap();
-        assert!(vfs.mount("/", TestFs::default()).is_err());
+        vfs.mount(AbsolutePath::ROOT, fs).unwrap();
+        assert!(vfs.mount(AbsolutePath::ROOT, TestFs::default()).is_err());
     }
 }
