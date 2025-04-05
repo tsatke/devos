@@ -1,6 +1,6 @@
 use crate::fs::{FileSystem, FsHandle};
 use crate::path::{OwnedPath, Path};
-use crate::{CloseError, OpenError};
+use crate::{CloseError, OpenError, ReadError};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
@@ -40,6 +40,33 @@ impl FileSystem for TestFs {
             .map(|_| ())
             .ok_or(CloseError::NotOpen)
     }
+
+    fn read(
+        &mut self,
+        handle: FsHandle,
+        buf: &mut [u8],
+        offset: usize,
+    ) -> Result<usize, ReadError> {
+        let path = self
+            .open_files
+            .get(&handle)
+            .ok_or(ReadError::InvalidHandle)?;
+
+        // file can't be deleted while it's open, so if we have a handle, it must exist in `self.files`
+        let file = self.files.get(path).unwrap();
+
+        let guard = file.read();
+        let data = guard.as_slice();
+        let file_len = data.len();
+        if offset >= file_len {
+            return Ok(0);
+        }
+
+        let bytes_to_read = file_len - offset;
+        let bytes_to_copy = buf.len().min(bytes_to_read);
+        buf[..bytes_to_copy].copy_from_slice(&data[offset..offset + bytes_to_copy]);
+        Ok(bytes_to_copy)
+    }
 }
 
 #[cfg(test)]
@@ -53,6 +80,7 @@ mod tests {
     fn test_open_close() {
         let mut fs = TestFs::default();
         fs.files.insert(OwnedPath::new("/foo"), Default::default());
+
         assert!(fs.open(Path::new("/bar")).is_err());
         let handle = fs.open(Path::new("/foo")).unwrap();
 

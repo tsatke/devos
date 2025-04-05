@@ -28,4 +28,11 @@ pub enum CloseError {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum ReadError {}
+pub enum ReadError {
+    #[error("filesystem is not open")]
+    FileSystemNotOpen,
+    #[error("invalid handle")]
+    InvalidHandle,
+    #[error("end of file")]
+    EndOfFile,
+}

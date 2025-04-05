@@ -4,36 +4,13 @@ use core::ops::Deref;
 use core::ptr;
 pub use filenames::*;
 pub use owned::*;
-use thiserror::Error;
 
 mod filenames;
 mod owned;
 
 pub const FILEPATH_SEPARATOR: char = '/';
 
-#[derive(Debug, Eq, PartialEq)]
-#[repr(transparent)]
-pub struct AbsolutePath {
-    inner: Path,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-#[error("path is not absolute")]
-pub struct PathNotAbsoluteError;
-
-impl TryFrom<&Path> for &AbsolutePath {
-    type Error = PathNotAbsoluteError;
-
-    fn try_from(value: &Path) -> Result<Self, Self::Error> {
-        if value.is_absolute() {
-            Ok(unsafe { &*(ptr::from_ref::<Path>(value) as *const AbsolutePath) })
-        } else {
-            Err(PathNotAbsoluteError)
-        }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[repr(transparent)]
 pub struct Path {
     inner: str,
