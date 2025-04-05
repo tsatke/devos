@@ -18,6 +18,7 @@ pub mod mcore;
 pub mod mem;
 mod serial;
 pub mod time;
+pub mod vfs;
 
 static BOOT_TIME_SECONDS: OnceCell<u64> = OnceCell::uninit();
 

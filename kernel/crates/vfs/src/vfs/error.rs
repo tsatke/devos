@@ -35,4 +35,20 @@ pub enum ReadError {
     InvalidHandle,
     #[error("end of file")]
     EndOfFile,
+    #[error("read failed")]
+    ReadFailed,
+    #[error("file is not readable")]
+    NotReadable,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum WriteError {
+    #[error("filesystem is not open")]
+    FileSystemNotOpen,
+    #[error("invalid handle")]
+    InvalidHandle,
+    #[error("write failed")]
+    WriteFailed,
+    #[error("file is not writable")]
+    NotWritable,
 }

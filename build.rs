@@ -1,7 +1,7 @@
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
-use std::fs::{copy, create_dir_all, exists};
+use std::fs::{copy, create_dir, create_dir_all, exists, remove_dir_all, remove_file, write};
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 
 fn main() {
     let limine_dir = limine();
@@ -21,6 +21,45 @@ fn main() {
         "cargo:rustc-env=OVMF_X86_64_VARS={}",
         ovmf.get_file(Arch::X64, FileType::Vars).display()
     );
+
+    let disk_image = build_os_disk_image();
+    println!("cargo:rustc-env=DISK_IMAGE={}", disk_image.display());
+}
+
+fn build_os_disk_image() -> PathBuf {
+    let disk_dir = build_os_disk_dir();
+    let disk_image = disk_dir.with_extension("img");
+
+    let _ = remove_file(&disk_image); // if this fails, doesn't matter
+
+    // works on my machine. TODO: use the mkfs-ext2 crate once it's ready
+    let mut cmd = Command::new("mke2fs");
+    cmd.arg("-d").arg(disk_dir.to_str().unwrap());
+    cmd.arg("-m").arg("5");
+    cmd.arg("-t").arg("ext2");
+    cmd.arg(disk_image.to_str().unwrap());
+    cmd.arg("5M");
+
+    let rc = cmd.status().unwrap();
+    assert_eq!(0, rc.code().unwrap());
+
+    disk_image
+}
+
+fn build_os_disk_dir() -> PathBuf {
+    let disk = out_dir().join("disk");
+    let _ = remove_dir_all(&disk);
+    create_dir(&disk).unwrap();
+
+    let bin = disk.join("bin");
+    create_dir(&bin).unwrap();
+
+    let sandbox = PathBuf::from(std::env::var_os("CARGO_BIN_FILE_SANDBOX_sandbox").unwrap());
+    copy(sandbox, bin.join("sandbox")).unwrap();
+
+    write(disk.join("greeting.txt"), "Hello, world!").unwrap();
+
+    disk
 }
 
 fn ovmf() -> Prebuilt {

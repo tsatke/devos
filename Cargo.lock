@@ -291,6 +291,7 @@ dependencies = [
  "clap",
  "kernel",
  "ovmf-prebuilt",
+ "sandbox",
 ]
 
 [[package]]
@@ -459,6 +460,8 @@ dependencies = [
  "linked_list_allocator",
  "linkme",
  "log",
+ "mkfs-ext2",
+ "mkfs-filesystem",
  "physical_memory_manager",
  "rustc-demangle",
  "spin",
@@ -601,6 +604,20 @@ checksum = "b8402cab7aefae129c6977bb0ff1b8fd9a04eb5b51efc50a70bea51cda0c7924"
 dependencies = [
  "adler2",
 ]
+
+[[package]]
+name = "mkfs-ext2"
+version = "0.1.0"
+source = "git+https://github.com/tsatke/mkfs#24c1cfba44f360c8d4936f08cee49a34a5e4f916"
+dependencies = [
+ "bitflags 2.9.0",
+ "mkfs-filesystem",
+]
+
+[[package]]
+name = "mkfs-filesystem"
+version = "0.1.0"
+source = "git+https://github.com/tsatke/mkfs#24c1cfba44f360c8d4936f08cee49a34a5e4f916"
 
 [[package]]
 name = "nu-ansi-term"
@@ -837,6 +854,10 @@ name = "rustversion"
 version = "1.0.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7c45b9784283f1b2e7fb61b42047c2fd678ef0960d4f6f1eba131594cc369d4"
+
+[[package]]
+name = "sandbox"
+version = "0.1.0"
 
 [[package]]
 name = "scoped-tls"
@@ -1132,6 +1153,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "vfs"
 version = "0.1.0"
 dependencies = [
+ "mkfs-filesystem",
  "spin",
  "thiserror",
 ]

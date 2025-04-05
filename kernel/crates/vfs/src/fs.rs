@@ -10,7 +10,7 @@ impl From<u64> for FsHandle {
     }
 }
 
-pub trait FileSystem {
+pub trait FileSystem: Send + Sync {
     /// # Errors
     /// Returns an error if the path does not point to a file, or if there
     /// was an underlying error during opening (such as a hardware error).

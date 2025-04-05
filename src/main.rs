@@ -4,6 +4,7 @@ static KERNEL_BINARY: &str = env!("KERNEL_BINARY");
 static BOOTABLE_ISO: &str = env!("BOOTABLE_ISO");
 static OVMF_CODE: &str = env!("OVMF_X86_64_CODE");
 static OVMF_VARS: &str = env!("OVMF_X86_64_VARS");
+static DISK_IMAGE: &str = env!("DISK_IMAGE");
 
 #[derive(Parser)]
 struct Args {
@@ -16,15 +17,20 @@ struct Args {
     headless: bool,
     #[arg(long, help = "Number of CPU cores to emulate", default_value_t = 4)]
     smp: u8,
+    #[arg(long, help = "Don't boot, just build")]
+    no_run: bool,
 }
 
 fn main() {
     println!("KERNEL_BINARY: {KERNEL_BINARY}");
     println!("BOOTABLE_ISO: {BOOTABLE_ISO}");
-    println!("OVMF_CODE: {OVMF_CODE}");
-    println!("OVMF_VARS: {OVMF_VARS}");
+    println!("DISK_IMAGE: {DISK_IMAGE}");
 
     let args = Args::parse();
+
+    if args.no_run {
+        return;
+    }
 
     #[cfg(debug_assertions)]
     {
@@ -89,7 +95,9 @@ continue"
     cmd.arg(args.smp.to_string());
 
     cmd.arg("-drive");
-    cmd.arg("id=virtio-disk0,file=.gitignore,format=raw,if=none");
+    cmd.arg(format!(
+        "id=virtio-disk0,file={DISK_IMAGE},format=raw,if=none"
+    ));
     cmd.arg("-device");
     cmd.arg("virtio-blk-pci,drive=virtio-disk0");
 

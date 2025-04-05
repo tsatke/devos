@@ -6,23 +6,18 @@ use alloc::string::ToString;
 use alloc::vec;
 use core::arch::asm;
 use core::panic::PanicInfo;
-use core::slice::{from_raw_parts, from_raw_parts_mut};
+use core::slice::from_raw_parts;
 use elf::endian::{AnyEndian, LittleEndian};
 use elf::file::Class;
 use elf::symbol::SymbolTable;
 use elf::ElfBytes;
-use jiff::Timestamp;
-use kernel::driver::block::block_devices;
-use kernel::driver::vga::{vga_devices, VgaDevice};
 use kernel::limine::{BASE_REVISION, KERNEL_FILE_REQUEST};
-use kernel::mem::address_space::AddressSpace;
-use kernel::mem::virt::VirtualMemoryHigherHalf;
-use kernel::time::TimestampExt;
+use kernel::vfs::vfs;
 use kernel::{mcore, U64Ext};
 use log::{error, info};
 use rustc_demangle::demangle;
+use vfs::path::AbsolutePath;
 use x86_64::instructions::hlt;
-use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 #[unsafe(export_name = "kernel_main")]
@@ -31,17 +26,14 @@ unsafe extern "C" fn main() -> ! {
 
     kernel::init();
 
-    let blk1 = block_devices().read().get(0).cloned().unwrap();
-    let mut guard = blk1.write();
-    let mut data = vec![0_u8; 512];
-    let start = Timestamp::now();
-    guard.read(0, &mut data);
-    let end = Timestamp::now();
-    info!(
-        "read (took {:?}): {}",
-        end - start,
-        str::from_utf8(&data).unwrap()
-    );
+    let node = vfs()
+        .write()
+        .open(AbsolutePath::try_new("/greeting.txt").unwrap())
+        .unwrap();
+    let mut buf = vec![0_u8; 100];
+    let n = node.read(&mut buf, 0).unwrap();
+    let s = core::str::from_utf8(&buf[..n]).unwrap();
+    info!("read {n} bytes: {s}");
 
     mcore::turn_idle()
 }

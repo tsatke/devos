@@ -1,5 +1,6 @@
 use crate::path::{AbsoluteOwnedPath, Path, PathNotAbsoluteError};
 use alloc::borrow::ToOwned;
+use core::fmt::{Display, Formatter};
 use core::ops::Deref;
 use core::ptr;
 
@@ -7,6 +8,12 @@ use core::ptr;
 #[repr(transparent)]
 pub struct AbsolutePath {
     inner: Path,
+}
+
+impl Display for AbsolutePath {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", &self.inner)
+    }
 }
 
 impl AbsolutePath {

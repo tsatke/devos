@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use alloc::string::ToString;
 use core::error::Error;
 use linkme::distributed_slice;
-use log::{debug, error, log_enabled, trace, warn, Level};
+use log::{debug, error, log_enabled, trace, Level};
 
 pub use raw::PortCam;
 
@@ -75,8 +75,6 @@ pub fn init() {
                     driver.name, device_string, e
                 );
             }
-        } else {
-            warn!("no driver found for device {device}");
         }
     });
 }
