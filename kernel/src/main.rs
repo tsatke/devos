@@ -3,7 +3,6 @@
 extern crate alloc;
 
 use alloc::string::ToString;
-use alloc::vec;
 use core::arch::asm;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
@@ -12,11 +11,9 @@ use elf::file::Class;
 use elf::symbol::SymbolTable;
 use elf::ElfBytes;
 use kernel::limine::{BASE_REVISION, KERNEL_FILE_REQUEST};
-use kernel::vfs::vfs;
 use kernel::{mcore, U64Ext};
-use log::{error, info};
+use log::error;
 use rustc_demangle::demangle;
-use vfs::path::AbsolutePath;
 use x86_64::instructions::hlt;
 use x86_64::VirtAddr;
 
@@ -25,15 +22,6 @@ unsafe extern "C" fn main() -> ! {
     assert!(BASE_REVISION.is_supported());
 
     kernel::init();
-
-    let node = vfs()
-        .write()
-        .open(AbsolutePath::try_new("/greeting.txt").unwrap())
-        .unwrap();
-    let mut buf = vec![0_u8; 100];
-    let n = node.read(&mut buf, 0).unwrap();
-    let s = core::str::from_utf8(&buf[..n]).unwrap();
-    info!("read {n} bytes: {s}");
 
     mcore::turn_idle()
 }

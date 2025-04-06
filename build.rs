@@ -1,5 +1,5 @@
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
-use std::fs::{copy, create_dir, create_dir_all, exists, remove_dir_all, remove_file, write};
+use std::fs::{copy, create_dir, create_dir_all, exists, remove_dir_all, remove_file};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -56,8 +56,6 @@ fn build_os_disk_dir() -> PathBuf {
 
     let sandbox = PathBuf::from(std::env::var_os("CARGO_BIN_FILE_SANDBOX_sandbox").unwrap());
     copy(sandbox, bin.join("sandbox")).unwrap();
-
-    write(disk.join("greeting.txt"), "Hello, world!").unwrap();
 
     disk
 }

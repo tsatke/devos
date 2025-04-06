@@ -285,6 +285,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "device"
+version = "0.1.0"
+dependencies = [
+ "spin",
+ "thiserror",
+]
+
+[[package]]
 name = "devos"
 version = "0.1.0"
 dependencies = [
@@ -454,6 +462,7 @@ dependencies = [
  "bitflags 2.9.0",
  "conquer-once",
  "cordyceps",
+ "device",
  "elf",
  "jiff",
  "limine",

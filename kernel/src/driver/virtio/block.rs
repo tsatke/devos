@@ -1,18 +1,17 @@
+use crate::driver::block::BlockDevices;
 use crate::driver::pci::device::PciDevice;
 use crate::driver::pci::{PciDriverDescriptor, PciDriverType, PCI_DRIVERS};
 use crate::driver::virtio::hal::{transport, HalImpl};
-use crate::vfs::ext2::VirtualExt2Fs;
-use crate::vfs::vfs;
+use crate::driver::KernelDeviceId;
 use crate::U64Ext;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
-use core::str::from_utf8;
-use ext2::Ext2Fs;
+use core::fmt::{Debug, Formatter};
+use device::block::{BlockBuf, BlockDevice};
+use device::Device;
 use linkme::distributed_slice;
-use log::info;
 use spin::Mutex;
-use vfs::path::ROOT;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::transport::{DeviceType, Transport};
@@ -35,28 +34,55 @@ fn virtio_probe(device: &PciDevice) -> bool {
 fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
     let transport = transport(&device);
 
-    let mut blk = VirtIOBlk::<HalImpl, _>::new(transport)?;
-    let mut device_id_buf = [0_u8; 20];
-    let read = blk.device_id(&mut device_id_buf)?;
-    let device_id = from_utf8(&device_id_buf[..read])?;
+    let blk = VirtIOBlk::<HalImpl, _>::new(transport)?;
 
     let device = VirtioBlockDevice {
+        id: KernelDeviceId::new(),
         inner: Arc::new(Mutex::new(blk)),
     };
 
-    // TODO: one block device can have multiple partitions, support that
-
-    let ext2fs = Ext2Fs::try_new(device)?;
-    let wrapped = VirtualExt2Fs::from(ext2fs);
-    info!("mounting device with id '{device_id}' and type 'ext2' at '{ROOT}'");
-    vfs().write().mount(ROOT, wrapped)?;
-
+    BlockDevices::register_block_device(device)?;
     Ok(())
 }
 
 #[derive(Clone)]
 pub struct VirtioBlockDevice {
+    id: KernelDeviceId,
     inner: Arc<Mutex<VirtIOBlk<HalImpl, PciTransport>>>,
+}
+
+impl Debug for VirtioBlockDevice {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("VirtioBlockDevice")
+            .field("id", &self.id)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Device<KernelDeviceId> for VirtioBlockDevice {
+    fn id(&self) -> KernelDeviceId {
+        self.id
+    }
+}
+
+impl BlockDevice<KernelDeviceId, 512> for VirtioBlockDevice {
+    fn read_block(
+        &mut self,
+        block_num: usize,
+        buf: &mut BlockBuf<512>,
+    ) -> Result<(), Box<dyn Error>> {
+        self.inner.lock().read_blocks(block_num, &mut buf[..])?;
+        Ok(())
+    }
+
+    fn write_block(&mut self, block_num: usize, buf: &BlockBuf<512>) -> Result<(), Box<dyn Error>> {
+        self.inner.lock().write_blocks(block_num, &buf[..])?;
+        Ok(())
+    }
+
+    fn flush(&mut self) -> Result<(), Box<dyn Error>> {
+        todo!()
+    }
 }
 
 impl filesystem::BlockDevice for VirtioBlockDevice {

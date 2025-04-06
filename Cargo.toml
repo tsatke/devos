@@ -13,16 +13,18 @@ sandbox = { path = "userspace/sandbox", artifact = "bin", target = "x86_64-unkno
 [workspace]
 members = [
     "kernel",
-    "kernel/crates/virtual_memory_manager",
-    "kernel/crates/vfs",
+    "kernel/crates/device",
     "kernel/crates/physical_memory_manager",
+    "kernel/crates/vfs",
+    "kernel/crates/virtual_memory_manager",
     "userspace/sandbox",
 ]
 default-members = [
     ".",
-    "kernel/crates/virtual_memory_manager",
-    "kernel/crates/vfs",
+    "kernel/crates/device",
     "kernel/crates/physical_memory_manager",
+    "kernel/crates/vfs",
+    "kernel/crates/virtual_memory_manager",
 ]
 
 [dependencies]
