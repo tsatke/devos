@@ -47,6 +47,8 @@ pub fn init() {
         cpu.goto_address.write(cpu_init_and_idle);
     });
 
+    GlobalTaskQueue::init();
+
     // then call the `cpu_init` function on the bootstrap CPU
     unsafe { cpu_init_and_return(resp.cpus()[0]) }
 }

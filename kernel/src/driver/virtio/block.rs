@@ -26,7 +26,7 @@ static VIRTIO_BLK: PciDriverDescriptor = PciDriverDescriptor {
 };
 
 fn virtio_probe(device: &PciDevice) -> bool {
-    device.vendor_id() == 0x1AF4
+    device.vendor_id() == 0x1af4
         && (0x1000..=0x103f).contains(&device.device_id())
         && transport(device).device_type() == DeviceType::Block
 }

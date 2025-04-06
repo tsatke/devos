@@ -102,7 +102,7 @@ continue"
     cmd.arg("virtio-blk-pci,drive=virtio-disk0");
 
     cmd.arg("-device");
-    cmd.arg("virtio-gpu");
+    cmd.arg("virtio-gpu,id=virtio-gpu0");
     cmd.arg("-vga");
     cmd.arg("none");
 
