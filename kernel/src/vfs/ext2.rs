@@ -13,7 +13,7 @@ use vfs::{CloseError, OpenError, ReadError};
 
 pub struct VirtualExt2Fs<T> {
     ext2fs: Ext2Fs<T>,
-    handles: BTreeMap<FsHandle, Arc<(OwnedPath, RwLock<Ext2Inode>)>>,
+    handles: BTreeMap<FsHandle, Arc<(OwnedPath, RwLock<VirtualExt2Inode>)>>,
 }
 
 impl<T> From<Ext2Fs<T>> for VirtualExt2Fs<T> {
@@ -59,7 +59,7 @@ where
             .ok_or(OpenError::NotFound)?;
 
         let handle = FsHandle::from(FS_COUNTER.fetch_add(1, Relaxed));
-        let inode = Ext2Inode::try_new(found_num, found).unwrap();
+        let inode = VirtualExt2Inode::try_new(found_num, found).unwrap();
 
         self.handles
             .insert(handle, Arc::new((path.to_owned(), RwLock::new(inode))));
@@ -142,12 +142,12 @@ where
     }
 }
 
-pub struct Ext2Inode {
+pub struct VirtualExt2Inode {
     _inode_num: InodeAddress,
     inner: Inner,
 }
 
-impl Ext2Inode {
+impl VirtualExt2Inode {
     #[must_use]
     #[allow(clippy::missing_panics_doc)] // see comments
     pub fn try_new(inode_num: InodeAddress, inode: Inode) -> Option<Self> {
