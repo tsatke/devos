@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 spin.workspace = true
 thiserror.workspace = true
+x86_64.workspace = true

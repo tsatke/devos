@@ -4,6 +4,7 @@ use device::DeviceId;
 
 pub mod block;
 pub mod pci;
+pub mod raw;
 pub mod vga;
 pub mod virtio;
 

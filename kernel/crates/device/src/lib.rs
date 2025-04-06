@@ -2,10 +2,11 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-pub use block::registry::*;
 use core::ops::Deref;
+use thiserror::Error;
 
 pub mod block;
+pub mod raw;
 
 pub trait Device<Id: DeviceId> {
     fn id(&self) -> Id;
@@ -21,3 +22,9 @@ where
 }
 
 pub trait DeviceId: Copy + Eq {}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum RegisterDeviceError<D> {
+    #[error("device id is already registered")]
+    AlreadyRegistered(D),
+}

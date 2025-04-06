@@ -1,6 +1,7 @@
 use crate::driver::KernelDeviceId;
+use device::block::registry::BlockDeviceRegistry;
 use device::block::BlockDevice;
-use device::{BlockDeviceRegistry, RegisterDeviceError};
+use device::RegisterDeviceError;
 use spin::RwLock;
 
 static BLOCK_DEVICES: RwLock<BlockDeviceRegistry<KernelDeviceId, 512>> =

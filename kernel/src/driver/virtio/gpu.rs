@@ -1,12 +1,24 @@
 use crate::driver::pci::device::PciDevice;
 use crate::driver::pci::{PciDriverDescriptor, PciDriverType, PCI_DRIVERS};
+use crate::driver::raw::RawDevices;
 use crate::driver::virtio::hal::{transport, HalImpl};
+use crate::driver::KernelDeviceId;
+use crate::mem::address_space::AddressSpace;
+use crate::UsizeExt;
 use alloc::boxed::Box;
+use alloc::sync::Arc;
 use core::error::Error;
+use core::fmt::{Debug, Formatter};
+use device::raw::RawDevice;
+use device::Device;
 use linkme::distributed_slice;
-use log::info;
+use spin::Mutex;
 use virtio_drivers::device::gpu::VirtIOGpu;
+use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::transport::{DeviceType, Transport};
+use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
+use x86_64::structures::paging::{PhysFrame, Size4KiB};
+use x86_64::VirtAddr;
 
 #[distributed_slice(PCI_DRIVERS)]
 static VIRTIO_GPU: PciDriverDescriptor = PciDriverDescriptor {
@@ -28,8 +40,10 @@ fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
     let (width, height) = gpu.resolution()?;
     let width = width as usize;
     let height = height as usize;
-    info!("GPU resolution is {width}x{height}");
+
     let fb = gpu.setup_framebuffer()?;
+    let buffer_virtual_addr = VirtAddr::from_ptr(fb);
+    let buffer_len = fb.len();
     for y in 0..height {
         for x in 0..width {
             let idx = (y * width + x) * 4;
@@ -44,7 +58,49 @@ fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
         }
     }
     gpu.flush()?;
-    Box::leak(Box::new(gpu));
+
+    let phys_addr = AddressSpace::kernel()
+        .translate(buffer_virtual_addr)
+        .expect("address should be mapped into kernel space");
+    let start = PhysFrame::<Size4KiB>::containing_address(phys_addr);
+    let end = PhysFrame::<Size4KiB>::containing_address(phys_addr + buffer_len.into_u64() - 1);
+    let physical_memory = PhysFrameRangeInclusive { start, end };
+
+    let device = VirtioRawDevice {
+        id: KernelDeviceId::new(),
+        _inner: Arc::new(Mutex::new(gpu)),
+        physical_memory,
+    };
+
+    RawDevices::register_raw_device(device)?;
 
     Ok(())
+}
+
+#[derive(Clone)]
+pub struct VirtioRawDevice {
+    id: KernelDeviceId,
+    _inner: Arc<Mutex<VirtIOGpu<HalImpl, PciTransport>>>,
+    physical_memory: PhysFrameRangeInclusive,
+}
+
+impl Debug for VirtioRawDevice {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("VirtioRawDevice")
+            .field("id", &self.id)
+            .field("physical_memory", &self.physical_memory)
+            .finish_non_exhaustive()
+    }
+}
+
+impl Device<KernelDeviceId> for VirtioRawDevice {
+    fn id(&self) -> KernelDeviceId {
+        self.id
+    }
+}
+
+impl RawDevice<KernelDeviceId> for VirtioRawDevice {
+    fn physical_memory(&self) -> PhysFrameRangeInclusive {
+        self.physical_memory
+    }
 }

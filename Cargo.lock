@@ -290,6 +290,7 @@ version = "0.1.0"
 dependencies = [
  "spin",
  "thiserror",
+ "x86_64",
 ]
 
 [[package]]

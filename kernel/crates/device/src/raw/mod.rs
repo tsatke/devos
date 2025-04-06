@@ -1,27 +1,25 @@
-use crate::block::BlockDevice;
-use crate::{DeviceId, RegisterDeviceError};
+use crate::{Device, DeviceId, RegisterDeviceError};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 use spin::RwLock;
+use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 
-pub struct BlockDeviceRegistry<Id, const N: usize>
+pub trait RawDevice<Id: DeviceId>: Device<Id> {
+    fn physical_memory(&self) -> PhysFrameRangeInclusive;
+}
+
+pub struct RawDeviceRegistry<Id>
 where
     Id: DeviceId + Ord + 'static,
 {
-    devices: BTreeMap<Id, Arc<RwLock<dyn BlockDevice<Id, N>>>>,
+    devices: BTreeMap<Id, Arc<RwLock<dyn RawDevice<Id>>>>,
 }
 
-unsafe impl<Id, const N: usize> Send for BlockDeviceRegistry<Id, N> where
-    Id: DeviceId + Ord + 'static
-{
-}
+unsafe impl<Id> Send for RawDeviceRegistry<Id> where Id: DeviceId + Ord + 'static {}
 
-unsafe impl<Id, const N: usize> Sync for BlockDeviceRegistry<Id, N> where
-    Id: DeviceId + Ord + 'static
-{
-}
+unsafe impl<Id> Sync for RawDeviceRegistry<Id> where Id: DeviceId + Ord + 'static {}
 
-impl<Id, const N: usize> Default for BlockDeviceRegistry<Id, N>
+impl<Id> Default for RawDeviceRegistry<Id>
 where
     Id: DeviceId + Ord + 'static,
 {
@@ -30,7 +28,7 @@ where
     }
 }
 
-impl<Id, const N: usize> BlockDeviceRegistry<Id, N>
+impl<Id> RawDeviceRegistry<Id>
 where
     Id: DeviceId + Ord + 'static,
 {
@@ -42,7 +40,7 @@ where
     }
 }
 
-impl<Id, const N: usize> BlockDeviceRegistry<Id, N>
+impl<Id> RawDeviceRegistry<Id>
 where
     Id: DeviceId + Ord + 'static,
 {
@@ -51,7 +49,7 @@ where
     /// device that could not be registered.
     pub fn register_device<D>(&mut self, device: D) -> Result<(), RegisterDeviceError<D>>
     where
-        D: BlockDevice<Id, N>,
+        D: RawDevice<Id>,
         D: 'static,
     {
         if self.devices.contains_key(&device.id()) {
@@ -63,7 +61,7 @@ where
         Ok(())
     }
 
-    pub fn all_devices(&self) -> impl Iterator<Item = &Arc<RwLock<dyn BlockDevice<Id, N>>>> {
+    pub fn all_devices(&self) -> impl Iterator<Item = &Arc<RwLock<dyn RawDevice<Id>>>> {
         self.devices.values()
     }
 }
