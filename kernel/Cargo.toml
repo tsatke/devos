@@ -10,6 +10,7 @@ vfs = { path = "crates/vfs" }
 virtual_memory_manager = { path = "crates/virtual_memory_manager" }
 
 acpi.workspace = true
+addr2line.workspace = true
 bitfield.workspace = true
 bitflags.workspace = true
 conquer-once.workspace = true

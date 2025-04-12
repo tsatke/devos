@@ -10,6 +10,7 @@ use conquer_once::spin::OnceCell;
 mod acpi;
 mod apic;
 mod arch;
+pub mod backtrace;
 pub mod driver;
 pub mod hpet;
 pub mod limine;
