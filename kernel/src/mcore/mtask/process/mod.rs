@@ -73,6 +73,27 @@ impl Process {
         })
     }
 
+    pub fn create_new(parent: &Arc<Process>, name: String) -> Arc<Self> {
+        let pid = ProcessId::new();
+        let ppid = parent.pid;
+        let address_space = AddressSpace::new();
+
+        let process = Self {
+            pid,
+            name,
+            ppid: RwLock::new(ppid),
+            address_space: Some(address_space),
+            _lower_half_memory: RwLock::new(VirtualMemoryManager::new(
+                VirtAddr::new(0xF000),
+                0x0000_7FFF_FFFF_0FFF,
+            )),
+        };
+
+        let res = Arc::new(process);
+        process_tree().write().processes.insert(pid, res.clone());
+        res
+    }
+
     pub fn ppid(&self) -> ProcessId {
         *self.ppid.read()
     }

@@ -1,5 +1,6 @@
 use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
 use crate::mem::phys::PhysicalMemory;
+use crate::mem::virt::VirtualMemoryHigherHalf;
 use crate::U64Ext;
 use conquer_once::spin::OnceCell;
 use core::fmt::{Debug, Formatter};
@@ -14,7 +15,7 @@ use x86_64::structures::paging::mapper::{
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{
     MappedPageTable, Mapper, OffsetPageTable, Page, PageSize, PageTable, PageTableFlags, PhysFrame,
-    RecursivePageTable, Translate,
+    RecursivePageTable, Size4KiB, Translate,
 };
 use x86_64::{PhysAddr, VirtAddr};
 
@@ -262,6 +263,51 @@ impl AddressSpace {
             level4_frame,
             inner: RwLock::new(AddressSpaceMapper::new(level4_frame, level4_vaddr)),
         }
+    }
+
+    pub fn new() -> Self {
+        let new_frame = PhysicalMemory::allocate_frame().unwrap();
+        let new_pt_segment = VirtualMemoryHigherHalf::reserve(1).unwrap();
+        let old_pt_segment = VirtualMemoryHigherHalf::reserve(1).unwrap();
+
+        let old_pt_page = Page::containing_address(old_pt_segment.start);
+        Self::kernel()
+            .map::<Size4KiB>(
+                old_pt_page,
+                Self::kernel().level4_frame,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+            )
+            .unwrap();
+
+        let new_pt_page = Page::containing_address(new_pt_segment.start);
+        Self::kernel()
+            .map::<Size4KiB>(
+                new_pt_page,
+                new_frame,
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+            )
+            .unwrap();
+
+        let new_page_table = unsafe { &mut *new_pt_segment.start.as_mut_ptr::<PageTable>() };
+        let old_page_table = unsafe { &mut *old_pt_segment.start.as_mut_ptr::<PageTable>() };
+
+        new_page_table.zero();
+        new_page_table
+            .iter_mut()
+            .zip(old_page_table.iter())
+            .skip(256)
+            .for_each(|(new_entry, old_entry)| {
+                *new_entry = old_entry.clone();
+            });
+
+        Self::kernel()
+            .unmap(old_pt_page)
+            .expect("page should be mapped");
+        Self::kernel()
+            .unmap(new_pt_page)
+            .expect("page should be mapped");
+
+        unsafe { Self::create_from(new_frame, Self::kernel().inner.read().level4_vaddr) }
     }
 
     pub fn cr3_value(&self) -> usize {
