@@ -67,7 +67,7 @@ impl Backtrace {
         let frames = ReturnAddressIterator::new()
             .flat_map(|ip| {
                 let mut it = ctx
-                    .find_frames((ip.saturating_sub(1)).into_u64())
+                    .find_frames(ip.saturating_sub(1).into_u64())
                     .skip_all_loads()
                     .unwrap();
                 iter::from_fn(move || it.next().unwrap().map(|frame| (ip, frame)))
