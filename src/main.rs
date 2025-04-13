@@ -101,6 +101,12 @@ continue"
     cmd.arg("-device");
     cmd.arg("virtio-blk-pci,drive=virtio-disk0");
 
+    #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+    {
+        cmd.arg("-accel");
+        cmd.arg("kvm");
+    }
+
     cmd.arg("-device");
     cmd.arg("virtio-gpu,id=virtio-gpu0");
     cmd.arg("-vga");
