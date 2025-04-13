@@ -120,6 +120,17 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
     debug!("recursive index: {recursive_index:?}, vaddr: {vaddr:p}");
     RECURSIVE_INDEX.init_once(|| recursive_index);
 
+    level_4_table
+        .iter_mut()
+        .skip(256)
+        .filter(|e| e.is_unused())
+        .for_each(|e| {
+            e.set_frame(
+                PhysicalMemory::allocate_frame().unwrap(),
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+            );
+        });
+
     info!("switching to recursive mapping");
     unsafe {
         let cr3_flags = Cr3::read().1;
