@@ -11,6 +11,7 @@ use x86_64::{PhysAddr, VirtAddr};
 #[derive(Debug)]
 pub struct AddressSpaceMapper {
     level4_frame: PhysFrame,
+    pub(crate) level4_vaddr: VirtAddr,
     page_table: RecursivePageTable<'static>,
 }
 
@@ -23,6 +24,7 @@ impl AddressSpaceMapper {
 
         Self {
             level4_frame,
+            level4_vaddr,
             page_table,
         }
     }
