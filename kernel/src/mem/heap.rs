@@ -1,6 +1,5 @@
 use crate::mem::address_space::{virt_addr_from_page_table_indices, AddressSpace};
 use crate::mem::phys::PhysicalMemory;
-use crate::U64Ext;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 use log::info;
@@ -63,8 +62,7 @@ pub(in crate::mem) fn init_stage2() {
     address_space
         .map_range(
             page_range,
-            PhysicalMemory::allocate_frames(page_range.len().into_usize())
-                .expect("should have enough contiguous physical memory for heap"),
+            PhysicalMemory::allocate_frames_non_contiguous(),
             PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
         )
         .expect("should be able to map more heap");

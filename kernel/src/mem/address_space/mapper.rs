@@ -75,8 +75,10 @@ impl AddressSpaceMapper {
     {
         assert!(self.is_active()); // TODO: support mapping into non-active address spaces
 
-        let frames = frames.into_iter();
-        for (page, frame) in pages.zip(frames) {
+        let mut frames = frames.into_iter();
+
+        for page in pages {
+            let frame = frames.next().ok_or(MapToError::FrameAllocationFailed)?;
             self.map(page, frame, flags)?;
         }
 

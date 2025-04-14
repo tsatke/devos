@@ -8,7 +8,6 @@ use kernel::limine::BASE_REVISION;
 use kernel::mcore;
 use log::error;
 use x86_64::instructions::hlt;
-use x86_64::instructions::interrupts::without_interrupts;
 
 #[unsafe(export_name = "kernel_main")]
 unsafe extern "C" fn main() -> ! {
@@ -36,12 +35,12 @@ fn handle_panic(info: &PanicInfo) {
         location.column(),
     );
     error!("{}", info.message());
-    without_interrupts(|| match Backtrace::try_capture() {
+    match Backtrace::try_capture() {
         Ok(bt) => {
             error!("stack backtrace:\n{bt}");
         }
         Err(e) => {
             error!("error capturing backtrace: {e:?}");
         }
-    });
+    }
 }

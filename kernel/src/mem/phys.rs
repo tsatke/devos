@@ -122,19 +122,19 @@ pub(in crate::mem) fn init_stage2() {
 
     let mut frames = vec![FrameState::Unusable; (highest_usable_address / Size4KiB::SIZE) as usize];
 
-    regions
-        .iter()
-        .filter(|r| r.entry_type == EntryType::USABLE)
-        .map(|r| r.base..r.base + r.length)
-        .flat_map(|r| r.step_by(usize::try_from(Size4KiB::SIZE).expect("usize overflow")))
-        .enumerate()
-        .for_each(|(i, _)| {
-            let state = if i < stage_one_next_free {
-                FrameState::Allocated
-            } else {
-                FrameState::Free
-            };
-            frames[i] = state;
+    stage1
+        .usable_frames()
+        .take(stage_one_next_free)
+        .for_each(|frame| {
+            let index = frame.start_address().as_u64() / Size4KiB::SIZE;
+            frames[index as usize] = FrameState::Allocated;
+        });
+    stage1
+        .usable_frames()
+        .skip(stage_one_next_free)
+        .for_each(|frame| {
+            let index = frame.start_address().as_u64() / Size4KiB::SIZE;
+            frames[index as usize] = FrameState::Free;
         });
 
     let bitmap_allocator = PhysicalMemoryManager::new(frames);

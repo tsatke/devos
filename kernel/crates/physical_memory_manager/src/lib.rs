@@ -54,9 +54,10 @@ impl PhysicalMemoryManager {
         let small_frame_count = n * small_frames_per_frame;
         let first_frame_index = self
             .frames
-            .windows(small_frame_count)
-            .skip(start_index)
+            .chunks_exact(small_frame_count)
+            .skip(start_index / small_frames_per_frame)
             .position(|window| window.iter().all(|&state| state == FrameState::Free))?
+            * small_frame_count
             + start_index;
         let last_small_frame_index = first_frame_index + small_frame_count - 1;
 
@@ -79,8 +80,12 @@ impl PhysicalMemoryManager {
             last_small_frame_index / small_frames_per_frame * small_frames_per_frame;
 
         Some(PhysFrameRangeInclusive {
-            start: self.index_to_frame(first_frame_index)?,
-            end: self.index_to_frame(last_frame_index)?,
+            start: self
+                .index_to_frame(first_frame_index)
+                .expect("start index should be aligned and within bounds"),
+            end: self
+                .index_to_frame(last_frame_index)
+                .expect("end index should be aligned and within bounds"),
         })
     }
 

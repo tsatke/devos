@@ -4,13 +4,58 @@ use addr2line::gimli::{Dwarf, EndianSlice, Error};
 use addr2line::{gimli, Context};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
+use conquer_once::spin::OnceCell;
 use core::arch::asm;
 use core::fmt::{Debug, Display, Formatter};
 use core::iter;
 use core::slice::from_raw_parts;
 use elf::{ElfBytes, ParseError};
+use log::debug;
 use thiserror::Error;
 use x86_64::VirtAddr;
+
+static BACKTRACE_CONTEXT: OnceCell<BacktraceContext> = OnceCell::uninit();
+
+struct BacktraceContext(Context<EndianSlice<'static, gimli::NativeEndian>>);
+
+unsafe impl Sync for BacktraceContext {}
+unsafe impl Send for BacktraceContext {}
+
+/// Initializes the backtrace context that is required for backtraces
+/// with debug information during panics.
+///
+/// # Panics
+/// This function panics if the kernel elf file cannot be found or if something goes wrong
+/// during parsing.
+pub fn init() {
+    #[cfg(debug_assertions)] // TODO: make this work in release builds as well
+    BACKTRACE_CONTEXT.init_once(|| {
+        debug!("initializing backtrace context");
+        let kernel_file = KERNEL_FILE_REQUEST.get_response().unwrap();
+        let file_addr = VirtAddr::from_ptr(kernel_file.file().addr());
+        let file_size = kernel_file.file().size().into_usize();
+        let file_slice = unsafe {
+            // Safety: we keep the part of limine's higher half mapping that contains
+            // the kernel file, so dereferencing that pointer is safe.
+            from_raw_parts(file_addr.as_mut_ptr::<u8>(), file_size)
+        };
+        let file = ElfBytes::<elf::endian::NativeEndian>::minimal_parse(file_slice).unwrap();
+        let dwarf = Dwarf::load(|section| {
+            Ok::<_, ParseError>(EndianSlice::new(
+                {
+                    match file.section_header_by_name(section.name())? {
+                        Some(h) => file.section_data(&h)?.0,
+                        None => &[],
+                    }
+                },
+                gimli::NativeEndian,
+            ))
+        })
+        .unwrap();
+        let ctx = Context::from_dwarf(dwarf).unwrap();
+        BacktraceContext(ctx)
+    });
+}
 
 #[derive(Debug, Error)]
 pub enum CaptureBacktraceError {
@@ -40,30 +85,10 @@ impl Backtrace {
     /// # Panics
     /// This function panics if frames for an instruction pointer cannot be found.
     pub fn try_capture() -> Result<Self, CaptureBacktraceError> {
-        let kernel_file = KERNEL_FILE_REQUEST
-            .get_response()
-            .ok_or(CaptureBacktraceError::NoSymbolFile)?;
-        let file_addr = VirtAddr::from_ptr(kernel_file.file().addr());
-        let file_size = kernel_file.file().size().into_usize();
-        let file_slice = unsafe {
-            // Safety: we keep the part of limine's higher half mapping that contains
-            // the kernel file, so dereferencing that pointer is safe.
-            from_raw_parts(file_addr.as_mut_ptr::<u8>(), file_size)
-        };
-        let file = ElfBytes::<elf::endian::NativeEndian>::minimal_parse(file_slice)?;
-        let dwarf = Dwarf::load(|section| {
-            Ok::<_, ParseError>(EndianSlice::new(
-                {
-                    match file.section_header_by_name(section.name())? {
-                        Some(h) => file.section_data(&h)?.0,
-                        None => &[],
-                    }
-                },
-                gimli::NativeEndian,
-            ))
-        })?;
-        let ctx = Context::from_dwarf(dwarf)?;
-
+        let ctx = &BACKTRACE_CONTEXT
+            .get()
+            .ok_or(CaptureBacktraceError::NoSymbolFile)?
+            .0;
         let frames = ReturnAddressIterator::new()
             .flat_map(|ip| {
                 let mut it = ctx

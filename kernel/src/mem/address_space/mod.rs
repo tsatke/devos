@@ -138,8 +138,6 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
         Cr3::write(level_4_table_frame, cr3_flags);
     }
 
-    info!("done");
-
     (vaddr, level_4_table_frame)
 }
 
@@ -265,6 +263,10 @@ impl AddressSpace {
         }
     }
 
+    /// # Panics
+    /// This function panics if not enough physical or virtual memory is available to create
+    /// a new address space, or if something goes wrong during mapping of addresses.
+    #[must_use]
     pub fn new() -> Self {
         let new_frame = PhysicalMemory::allocate_frame().unwrap();
         let new_pt_segment = VirtualMemoryHigherHalf::reserve(1).unwrap();

@@ -6,6 +6,7 @@ extern crate alloc;
 use crate::driver::pci;
 use crate::limine::BOOT_TIME;
 use conquer_once::spin::OnceCell;
+use ::log::info;
 
 mod acpi;
 mod apic;
@@ -37,8 +38,11 @@ pub fn init() {
     acpi::init();
     apic::init();
     hpet::init();
+    backtrace::init();
     mcore::init();
     pci::init();
+
+    info!("kernel initialized");
 }
 
 #[cfg(target_pointer_width = "64")]
