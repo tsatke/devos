@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [build-dependencies]
-ovmf-prebuilt = "0.2.2"
+ovmf-prebuilt = "0.2.3"
 
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
 
