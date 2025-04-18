@@ -38,6 +38,7 @@ bitflags = "2.9"
 conquer-once = { version = "0.4", default-features = false }
 cordyceps = { version = "0.3", default-features = false, features = ["alloc"] }
 elf = { version = "0.7", default-features = false, features = ["nightly"] }
+elf_loader = { version = "0.10", default-features = false, features = ["log", "rel"] }
 jiff = { version = "0.2", default-features = false, features = ["alloc"] }
 limine = "0.4"
 linked_list_allocator = "0.10"

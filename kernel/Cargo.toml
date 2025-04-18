@@ -16,6 +16,7 @@ bitflags.workspace = true
 conquer-once.workspace = true
 cordyceps.workspace = true
 elf.workspace = true
+elf_loader.workspace = true
 jiff.workspace = true
 limine.workspace = true
 linked_list_allocator.workspace = true

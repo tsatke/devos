@@ -296,6 +296,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "delegate"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b9b6483c2bbed26f97861cf57651d4f2b731964a28cd2257f934a4b452480d21"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "device"
 version = "0.1.0"
 dependencies = [
@@ -329,6 +340,19 @@ name = "elf"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
+
+[[package]]
+name = "elf_loader"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a5b4a86c599d19b95725e2189970a95fc1051d4df1fe721eb14d9659bd6f02a"
+dependencies = [
+ "bitflags 2.9.0",
+ "cfg-if",
+ "delegate",
+ "elf",
+ "log",
+]
 
 [[package]]
 name = "embedded-io"
@@ -489,6 +513,7 @@ dependencies = [
  "cordyceps",
  "device",
  "elf",
+ "elf_loader",
  "jiff",
  "limine",
  "linked_list_allocator",
