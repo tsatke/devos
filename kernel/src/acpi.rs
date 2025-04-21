@@ -1,6 +1,6 @@
 use crate::limine::RSDP_REQUEST;
 use crate::mem::address_space::AddressSpace;
-use crate::mem::virt::VirtualMemoryHigherHalf;
+use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::U64Ext;
 use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 use conquer_once::spin::OnceCell;
@@ -39,7 +39,7 @@ impl AcpiHandler for AcpiHandlerImpl {
 
         let phys_addr = PhysAddr::new(physical_address as u64);
 
-        let segment = VirtualMemoryHigherHalf::reserve(1).unwrap().leak();
+        let segment = VirtualMemoryHigherHalf.reserve(1).unwrap().leak();
 
         let address_space = AddressSpace::kernel();
         address_space
@@ -65,7 +65,7 @@ impl AcpiHandler for AcpiHandlerImpl {
         let vaddr = VirtAddr::from_ptr(region.virtual_start().as_ptr());
         let segment = Segment::new(vaddr, region.mapped_length() as u64);
         unsafe {
-            let _ = VirtualMemoryHigherHalf::release(segment);
+            let _ = VirtualMemoryHigherHalf.release(segment);
         }
         let address_space = AddressSpace::kernel();
 

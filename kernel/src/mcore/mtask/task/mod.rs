@@ -1,5 +1,6 @@
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
+use crate::mem::virt::VirtualMemoryHigherHalf;
 use crate::U64Ext;
 use alloc::boxed::Box;
 use alloc::format;
@@ -76,15 +77,19 @@ impl Task {
         entry_point: extern "C" fn(*mut c_void),
         arg: *mut c_void,
     ) -> Result<Self, StackAllocationError> {
+        let stack = Stack::allocate(16, VirtualMemoryHigherHalf, entry_point, arg, Self::exit)?;
+        Ok(Self::create_with_stack(process, stack))
+    }
+
+    pub fn create_with_stack(process: &Arc<Process>, stack: Stack) -> Self {
         let tid = TaskId::new();
         let name = format!("task-{tid}");
         let process = process.clone();
         let should_terminate = AtomicBool::new(false);
         let state = State::Ready;
-        let stack = Stack::allocate(16, entry_point, arg, Self::exit)?;
         let last_stack_ptr = Box::pin(stack.initial_rsp().as_u64().into_usize());
         let links = Links::default();
-        Ok(Self {
+        Self {
             tid,
             name,
             process,
@@ -93,7 +98,7 @@ impl Task {
             state,
             stack: Some(stack),
             links,
-        })
+        }
     }
 
     pub(in crate::mcore::mtask) fn create_stub() -> Self {
@@ -117,7 +122,7 @@ impl Task {
         }
     }
 
-    extern "C" fn exit() {
+    pub(crate) extern "C" fn exit() {
         let task = ExecutionContext::load().current_task();
         trace!("exiting task {}", task.name());
 

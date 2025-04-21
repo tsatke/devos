@@ -6,7 +6,9 @@ use core::panic::PanicInfo;
 use kernel::backtrace::Backtrace;
 use kernel::limine::BASE_REVISION;
 use kernel::mcore;
-use log::error;
+use kernel::mcore::mtask::process::Process;
+use log::{error, info};
+use vfs::path::AbsolutePath;
 use x86_64::instructions::hlt;
 
 #[unsafe(export_name = "kernel_main")]
@@ -14,6 +16,13 @@ unsafe extern "C" fn main() -> ! {
     assert!(BASE_REVISION.is_supported());
 
     kernel::init();
+
+    let proc = Process::create_from_executable(
+        Process::root(),
+        AbsolutePath::try_new("/bin/sandbox").unwrap(),
+    )
+    .unwrap();
+    info!("have process pid={}", proc.pid());
 
     mcore::turn_idle()
 }

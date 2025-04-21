@@ -1,15 +1,31 @@
 use crate::mcore::mtask::process::tree::{process_tree, ProcessTree};
 use crate::mem::address_space::AddressSpace;
+use alloc::borrow::ToOwned;
+use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
+use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
+use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
+use core::ptr;
+use elfloader::ElfBinary;
+use log::{debug, info};
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
 use x86_64::VirtAddr;
 
+use crate::mcore::context::ExecutionContext;
+use crate::mcore::mtask::process::elf::ElfLoader;
+use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
+use crate::mcore::mtask::task::{Stack, StackAllocationError, Task};
+use crate::mem::virt::VirtualMemoryAllocator;
+use crate::vfs::vfs;
 pub use id::*;
+use vfs::path::{AbsoluteOwnedPath, AbsolutePath};
 
+mod elf;
 mod id;
 mod tree;
 
@@ -21,8 +37,10 @@ pub struct Process {
 
     ppid: RwLock<ProcessId>,
 
+    executable_path: Option<AbsoluteOwnedPath>,
+
     address_space: Option<AddressSpace>,
-    _lower_half_memory: RwLock<VirtualMemoryManager>,
+    lower_half_memory: Arc<RwLock<VirtualMemoryManager>>,
 }
 
 impl Debug for Process {
@@ -54,6 +72,12 @@ impl Drop for Process {
     }
 }
 
+#[derive(Debug, Error)]
+pub enum CreateProcessError {
+    #[error("failed to allocate stack")]
+    StackAllocationError(#[from] StackAllocationError),
+}
+
 impl Process {
     pub fn root() -> &'static Arc<Process> {
         ROOT_PROCESS.get_or_init(|| {
@@ -62,18 +86,23 @@ impl Process {
                 pid,
                 name: "root".to_string(),
                 ppid: RwLock::new(pid),
+                executable_path: None,
                 address_space: None,
-                _lower_half_memory: RwLock::new(VirtualMemoryManager::new(
+                lower_half_memory: Arc::new(RwLock::new(VirtualMemoryManager::new(
                     VirtAddr::new(0x00),
                     0x0000_7FFF_FFFF_FFFF,
-                )),
+                ))),
             });
             process_tree().write().processes.insert(pid, root.clone());
             root
         })
     }
 
-    pub fn create_new(parent: &Arc<Process>, name: String) -> Arc<Self> {
+    pub fn create_new(
+        parent: &Arc<Process>,
+        name: String,
+        executable_path: Option<impl AsRef<AbsolutePath>>,
+    ) -> Arc<Self> {
         let pid = ProcessId::new();
         let parent_pid = parent.pid;
         let address_space = AddressSpace::new();
@@ -82,16 +111,21 @@ impl Process {
             pid,
             name,
             ppid: RwLock::new(parent_pid),
+            executable_path: executable_path.map(|x| x.as_ref().to_owned()),
             address_space: Some(address_space),
-            _lower_half_memory: RwLock::new(VirtualMemoryManager::new(
+            lower_half_memory: Arc::new(RwLock::new(VirtualMemoryManager::new(
                 VirtAddr::new(0xF000),
                 0x0000_7FFF_FFFF_0FFF,
-            )),
+            ))),
         };
 
         let res = Arc::new(process);
         process_tree().write().processes.insert(pid, res.clone());
         res
+    }
+
+    pub fn pid(&self) -> ProcessId {
+        self.pid
     }
 
     pub fn ppid(&self) -> ProcessId {
@@ -133,6 +167,69 @@ impl Process {
             .as_ref()
             .unwrap_or(AddressSpace::kernel())
     }
+
+    pub fn vmm(self: &Arc<Self>) -> impl VirtualMemoryAllocator {
+        self.lower_half_memory.clone()
+    }
+}
+
+impl Process {
+    pub fn create_from_executable(
+        parent: &Arc<Process>,
+        path: impl AsRef<AbsolutePath>,
+    ) -> Result<Arc<Self>, CreateProcessError> {
+        let path = path.as_ref();
+        let process = Self::create_new(parent, path.to_string(), Some(path));
+
+        let task_stack =
+            Stack::allocate(16, process.vmm(), trampoline, ptr::null_mut(), Task::exit)?;
+        let main_task = Task::create_with_stack(&process, task_stack);
+        GlobalTaskQueue::enqueue(Box::pin(main_task));
+
+        Ok(process)
+    }
+}
+
+extern "C" fn trampoline(_arg: *mut c_void) {
+    info!("trampoline called");
+
+    let ctx = ExecutionContext::load();
+    let current_process = ctx.scheduler().current_task().process().clone();
+
+    let executable_path = current_process
+        .executable_path
+        .as_ref()
+        .expect("should have an executable path");
+    let node = vfs()
+        .write()
+        .open(executable_path)
+        .expect("should be able to open executable");
+
+    let mut data = Vec::new();
+    let mut buf = [0; 4096];
+    let mut offset = 0;
+    loop {
+        let read = node.read(&mut buf, offset).expect("should be able to read");
+        if read == 0 {
+            break;
+        }
+        offset += read;
+        data.extend_from_slice(&buf[..read]);
+    }
+
+    let elf_binary = ElfBinary::new(&data).expect("should be able to parse elf binary");
+    let mut elf_loader = ElfLoader::new(current_process);
+    elf_binary
+        .load(&mut elf_loader)
+        .expect("should be able to load elf binary");
+    let image = elf_loader.into_inner();
+    let code_ptr = unsafe { image.as_ptr().add(elf_binary.entry_point() as usize) };
+
+    let entry_fn: extern "C" fn() = unsafe { core::mem::transmute(code_ptr) };
+
+    entry_fn();
+
+    debug!("executable returned, exiting");
 }
 
 pub struct Children<'a> {

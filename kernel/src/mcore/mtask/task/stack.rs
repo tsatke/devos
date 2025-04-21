@@ -1,6 +1,6 @@
 use crate::mem::address_space::AddressSpace;
 use crate::mem::phys::PhysicalMemory;
-use crate::mem::virt::{OwnedSegment, VirtualMemoryHigherHalf};
+use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator};
 use crate::{U64Ext, UsizeExt};
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
@@ -20,7 +20,7 @@ pub enum StackAllocationError {
 }
 
 pub struct Stack {
-    segment: OwnedSegment,
+    segment: OwnedSegment<'static>,
     mapped_segment: Segment,
     rsp: VirtAddr,
 }
@@ -48,11 +48,13 @@ impl Stack {
     /// physical or virtual.
     pub fn allocate(
         pages: usize,
+        vmm: impl VirtualMemoryAllocator,
         entry_point: extern "C" fn(*mut c_void),
         arg: *mut c_void,
         exit_fn: extern "C" fn(),
     ) -> Result<Self, StackAllocationError> {
-        let segment = VirtualMemoryHigherHalf::reserve(pages)
+        let segment = vmm
+            .reserve(pages)
             .ok_or(StackAllocationError::OutOfVirtualMemory)?;
 
         let mapped_segment =

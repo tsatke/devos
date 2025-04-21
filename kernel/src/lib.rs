@@ -3,6 +3,7 @@
 #![feature(abi_x86_interrupt, naked_functions, negative_impls)]
 extern crate alloc;
 
+use crate::arch::idt::create_idt;
 use crate::driver::pci;
 use crate::limine::BOOT_TIME;
 use conquer_once::spin::OnceCell;

@@ -1,6 +1,6 @@
 use crate::arch::gdt;
 use crate::mcore::context::ExecutionContext;
-use log::error;
+use log::{error, warn};
 use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
@@ -37,6 +37,8 @@ pub fn create_idt() -> InterruptDescriptorTable {
             .set_handler_fn(page_fault_handler)
             .set_stack_index(gdt::PAGE_FAULT_IST_INDEX);
     }
+
+    idt.breakpoint.set_handler_fn(breakpoint_handler);
     idt.general_protection_fault
         .set_handler_fn(general_protection_fault_handler);
     idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
@@ -142,6 +144,10 @@ extern "x86-interrupt" fn stack_segment_fault_handler(
     error_code: u64,
 ) {
     panic!("EXCEPTION: STACK SEGMENT FAULT:\nerror code: {error_code:#X}\n{stack_frame:#?}");
+}
+
+extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
+    warn!("BREAKPOINT:\n{stack_frame:#?}");
 }
 
 /// Notifies the LAPIC that the interrupt has been handled.

@@ -296,17 +296,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "delegate"
-version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9b6483c2bbed26f97861cf57651d4f2b731964a28cd2257f934a4b452480d21"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "device"
 version = "0.1.0"
 dependencies = [
@@ -342,16 +331,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
 
 [[package]]
-name = "elf_loader"
-version = "0.10.1"
+name = "elfloader"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a5b4a86c599d19b95725e2189970a95fc1051d4df1fe721eb14d9659bd6f02a"
+checksum = "6a7b18d35bf8ec3bac59c3ec29cf1f1b46e764e00b42a9c0c754d06e38e78f3b"
 dependencies = [
- "bitflags 2.9.0",
- "cfg-if",
- "delegate",
- "elf",
+ "bitflags 1.3.2",
  "log",
+ "xmas-elf",
 ]
 
 [[package]]
@@ -513,7 +500,7 @@ dependencies = [
  "cordyceps",
  "device",
  "elf",
- "elf_loader",
+ "elfloader",
  "jiff",
  "limine",
  "linked_list_allocator",
@@ -917,6 +904,9 @@ checksum = "f7c45b9784283f1b2e7fb61b42047c2fd678ef0960d4f6f1eba131594cc369d4"
 [[package]]
 name = "sandbox"
 version = "0.1.0"
+dependencies = [
+ "x86_64",
+]
 
 [[package]]
 name = "scoped-tls"
@@ -1495,6 +1485,21 @@ dependencies = [
  "linux-raw-sys",
  "rustix",
 ]
+
+[[package]]
+name = "xmas-elf"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d29b4d8e7beaceb4e77447ba941a7600d23d0319ab52da0461abea214832d5a"
+dependencies = [
+ "zero",
+]
+
+[[package]]
+name = "zero"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2fe21bcc34ca7fe6dd56cc2cb1261ea59d6b93620215aefb5ea6032265527784"
 
 [[package]]
 name = "zerocopy"

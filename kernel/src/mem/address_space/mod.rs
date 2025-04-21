@@ -1,11 +1,11 @@
 use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
 use crate::mem::phys::PhysicalMemory;
-use crate::mem::virt::VirtualMemoryHigherHalf;
-use crate::U64Ext;
+use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
+use crate::{U64Ext, UsizeExt};
 use conquer_once::spin::OnceCell;
 use core::fmt::{Debug, Formatter};
 use limine::memory_map::EntryType;
-use log::{debug, info};
+use log::{debug, error, info, trace, warn};
 use mapper::AddressSpaceMapper;
 use spin::RwLock;
 use x86_64::registers::control::Cr3;
@@ -153,7 +153,7 @@ fn remap(
         let result = current_pt.translate(current_addr);
         let TranslateResult::Mapped {
             frame,
-            offset: _,
+            offset,
             flags,
         } = result
         else {
@@ -167,42 +167,73 @@ fn remap(
                 | PageTableFlags::HUGE_PAGE,
         );
 
-        let step = frame.size();
-        unsafe {
-            match frame {
-                MappedFrame::Size4KiB(f) => {
-                    let _ = new_pt
-                        .map_to(
-                            Page::containing_address(current_addr),
-                            f,
-                            flags,
-                            &mut PhysicalMemory,
-                        )
-                        .unwrap();
+        if offset != 0 {
+            // There are cases where limine maps huge pages across borders of memory regions
+            // in the HHDM for example, the last pages of a 'usable' section and the first
+            // pages of a 'bootloader reclaimable' section could be mapped to the same 2MiB or 1GiB
+            // huge frame. We need to handle this accordingly.
+
+            let mut flags = flags;
+            flags.remove(PageTableFlags::HUGE_PAGE);
+
+            let MappedFrame::Size2MiB(f) = frame else {
+                todo!("support huge pages crossing region borders");
+            };
+
+            trace!(
+                "breaking up cross-region huge page ({:p} offset {:x})",
+                f.start_address(),
+                offset
+            );
+
+            let mut off = 0;
+            while (current_addr + off).as_u64() < (start_vaddr.as_u64() + len.into_u64())
+                && (offset + off < frame.size())
+            {
+                let page = Page::<Size4KiB>::containing_address(current_addr + off);
+                let f1 = PhysFrame::containing_address(f.start_address() + offset + off);
+                unsafe {
+                    let _ = new_pt.map_to(page, f1, flags, &mut PhysicalMemory).unwrap();
                 }
-                MappedFrame::Size2MiB(f) => {
-                    let _ = new_pt
-                        .map_to(
-                            Page::containing_address(current_addr),
-                            f,
-                            flags,
-                            &mut PhysicalMemory,
-                        )
-                        .unwrap();
-                }
-                MappedFrame::Size1GiB(f) => {
-                    let _ = new_pt
-                        .map_to(
-                            Page::containing_address(current_addr),
-                            f,
-                            flags,
-                            &mut PhysicalMemory,
-                        )
-                        .unwrap();
+                off += page.size();
+            }
+        } else {
+            unsafe {
+                match frame {
+                    MappedFrame::Size4KiB(f) => {
+                        let _ = new_pt
+                            .map_to(
+                                Page::containing_address(current_addr),
+                                f,
+                                flags,
+                                &mut PhysicalMemory,
+                            )
+                            .unwrap();
+                    }
+                    MappedFrame::Size2MiB(f) => {
+                        let _ = new_pt
+                            .map_to(
+                                Page::containing_address(current_addr),
+                                f,
+                                flags,
+                                &mut PhysicalMemory,
+                            )
+                            .unwrap();
+                    }
+                    MappedFrame::Size1GiB(f) => {
+                        let _ = new_pt
+                            .map_to(
+                                Page::containing_address(current_addr),
+                                f,
+                                flags,
+                                &mut PhysicalMemory,
+                            )
+                            .unwrap();
+                    }
                 }
             }
         }
-        current_addr += step;
+        current_addr += frame.size() - offset;
     }
 }
 
@@ -269,8 +300,8 @@ impl AddressSpace {
     #[must_use]
     pub fn new() -> Self {
         let new_frame = PhysicalMemory::allocate_frame().unwrap();
-        let new_pt_segment = VirtualMemoryHigherHalf::reserve(1).unwrap();
-        let old_pt_segment = VirtualMemoryHigherHalf::reserve(1).unwrap();
+        let new_pt_segment = VirtualMemoryHigherHalf.reserve(1).unwrap();
+        let old_pt_segment = VirtualMemoryHigherHalf.reserve(1).unwrap();
 
         let old_pt_page = Page::containing_address(old_pt_segment.start);
         Self::kernel()

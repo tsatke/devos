@@ -2,7 +2,7 @@ use crate::driver::pci::device::PciDevice;
 use crate::driver::pci::PortCam;
 use crate::mem::address_space::AddressSpace;
 use crate::mem::phys::PhysicalMemory;
-use crate::mem::virt::VirtualMemoryHigherHalf;
+use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::{U64Ext, UsizeExt};
 use core::ptr::NonNull;
 use virtio_drivers::transport::pci::bus::{DeviceFunction, PciRoot};
@@ -31,7 +31,7 @@ pub struct HalImpl;
 unsafe impl Hal for HalImpl {
     fn dma_alloc(pages: usize, _: BufferDirection) -> (usize, NonNull<u8>) {
         let frames = PhysicalMemory::allocate_frames(pages).unwrap();
-        let segment = VirtualMemoryHigherHalf::reserve(pages).unwrap();
+        let segment = VirtualMemoryHigherHalf.reserve(pages).unwrap();
         AddressSpace::kernel()
             .map_range::<Size4KiB>(
                 &*segment,
@@ -57,7 +57,7 @@ unsafe impl Hal for HalImpl {
         );
         unsafe {
             AddressSpace::kernel().unmap_range::<Size4KiB>(&segment, |_| {});
-            assert!(VirtualMemoryHigherHalf::release(segment));
+            assert!(VirtualMemoryHigherHalf.release(segment));
             PhysicalMemory::deallocate_frames(frames);
         }
 
@@ -70,8 +70,9 @@ unsafe impl Hal for HalImpl {
             end: PhysFrame::containing_address(PhysAddr::new((paddr + size - 1).into_u64())),
         };
 
-        let segment =
-            VirtualMemoryHigherHalf::reserve(size.div_ceil(Size4KiB::SIZE.into_usize())).unwrap();
+        let segment = VirtualMemoryHigherHalf
+            .reserve(size.div_ceil(Size4KiB::SIZE.into_usize()))
+            .unwrap();
         AddressSpace::kernel()
             .map_range::<Size4KiB>(
                 &*segment,

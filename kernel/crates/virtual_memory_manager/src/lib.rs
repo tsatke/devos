@@ -13,6 +13,7 @@ mod segment;
 #[error("segment already reserved")]
 pub struct AlreadyReserved;
 
+#[derive(Eq, PartialEq)]
 pub struct VirtualMemoryManager {
     mem_start: VirtAddr,
     mem_size: u64,

@@ -1,6 +1,6 @@
 use crate::acpi::acpi_tables;
 use crate::mem::address_space::AddressSpace;
-use crate::mem::virt::{OwnedSegment, VirtualMemoryHigherHalf};
+use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use acpi::{InterruptModel, PlatformInfo};
 use conquer_once::spin::OnceCell;
 use core::ops::{Deref, DerefMut};
@@ -16,7 +16,7 @@ pub fn io_apic() -> &'static Mutex<IoApic> {
 }
 
 pub struct IoApic {
-    _segment: OwnedSegment,
+    _segment: OwnedSegment<'static>,
     inner: x2apic::ioapic::IoApic,
 }
 
@@ -57,8 +57,9 @@ pub fn init() {
     let apic = apics.last().unwrap();
     let phys_addr = PhysAddr::new(u64::from(apic.address));
 
-    let segment =
-        VirtualMemoryHigherHalf::reserve(1).expect("should have enough virtual memory for IOAPIC");
+    let segment = VirtualMemoryHigherHalf
+        .reserve(1)
+        .expect("should have enough virtual memory for IOAPIC");
     AddressSpace::kernel()
         .map::<Size4KiB>(
             Page::containing_address(segment.start),

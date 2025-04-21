@@ -1,8 +1,15 @@
+use core::fmt::{Display, Formatter};
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct ProcessId(u64);
+
+impl Display for ProcessId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 impl<T> PartialEq<T> for ProcessId
 where

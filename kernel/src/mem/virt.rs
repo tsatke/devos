@@ -1,7 +1,10 @@
 use crate::limine::{HHDM_REQUEST, MEMORY_MAP_REQUEST};
 use crate::mem::address_space::{recursive_index_to_virtual_address, RECURSIVE_INDEX};
 use crate::mem::heap::Heap;
+use alloc::sync::Arc;
 use conquer_once::spin::OnceCell;
+use core::cmp::Ordering;
+use core::fmt::Debug;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
 use limine::memory_map::EntryType;
@@ -33,7 +36,8 @@ pub fn init() {
         let vaddr = recursive_index_to_virtual_address(recursive_index);
         let len = 512 * 1024 * 1024 * 1024; // 512 GiB
         let segment = Segment::new(vaddr, len);
-        VirtualMemoryHigherHalf::mark_as_reserved(segment)
+        VirtualMemoryHigherHalf
+            .mark_as_reserved(segment)
             .expect("recursive index should not be reserved yet");
     }
 
@@ -54,35 +58,99 @@ pub fn init() {
             })
             .for_each(|e| {
                 let segment = Segment::new(VirtAddr::new(e.base + hhdm_offset), e.length);
-                VirtualMemoryHigherHalf::mark_as_reserved(segment)
+                VirtualMemoryHigherHalf
+                    .mark_as_reserved(segment)
                     .expect("segment should not be reserved yet");
             });
     }
 
     // heap
-    VirtualMemoryHigherHalf::mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
+    VirtualMemoryHigherHalf
+        .mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
         .expect("heap should not be reserved yet");
 }
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
-pub struct OwnedSegment {
+enum InnerVmm<'vmm> {
+    Ref(&'vmm RwLock<VirtualMemoryManager>),
+    Rc(Arc<RwLock<VirtualMemoryManager>>),
+}
+
+impl Deref for InnerVmm<'_> {
+    type Target = RwLock<VirtualMemoryManager>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            InnerVmm::Ref(vmm) => vmm,
+            InnerVmm::Rc(vmm) => vmm,
+        }
+    }
+}
+
+pub struct OwnedSegment<'vmm> {
+    vmm: InnerVmm<'vmm>,
     inner: Segment,
 }
 
-impl OwnedSegment {
+impl OwnedSegment<'_> {
+    pub fn new_ref(vmm: &'static RwLock<VirtualMemoryManager>, inner: Segment) -> Self {
+        Self {
+            vmm: InnerVmm::Ref(vmm),
+            inner,
+        }
+    }
+
+    pub fn new_rc(vmm: Arc<RwLock<VirtualMemoryManager>>, inner: Segment) -> Self {
+        Self {
+            vmm: InnerVmm::Rc(vmm),
+            inner,
+        }
+    }
+}
+
+impl PartialEq<Self> for OwnedSegment<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let my_vmm = self.vmm.read();
+        let other_vmm = other.vmm.read();
+        &*my_vmm == &*other_vmm
+    }
+}
+
+impl Eq for OwnedSegment<'_> {}
+
+impl PartialOrd<Self> for OwnedSegment<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.inner.partial_cmp(&other.inner)
+    }
+}
+
+impl Ord for OwnedSegment<'_> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.inner.cmp(&other.inner)
+    }
+}
+
+impl Debug for OwnedSegment<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("OwnedSegment")
+            .field("inner", &self.inner)
+            .finish_non_exhaustive()
+    }
+}
+
+impl OwnedSegment<'_> {
     #[must_use]
     pub fn leak(self) -> Segment {
         ManuallyDrop::new(self).inner
     }
 }
 
-impl Drop for OwnedSegment {
+impl Drop for OwnedSegment<'_> {
     fn drop(&mut self) {
-        VirtualMemoryHigherHalf::release_owned(self);
+        self.vmm.write().release(self.inner);
     }
 }
 
-impl Deref for OwnedSegment {
+impl Deref for OwnedSegment<'_> {
     type Target = Segment;
 
     fn deref(&self) -> &Self::Target {
@@ -90,40 +158,57 @@ impl Deref for OwnedSegment {
     }
 }
 
-pub struct VirtualMemoryHigherHalf;
-
-impl VirtualMemoryHigherHalf {
+pub trait VirtualMemoryAllocator {
     /// Returns a segment of virtual memory that is reserved for the kernel.
     /// The size is exactly `pages * 4096` bytes.
     /// The start address of the returned segment is aligned to `4096` bytes.
-    #[allow(clippy::missing_panics_doc)] // panic must not happen, so the caller shouldn't have to care about it
-    #[must_use]
-    pub fn reserve(pages: usize) -> Option<OwnedSegment> {
-        vmm()
-            .write()
-            .reserve(pages * 4096)
-            .map(|segment| OwnedSegment { inner: segment })
-            .inspect(|segment| assert!(segment.start.is_aligned(Size4KiB::SIZE)))
-    }
+    fn reserve(&self, pages: usize) -> Option<OwnedSegment<'static>>;
 
     /// # Errors
     /// This function returns an error if the segment is already reserved.
-    pub fn mark_as_reserved(segment: Segment) -> Result<(), AlreadyReserved> {
+    fn mark_as_reserved(&self, segment: Segment) -> Result<(), AlreadyReserved>;
+
+    /// # Safety
+    /// The caller must ensure that the segment is not used after releasing it,
+    /// and that the segment was previously reserved by this virtual memory manager.
+    unsafe fn release(&self, segment: Segment) -> bool;
+}
+
+pub struct VirtualMemoryHigherHalf;
+
+impl VirtualMemoryAllocator for VirtualMemoryHigherHalf {
+    #[allow(clippy::missing_panics_doc)] // panic must not happen, so the caller shouldn't have to care about it
+    fn reserve(&self, pages: usize) -> Option<OwnedSegment<'static>> {
+        vmm()
+            .write()
+            .reserve(pages * 4096)
+            .map(|segment| OwnedSegment::new_ref(vmm(), segment))
+            .inspect(|segment| assert!(segment.start.is_aligned(Size4KiB::SIZE)))
+    }
+    fn mark_as_reserved(&self, segment: Segment) -> Result<(), AlreadyReserved> {
         debug_assert!(segment.start.is_aligned(Size4KiB::SIZE));
         debug_assert_eq!(segment.len % Size4KiB::SIZE, 0);
 
         vmm().write().mark_as_reserved(segment)
     }
 
-    fn release_owned(segment: &mut OwnedSegment) -> bool {
-        unsafe { Self::release(segment.inner) }
+    unsafe fn release(&self, segment: Segment) -> bool {
+        vmm().write().release(segment)
+    }
+}
+
+impl VirtualMemoryAllocator for Arc<RwLock<VirtualMemoryManager>> {
+    fn reserve(&self, pages: usize) -> Option<OwnedSegment<'static>> {
+        self.write()
+            .reserve(pages * 4096)
+            .map(|segment| OwnedSegment::new_rc(self.clone(), segment))
     }
 
-    /// # Safety
-    /// The caller must ensure that the segment is not used after releasing it,
-    /// and that the segment was previously reserved by this virtual memory manager.
-    #[must_use]
-    pub unsafe fn release(segment: Segment) -> bool {
-        vmm().write().release(segment)
+    fn mark_as_reserved(&self, segment: Segment) -> Result<(), AlreadyReserved> {
+        self.write().mark_as_reserved(segment)
+    }
+
+    unsafe fn release(&self, segment: Segment) -> bool {
+        self.write().release(segment)
     }
 }
