@@ -105,7 +105,7 @@ extern "x86-interrupt" fn page_fault_handler(
         if let Some(ctx) = ExecutionContext::try_load() {
             let task = ctx.current_task();
             // ...and the current task has stack...
-            if let Some(stack) = task.stack() {
+            if let Some(stack) = task.kstack() {
                 // ...then the accessed address must not be within the guard page of the stack,
                 // otherwise we have a stack overflow...
                 if stack.guard_page().contains(addr) {
@@ -114,14 +114,14 @@ extern "x86-interrupt" fn page_fault_handler(
                         task.process().name(),
                         task.name(),
                     );
-                }
 
-                // ...in which case we mark the task for termination...
-                task.set_should_terminate(true);
-                // ...and halt, waiting for the scheduler to terminate the task
-                interrupts::enable();
-                loop {
-                    hlt();
+                    // ...in which case we mark the task for termination...
+                    task.set_should_terminate(true);
+                    // ...and halt, waiting for the scheduler to terminate the task
+                    interrupts::enable();
+                    loop {
+                        hlt();
+                    }
                 }
             }
         }
