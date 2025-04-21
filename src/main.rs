@@ -112,7 +112,6 @@ continue"
     cmd.arg("-vga");
     cmd.arg("none");
 
-    println!("{cmd:?}");
     let status = cmd.status().unwrap();
     assert!(status.success());
 }

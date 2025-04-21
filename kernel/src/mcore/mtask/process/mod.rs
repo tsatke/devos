@@ -1,5 +1,6 @@
 use crate::mcore::mtask::process::tree::{process_tree, ProcessTree};
 use crate::mem::address_space::AddressSpace;
+use addr2line::fallible_iterator::FallibleIterator;
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
@@ -10,6 +11,7 @@ use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
 use core::mem::transmute;
 use core::ptr;
+use core::slice::from_raw_parts_mut;
 use elfloader::ElfBinary;
 use log::{debug, info};
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
@@ -17,6 +19,7 @@ use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
 use x86_64::registers::rflags::RFlags;
 use x86_64::registers::segmentation::SegmentSelector;
+use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 use crate::mcore::context::ExecutionContext;
@@ -24,8 +27,10 @@ use crate::mcore::mtask::process::elf::ElfLoader;
 use crate::mcore::mtask::process::iretq::IretqFrame;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::task::{Stack, StackAllocationError, Task};
+use crate::mem::phys::PhysicalMemory;
 use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::vfs::vfs;
+use crate::U64Ext;
 pub use id::*;
 use vfs::path::{AbsoluteOwnedPath, AbsolutePath};
 
@@ -235,20 +240,35 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         .load(&mut elf_loader)
         .expect("should be able to load elf binary");
     let image = elf_loader.into_inner();
-    let code_ptr = unsafe { image.as_ptr().add(elf_binary.entry_point() as usize) };
-    let entry_fn = unsafe { transmute(code_ptr) };
 
-    // TODO: set up stack pointer, return address etc for an iretq
+    let segment = current_process
+        .vmm()
+        .reserve(image.len().div_ceil(Size4KiB::SIZE.into_usize()))
+        .unwrap()
+        .leak(); // TODO: remember the segment in the process struct instead of leaking it
+    debug!("segment: {segment:#?}");
+    current_process
+        .address_space()
+        .map_range::<Size4KiB>(
+            &segment,
+            PhysicalMemory::allocate_frames_non_contiguous(),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
+        )
+        .unwrap();
 
-    let ustack = Stack::allocate(
-        256,
-        current_process.vmm(),
-        current_process.address_space(),
-        entry_fn,
-        ptr::null_mut(),
-        Task::exit,
-    )
-    .expect("should be able to allocate userspace stack");
+    let slice =
+        unsafe { from_raw_parts_mut(segment.start.as_mut_ptr::<u8>(), segment.len.into_usize()) };
+    slice[..image.len()].copy_from_slice(&image);
+
+    let code_ptr = unsafe {
+        segment
+            .start
+            .as_ptr::<u8>()
+            .add(elf_binary.entry_point() as usize)
+    };
+
+    let ustack = Stack::allocate_plain(256, current_process.vmm(), current_process.address_space())
+        .expect("should be able to allocate userspace stack");
     let ustack_rsp = ustack.initial_rsp();
     {
         let mut ustack_guard = current_task.ustack().write();
@@ -264,6 +284,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         code_segment: sel.user_code,
         instruction_pointer: VirtAddr::new(code_ptr as u64),
     };
+    debug!("iretq frame: {iretq_frame:#?}");
     unsafe {
         iretq_frame.iretq();
     }

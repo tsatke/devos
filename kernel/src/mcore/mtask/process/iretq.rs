@@ -3,6 +3,7 @@ use x86_64::registers::rflags::RFlags;
 use x86_64::registers::segmentation::SegmentSelector;
 use x86_64::VirtAddr;
 
+#[derive(Debug, Copy, Clone)]
 pub struct IretqFrame {
     pub stack_segment: SegmentSelector,
     pub stack_pointer: VirtAddr,

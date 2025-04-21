@@ -54,33 +54,20 @@ impl Stack {
         arg: *mut c_void,
         exit_fn: extern "C" fn(),
     ) -> Result<Self, StackAllocationError> {
-        let segment = vmm
-            .reserve(pages)
-            .ok_or(StackAllocationError::OutOfVirtualMemory)?;
-
-        let mapped_segment =
-            Segment::new(segment.start + Size4KiB::SIZE, segment.len - Size4KiB::SIZE);
-
-        address_space
-            .map_range::<Size4KiB>(
-                &mapped_segment,
-                PhysicalMemory::allocate_frames_non_contiguous(),
-                // FIXME: must be user accessible for user tasks, but can only be user accessible if in lower half, otherwise it can be modified by unrelated tasks/processes
-                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-            )
-            .map_err(|_| StackAllocationError::OutOfPhysicalMemory)?;
+        let mut stack = Self::allocate_plain(pages, vmm, address_space)?;
+        let mapped_segment = stack.mapped_segment;
 
         // set up stack
         let entry_point = (entry_point as *const ()).cast::<usize>();
-        let stack = unsafe {
+        let slice = unsafe {
             from_raw_parts_mut(
                 mapped_segment.start.as_mut_ptr::<u8>(),
                 mapped_segment.len.into_usize(),
             )
         };
-        stack.fill(0xCD);
+        slice.fill(0xCD);
 
-        let mut writer = StackWriter::new(stack);
+        let mut writer = StackWriter::new(slice);
         writer.push(0xDEAD_BEEF_0BAD_F00D_DEAD_BEEF_0BAD_F00D_u128); // marker at stack bottom
         debug_assert_eq!(size_of_val(&exit_fn), size_of::<u64>());
         writer.push(exit_fn);
@@ -96,7 +83,31 @@ impl Stack {
             ..Default::default()
         });
 
-        let rsp = mapped_segment.start + rsp.into_u64();
+        stack.rsp = mapped_segment.start + rsp.into_u64();
+        Ok(stack)
+    }
+
+    pub fn allocate_plain(
+        pages: usize,
+        vmm: impl VirtualMemoryAllocator,
+        address_space: &AddressSpace,
+    ) -> Result<Self, StackAllocationError> {
+        let segment = vmm
+            .reserve(pages)
+            .ok_or(StackAllocationError::OutOfVirtualMemory)?;
+
+        let mapped_segment =
+            Segment::new(segment.start + Size4KiB::SIZE, segment.len - Size4KiB::SIZE);
+
+        address_space
+            .map_range::<Size4KiB>(
+                &mapped_segment,
+                PhysicalMemory::allocate_frames_non_contiguous(),
+                // FIXME: must be user accessible for user tasks, but can only be user accessible if in lower half, otherwise it can be modified by unrelated tasks/processes
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+            )
+            .map_err(|_| StackAllocationError::OutOfPhysicalMemory)?;
+        let rsp = mapped_segment.start + mapped_segment.len;
         Ok(Self {
             segment,
             mapped_segment,
