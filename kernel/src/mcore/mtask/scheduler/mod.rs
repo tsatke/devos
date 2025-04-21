@@ -1,12 +1,11 @@
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::scheduler::switch::switch_impl;
-use crate::mcore::mtask::task::{Task, TaskId};
+use crate::mcore::mtask::task::Task;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use core::cell::UnsafeCell;
 use core::mem::swap;
 use core::pin::Pin;
-use log::info;
 use x86_64::instructions::interrupts;
 
 pub mod global;
@@ -45,10 +44,6 @@ impl Scheduler {
             let cr3_value = next_task.process().address_space().cr3_value();
             (next_task, cr3_value)
         };
-
-        if next_task.id().to_string() == "3".to_string() {
-            info!("scheduling task-3");
-        }
 
         let mut old_task = self.swap_current_task(next_task);
         let old_stack_ptr = if old_task.should_terminate() {
