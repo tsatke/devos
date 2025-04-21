@@ -332,6 +332,11 @@ impl AddressSpace {
             .for_each(|(new_entry, old_entry)| {
                 *new_entry = old_entry.clone();
             });
+        let recursive_index = *RECURSIVE_INDEX.get().unwrap();
+        new_page_table[recursive_index].set_frame(
+            new_frame,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+        );
 
         Self::kernel()
             .unmap(old_pt_page)
