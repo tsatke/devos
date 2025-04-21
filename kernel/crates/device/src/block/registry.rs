@@ -49,18 +49,22 @@ where
     /// # Errors
     /// Returns an error if the device is already registered, returning the
     /// device that could not be registered.
-    pub fn register_device<D>(&mut self, device: D) -> Result<(), RegisterDeviceError<D>>
+    pub fn register_device<D>(
+        &mut self,
+        device: D,
+    ) -> Result<Arc<RwLock<D>>, RegisterDeviceError<D>>
     where
         D: BlockDevice<Id, N>,
         D: 'static,
     {
-        if self.devices.contains_key(&device.id()) {
+        let id = device.id();
+        if self.devices.contains_key(&id) {
             return Err(RegisterDeviceError::AlreadyRegistered(device));
         }
 
-        self.devices
-            .insert(device.id(), Arc::new(RwLock::new(device)));
-        Ok(())
+        let res = Arc::new(RwLock::new(device));
+        self.devices.insert(id, res.clone());
+        Ok(res)
     }
 
     pub fn all_devices(&self) -> impl Iterator<Item = &Arc<RwLock<dyn BlockDevice<Id, N>>>> {

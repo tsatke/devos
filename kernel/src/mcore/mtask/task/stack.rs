@@ -49,6 +49,7 @@ impl Stack {
     pub fn allocate(
         pages: usize,
         vmm: impl VirtualMemoryAllocator,
+        address_space: &AddressSpace,
         entry_point: extern "C" fn(*mut c_void),
         arg: *mut c_void,
         exit_fn: extern "C" fn(),
@@ -60,9 +61,6 @@ impl Stack {
         let mapped_segment =
             Segment::new(segment.start + Size4KiB::SIZE, segment.len - Size4KiB::SIZE);
 
-        // we can use the address space since the segment is in higher half, which is the same
-        // for all address spaces
-        let address_space = AddressSpace::kernel();
         address_space
             .map_range::<Size4KiB>(
                 &mapped_segment,

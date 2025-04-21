@@ -1,5 +1,6 @@
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
+use crate::mem::address_space::AddressSpace;
 use crate::mem::virt::VirtualMemoryHigherHalf;
 use crate::U64Ext;
 use alloc::boxed::Box;
@@ -83,7 +84,14 @@ impl Task {
         entry_point: extern "C" fn(*mut c_void),
         arg: *mut c_void,
     ) -> Result<Self, StackAllocationError> {
-        let stack = Stack::allocate(16, VirtualMemoryHigherHalf, entry_point, arg, Self::exit)?;
+        let stack = Stack::allocate(
+            16,
+            VirtualMemoryHigherHalf,
+            AddressSpace::kernel(),
+            entry_point,
+            arg,
+            Self::exit,
+        )?;
         Ok(Self::create_with_stack(process, stack))
     }
 

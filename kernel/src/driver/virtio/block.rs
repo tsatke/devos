@@ -66,6 +66,10 @@ impl Device<KernelDeviceId> for VirtioBlockDevice {
 }
 
 impl BlockDevice<KernelDeviceId, 512> for VirtioBlockDevice {
+    fn block_count(&self) -> usize {
+        self.inner.lock().capacity().into_usize()
+    }
+
     fn read_block(
         &mut self,
         block_num: usize,

@@ -189,6 +189,7 @@ impl Process {
         let kstack = Stack::allocate(
             16,
             VirtualMemoryHigherHalf,
+            AddressSpace::kernel(),
             trampoline,
             ptr::null_mut(),
             Task::exit,
@@ -242,6 +243,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
     let ustack = Stack::allocate(
         256,
         current_process.vmm(),
+        current_process.address_space(),
         entry_fn,
         ptr::null_mut(),
         Task::exit,
