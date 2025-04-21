@@ -81,24 +81,6 @@ unsafe impl x86_64::structures::paging::FrameAllocator<Size4KiB> for PhysicalMem
 pub(in crate::mem) fn init_stage1(entries: &'static [&'static Entry]) {
     let usable_physical_memory = entries
         .iter()
-        .inspect(|e| {
-            let name = match e.entry_type {
-                EntryType::USABLE => "usable",
-                EntryType::RESERVED => "reserved",
-                EntryType::ACPI_RECLAIMABLE => "acpi reclaimable",
-                EntryType::ACPI_NVS => "acpi nvs",
-                EntryType::BAD_MEMORY => "bad memory",
-                EntryType::BOOTLOADER_RECLAIMABLE => "bootloader reclaimable",
-                EntryType::EXECUTABLE_AND_MODULES => "executable and modules",
-                _ => "unknown",
-            };
-            info!(
-                "memory region: {name} @ 0x{:x} - 0x{:x} ({:x})",
-                e.base,
-                e.base + e.length,
-                e.length
-            );
-        })
         .filter(|e| e.entry_type == EntryType::USABLE)
         .map(|e| e.length)
         .sum::<u64>();
