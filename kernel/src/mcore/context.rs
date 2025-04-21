@@ -1,3 +1,4 @@
+use crate::arch::gdt::Selectors;
 use crate::mcore::lapic::Lapic;
 use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::scheduler::Scheduler;
@@ -17,6 +18,7 @@ pub struct ExecutionContext {
     lapic: Mutex<Lapic>,
 
     _gdt: &'static GlobalDescriptorTable,
+    sel: Selectors,
     _idt: &'static InterruptDescriptorTable,
 
     scheduler: UnsafeCell<Scheduler>,
@@ -26,6 +28,7 @@ impl ExecutionContext {
     pub fn new(
         cpu: &limine::mp::Cpu,
         gdt: &'static GlobalDescriptorTable,
+        sel: Selectors,
         idt: &'static InterruptDescriptorTable,
         lapic: Lapic,
     ) -> Self {
@@ -34,6 +37,7 @@ impl ExecutionContext {
             lapic_id: cpu.lapic_id as usize,
             lapic: Mutex::new(lapic),
             _gdt: gdt,
+            sel,
             _idt: idt,
             scheduler: UnsafeCell::new(Scheduler::new_cpu_local()),
         }
@@ -70,6 +74,10 @@ impl ExecutionContext {
     #[must_use]
     pub fn lapic(&self) -> &Mutex<Lapic> {
         &self.lapic
+    }
+
+    pub fn selectors(&self) -> &Selectors {
+        &self.sel
     }
 
     /// Creates and returns a mutable reference to the scheduler.

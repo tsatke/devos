@@ -23,6 +23,7 @@ fn allocate_ist_stack() -> VirtAddr {
 }
 
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct Selectors {
     pub kernel_code: SegmentSelector,
     pub kernel_data: SegmentSelector,

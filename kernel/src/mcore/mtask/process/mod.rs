@@ -8,25 +8,30 @@ use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
+use core::mem::transmute;
 use core::ptr;
 use elfloader::ElfBinary;
 use log::{debug, info};
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
+use x86_64::registers::rflags::RFlags;
+use x86_64::registers::segmentation::SegmentSelector;
 use x86_64::VirtAddr;
 
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::elf::ElfLoader;
+use crate::mcore::mtask::process::iretq::IretqFrame;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::task::{Stack, StackAllocationError, Task};
-use crate::mem::virt::VirtualMemoryAllocator;
+use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::vfs::vfs;
 pub use id::*;
 use vfs::path::{AbsoluteOwnedPath, AbsolutePath};
 
 mod elf;
 mod id;
+mod iretq;
 mod tree;
 
 static ROOT_PROCESS: OnceCell<Arc<Process>> = OnceCell::uninit();
@@ -181,9 +186,14 @@ impl Process {
         let path = path.as_ref();
         let process = Self::create_new(parent, path.to_string(), Some(path));
 
-        let task_stack =
-            Stack::allocate(16, process.vmm(), trampoline, ptr::null_mut(), Task::exit)?;
-        let main_task = Task::create_with_stack(&process, task_stack);
+        let kstack = Stack::allocate(
+            16,
+            VirtualMemoryHigherHalf,
+            trampoline,
+            ptr::null_mut(),
+            Task::exit,
+        )?;
+        let main_task = Task::create_with_stack(&process, kstack);
         GlobalTaskQueue::enqueue(Box::pin(main_task));
 
         Ok(process)
@@ -194,7 +204,8 @@ extern "C" fn trampoline(_arg: *mut c_void) {
     info!("trampoline called");
 
     let ctx = ExecutionContext::load();
-    let current_process = ctx.scheduler().current_task().process().clone();
+    let current_task = ctx.scheduler().current_task();
+    let current_process = current_task.process().clone();
 
     let executable_path = current_process
         .executable_path
@@ -218,18 +229,42 @@ extern "C" fn trampoline(_arg: *mut c_void) {
     }
 
     let elf_binary = ElfBinary::new(&data).expect("should be able to parse elf binary");
-    let mut elf_loader = ElfLoader::new(current_process);
+    let mut elf_loader = ElfLoader::new(current_process.clone());
     elf_binary
         .load(&mut elf_loader)
         .expect("should be able to load elf binary");
     let image = elf_loader.into_inner();
     let code_ptr = unsafe { image.as_ptr().add(elf_binary.entry_point() as usize) };
+    let entry_fn = unsafe { transmute(code_ptr) };
 
-    let entry_fn: extern "C" fn() = unsafe { core::mem::transmute(code_ptr) };
+    // TODO: set up stack pointer, return address etc for an iretq
 
-    entry_fn();
+    let ustack = Stack::allocate(
+        256,
+        current_process.vmm(),
+        entry_fn,
+        ptr::null_mut(),
+        Task::exit,
+    )
+    .expect("should be able to allocate userspace stack");
+    let ustack_rsp = ustack.initial_rsp();
+    {
+        let mut ustack_guard = current_task.ustack().write();
+        assert!(ustack_guard.is_none(), "ustack should not exist yet");
+        *ustack_guard = Some(ustack);
+    }
 
-    debug!("executable returned, exiting");
+    let sel = ctx.selectors();
+    let iretq_frame = IretqFrame {
+        stack_segment: sel.user_data,
+        stack_pointer: ustack_rsp,
+        rflags: RFlags::INTERRUPT_FLAG,
+        code_segment: sel.user_code,
+        instruction_pointer: VirtAddr::new(code_ptr as u64),
+    };
+    unsafe {
+        iretq_frame.iretq();
+    }
 }
 
 pub struct Children<'a> {

@@ -16,6 +16,7 @@ use core::sync::atomic::Ordering::Relaxed;
 pub use id::*;
 use log::trace;
 pub use queue::*;
+use spin::RwLock;
 pub use stack::*;
 pub use state::*;
 use x86_64::instructions::hlt;
@@ -42,7 +43,12 @@ pub struct Task {
     /// This must be set during the context switch.
     last_stack_ptr: Pin<Box<usize>>,
     state: State,
-    stack: Option<Stack>,
+    /// The kernel stack of the task. Every task starts with a stack in the higher half.
+    /// Userspace tasks will then allocate a stack in the lower half, which will be stored in
+    /// `ustack`.
+    kstack: Option<Stack>,
+    /// The user stack of the task. This is only set if the task is a userspace task.
+    ustack: RwLock<Option<Stack>>,
 
     links: Links<Self>,
 }
@@ -96,7 +102,8 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            stack: Some(stack),
+            kstack: Some(stack),
+            ustack: RwLock::new(None),
             links,
         }
     }
@@ -117,7 +124,8 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            stack,
+            kstack: stack,
+            ustack: RwLock::new(None),
             links,
         }
     }
@@ -156,7 +164,8 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            stack,
+            kstack: stack,
+            ustack: RwLock::new(None),
             links: Links::default(),
         }
     }
@@ -185,8 +194,12 @@ impl Task {
         self.state
     }
 
-    pub fn stack(&self) -> &Option<Stack> {
-        &self.stack
+    pub fn kstack(&self) -> &Option<Stack> {
+        &self.kstack
+    }
+
+    pub fn ustack(&self) -> &RwLock<Option<Stack>> {
+        &self.ustack
     }
 
     pub fn last_stack_ptr(&mut self) -> &mut usize {

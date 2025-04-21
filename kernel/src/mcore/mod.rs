@@ -85,7 +85,7 @@ unsafe extern "C" fn cpu_init_and_return(cpu: &limine::mp::Cpu) {
 
     // create the execution context for the CPU and store it
     {
-        let ctx = ExecutionContext::new(cpu, gdt, idt, lapic);
+        let ctx = ExecutionContext::new(cpu, gdt, sel, idt, lapic);
         let addr = VirtAddr::from_ptr(Box::leak(Box::new(ctx)));
         KernelGsBase::write(addr);
     }
@@ -144,6 +144,7 @@ fn init_interrupts() {
 }
 
 extern "C" fn task_check_stack_alignment(_arg: *mut c_void) {
+    info!("checking stack alignment");
     #[cfg(target_arch = "x86_64")]
     {
         let rsp: u64;
