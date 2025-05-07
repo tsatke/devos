@@ -1,6 +1,8 @@
+use crate::U64Ext;
 use alloc::boxed::Box;
 use alloc::vec;
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
+use x86_64::structures::paging::{PageSize, Size4KiB};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::{PrivilegeLevel, VirtAddr};
 
@@ -9,17 +11,19 @@ pub const PAGE_FAULT_IST_INDEX: u16 = 1;
 
 fn create_tss() -> TaskStateSegment {
     let mut tss = TaskStateSegment::new();
-    tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = allocate_ist_stack();
-    tss.interrupt_stack_table[PAGE_FAULT_IST_INDEX as usize] = allocate_ist_stack();
+    tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = allocate_ist_stack(5);
+    tss.interrupt_stack_table[PAGE_FAULT_IST_INDEX as usize] = allocate_ist_stack(5);
+
+    tss.privilege_stack_table[0] = allocate_ist_stack(64);
     tss
 }
 
-fn allocate_ist_stack() -> VirtAddr {
-    const STACK_SIZE: usize = 4096 * 5;
-    let stack = Box::into_raw(vec![0_u8; STACK_SIZE].into_boxed_slice());
+fn allocate_ist_stack(pages: usize) -> VirtAddr {
+    let stack_size = Size4KiB::SIZE.into_usize() * pages;
+    let stack = Box::into_raw(vec![0_u8; stack_size].into_boxed_slice());
 
     let stack_start = VirtAddr::from_ptr(stack);
-    stack_start + (STACK_SIZE as u64)
+    stack_start + (stack_size as u64)
 }
 
 #[allow(dead_code)]

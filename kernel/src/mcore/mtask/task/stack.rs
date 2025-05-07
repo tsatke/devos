@@ -40,6 +40,12 @@ impl Drop for Stack {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum StackUserAccessible {
+    Yes,
+    No,
+}
+
 impl Stack {
     /// Allocates a new stack with the given number of pages.
     ///
@@ -49,12 +55,13 @@ impl Stack {
     pub fn allocate(
         pages: usize,
         vmm: impl VirtualMemoryAllocator,
+        user_accessible: StackUserAccessible,
         address_space: &AddressSpace,
         entry_point: extern "C" fn(*mut c_void),
         arg: *mut c_void,
         exit_fn: extern "C" fn(),
     ) -> Result<Self, StackAllocationError> {
-        let mut stack = Self::allocate_plain(pages, vmm, address_space)?;
+        let mut stack = Self::allocate_plain(pages, vmm, user_accessible, address_space)?;
         let mapped_segment = stack.mapped_segment;
 
         // set up stack
@@ -90,6 +97,7 @@ impl Stack {
     pub fn allocate_plain(
         pages: usize,
         vmm: impl VirtualMemoryAllocator,
+        user_accessible: StackUserAccessible,
         address_space: &AddressSpace,
     ) -> Result<Self, StackAllocationError> {
         let segment = vmm
@@ -104,7 +112,13 @@ impl Stack {
                 &mapped_segment,
                 PhysicalMemory::allocate_frames_non_contiguous(),
                 // FIXME: must be user accessible for user tasks, but can only be user accessible if in lower half, otherwise it can be modified by unrelated tasks/processes
-                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                PageTableFlags::PRESENT
+                    | PageTableFlags::WRITABLE
+                    | if user_accessible == StackUserAccessible::Yes {
+                        PageTableFlags::USER_ACCESSIBLE
+                    } else {
+                        PageTableFlags::empty()
+                    },
             )
             .map_err(|_| StackAllocationError::OutOfPhysicalMemory)?;
         let rsp = mapped_segment.start + mapped_segment.len;

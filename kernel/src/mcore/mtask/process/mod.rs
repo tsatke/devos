@@ -19,14 +19,14 @@ use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
 use x86_64::registers::rflags::RFlags;
 use x86_64::registers::segmentation::SegmentSelector;
+use x86_64::structures::idt::InterruptStackFrameValue;
 use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::elf::ElfLoader;
-use crate::mcore::mtask::process::iretq::IretqFrame;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
-use crate::mcore::mtask::task::{Stack, StackAllocationError, Task};
+use crate::mcore::mtask::task::{Stack, StackAllocationError, StackUserAccessible, Task};
 use crate::mem::phys::PhysicalMemory;
 use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::vfs::vfs;
@@ -36,7 +36,6 @@ use vfs::path::{AbsoluteOwnedPath, AbsolutePath};
 
 mod elf;
 mod id;
-mod iretq;
 mod tree;
 
 static ROOT_PROCESS: OnceCell<Arc<Process>> = OnceCell::uninit();
@@ -194,6 +193,7 @@ impl Process {
         let kstack = Stack::allocate(
             16,
             VirtualMemoryHigherHalf,
+            StackUserAccessible::No,
             AddressSpace::kernel(),
             trampoline,
             ptr::null_mut(),
@@ -258,7 +258,8 @@ extern "C" fn trampoline(_arg: *mut c_void) {
 
     let slice =
         unsafe { from_raw_parts_mut(segment.start.as_mut_ptr::<u8>(), segment.len.into_usize()) };
-    slice[..image.len()].copy_from_slice(&image);
+    // slice[..image.len()].copy_from_slice(&image);
+    slice.fill(0xcc); // int3
 
     let code_ptr = unsafe {
         segment
@@ -267,8 +268,13 @@ extern "C" fn trampoline(_arg: *mut c_void) {
             .add(elf_binary.entry_point() as usize)
     };
 
-    let ustack = Stack::allocate_plain(256, current_process.vmm(), current_process.address_space())
-        .expect("should be able to allocate userspace stack");
+    let ustack = Stack::allocate_plain(
+        256,
+        current_process.vmm(),
+        StackUserAccessible::Yes,
+        current_process.address_space(),
+    )
+    .expect("should be able to allocate userspace stack");
     let ustack_rsp = ustack.initial_rsp();
     {
         let mut ustack_guard = current_task.ustack().write();
@@ -277,17 +283,15 @@ extern "C" fn trampoline(_arg: *mut c_void) {
     }
 
     let sel = ctx.selectors();
-    let iretq_frame = IretqFrame {
-        stack_segment: sel.user_data,
-        stack_pointer: ustack_rsp,
-        rflags: RFlags::INTERRUPT_FLAG,
-        code_segment: sel.user_code,
-        instruction_pointer: VirtAddr::new(code_ptr as u64),
-    };
-    debug!("iretq frame: {iretq_frame:#?}");
-    unsafe {
-        iretq_frame.iretq();
-    }
+
+    let isfv = InterruptStackFrameValue::new(
+        VirtAddr::new(code_ptr as u64),
+        sel.user_code,
+        RFlags::INTERRUPT_FLAG,
+        ustack_rsp,
+        sel.user_data,
+    );
+    unsafe { isfv.iretq() };
 }
 
 pub struct Children<'a> {

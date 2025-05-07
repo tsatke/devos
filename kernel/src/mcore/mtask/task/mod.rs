@@ -87,6 +87,7 @@ impl Task {
         let stack = Stack::allocate(
             16,
             VirtualMemoryHigherHalf,
+            StackUserAccessible::No,
             AddressSpace::kernel(),
             entry_point,
             arg,
