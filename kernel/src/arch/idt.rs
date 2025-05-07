@@ -71,7 +71,7 @@ pub fn create_idt() -> InterruptDescriptorTable {
 macro_rules! wrap {
     ($fn:ident => $w:ident) => {
         #[allow(clippy::missing_safety_doc)]
-        #[naked]
+        #[unsafe(naked)]
         pub unsafe extern "sysv64" fn $w() {
             core::arch::naked_asm!(
                 "push rax",
