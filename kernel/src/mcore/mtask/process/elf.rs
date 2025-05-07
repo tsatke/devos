@@ -4,7 +4,6 @@ use alloc::vec;
 use alloc::vec::Vec;
 use elfloader::arch::x86_64::RelocationTypes;
 use elfloader::{ElfLoaderErr, Flags, LoadableHeaders, RelocationEntry, RelocationType, VAddr};
-use log::debug;
 
 pub struct ElfLoader {
     process: Arc<Process>,
@@ -29,7 +28,6 @@ impl elfloader::ElfLoader for ElfLoader {
         for header in load_headers {
             let required_size = header.virtual_addr() as usize + header.mem_size() as usize;
             if self.data.len() < required_size {
-                debug!("resizing elf image allocation to 0x{required_size:x} bytes");
                 self.data.resize(required_size, 0);
             }
         }

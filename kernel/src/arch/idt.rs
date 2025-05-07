@@ -1,6 +1,9 @@
 use crate::arch::gdt;
+use crate::backtrace::Backtrace;
 use crate::mcore::context::ExecutionContext;
-use log::{error, warn};
+use crate::syscall::dispatch_syscall;
+use core::mem::transmute;
+use log::{error, info, warn};
 use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
@@ -13,6 +16,7 @@ pub enum InterruptIndex {
     Timer = 0x20,
     /// 49
     LapicErr = 0x31,
+    Syscall = 0x80,
     /// 255
     Spurious = 0xff,
 }
@@ -39,9 +43,7 @@ pub fn create_idt() -> InterruptDescriptorTable {
             .set_stack_index(gdt::PAGE_FAULT_IST_INDEX);
     }
 
-    idt.breakpoint
-        .set_handler_fn(breakpoint_handler)
-        .set_privilege_level(PrivilegeLevel::Ring3);
+    idt.breakpoint.set_handler_fn(breakpoint_handler);
 
     idt.general_protection_fault
         .set_handler_fn(general_protection_fault_handler);
@@ -56,7 +58,96 @@ pub fn create_idt() -> InterruptDescriptorTable {
     idt[InterruptIndex::LapicErr.as_u8()].set_handler_fn(lapic_err_interrupt_handler);
     idt[InterruptIndex::Spurious.as_u8()].set_handler_fn(spurious_interrupt_handler);
 
+    unsafe {
+        idt[InterruptIndex::Syscall.as_u8()]
+            .set_handler_fn(transmute(syscall_handler as *mut fn()))
+            .set_privilege_level(PrivilegeLevel::Ring3)
+            .disable_interrupts(false);
+    }
+
     idt
+}
+
+macro_rules! wrap {
+    ($fn:ident => $w:ident) => {
+        #[allow(clippy::missing_safety_doc)]
+        #[naked]
+        pub unsafe extern "sysv64" fn $w() {
+            core::arch::naked_asm!(
+                "push rax",
+                "push rcx",
+                "push rdx",
+                "push rsi",
+                "push rdi",
+                "push r8",
+                "push r9",
+                "push r10",
+                "push r11",
+                "mov rsi, rsp", // Arg #2: register list
+                "mov rdi, rsp", // Arg #1: interupt frame
+                "add rdi, 9 * 8",
+                "call {}",
+                "pop r11",
+                "pop r10",
+                "pop r9",
+                "pop r8",
+                "pop rdi",
+                "pop rsi",
+                "pop rdx",
+                "pop rcx",
+                "pop rax",
+                "iretq",
+                sym $fn
+            );
+        }
+    };
+}
+
+wrap!(syscall_handler_impl => syscall_handler);
+
+#[repr(align(8), C)]
+#[derive(Debug, Clone, Copy, Default)]
+pub struct SyscallRegisters {
+    pub r11: usize,
+    pub r10: usize,
+    pub r9: usize,
+    pub r8: usize,
+    pub rdi: usize,
+    pub rsi: usize,
+    pub rdx: usize,
+    pub rcx: usize,
+    pub rax: usize,
+}
+
+pub extern "sysv64" fn syscall_handler_impl(
+    _stack_frame: &mut InterruptStackFrame,
+    regs: &mut SyscallRegisters,
+) {
+    // The registers order follow the System V ABI convention
+    let n = regs.rax;
+    let arg1 = regs.rdi;
+    let arg2 = regs.rsi;
+    let arg3 = regs.rdx;
+    let arg4 = regs.rcx;
+    let arg5 = regs.r8;
+    let arg6 = regs.r9;
+
+    let res = dispatch_syscall(n, arg1, arg2, arg3, arg4, arg5, arg6);
+
+    regs.rax = res; // save result
+}
+
+fn foo(
+    n: usize,
+    arg1: usize,
+    arg2: usize,
+    arg3: usize,
+    arg4: usize,
+    arg5: usize,
+    arg6: usize,
+) -> usize {
+    info!("syscall: {n} {arg1} {arg2} {arg3} {arg4} {arg5} {arg6}");
+    0
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
@@ -86,7 +177,16 @@ extern "x86-interrupt" fn general_protection_fault_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
-    panic!("EXCEPTION: GENERAL PROTECTION FAULT:\nerror code: {error_code:#X}\n{stack_frame:#?}");
+    panic!(
+        "EXCEPTION: GENERAL PROTECTION FAULT:\nerror code: {error_code:#X}\n{}[{}], external: {}\n{stack_frame:#?}",
+        match (error_code >> 1) & 0b11 {
+            0 => "GDT",
+            2 => "LDT",
+            _ => "IDT",
+        },
+        (error_code >> 3) & ((1 << 14) - 1),
+        (error_code & 1) > 0
+    );
 }
 
 extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: InterruptStackFrame) {

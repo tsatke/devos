@@ -20,6 +20,7 @@ mod log;
 pub mod mcore;
 pub mod mem;
 mod serial;
+pub mod syscall;
 pub mod time;
 pub mod vfs;
 

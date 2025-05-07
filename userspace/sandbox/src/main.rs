@@ -1,11 +1,34 @@
 #![no_std]
 #![no_main]
 
-use x86_64::instructions::interrupts::int3;
+use core::arch::asm;
+use core::arch::x86_64::_mm_pause;
+
+#[unsafe(no_mangle)]
+pub extern "C" fn _start() -> isize {
+    let res = syscall1(0, 17);
+    let _ = syscall1(1, res as usize);
+    loop {
+        unsafe { _mm_pause() };
+    }
+}
+
+fn syscall1(n: usize, arg: usize) -> isize {
+    unsafe {
+        let res: isize;
+        asm! {
+        "int 0x80",
+        in("rax") n,
+        in("rdi") arg,
+        lateout("rax") res,
+        }
+        res
+    }
+}
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {
-        int3()
+        unsafe { _mm_pause() };
     }
 }

@@ -9,16 +9,13 @@ use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
-use core::mem::transmute;
 use core::ptr;
 use core::slice::from_raw_parts_mut;
 use elfloader::ElfBinary;
-use log::{debug, info};
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
 use x86_64::registers::rflags::RFlags;
-use x86_64::registers::segmentation::SegmentSelector;
 use x86_64::structures::idt::InterruptStackFrameValue;
 use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
@@ -207,8 +204,6 @@ impl Process {
 }
 
 extern "C" fn trampoline(_arg: *mut c_void) {
-    info!("trampoline called");
-
     let ctx = ExecutionContext::load();
     let current_task = ctx.scheduler().current_task();
     let current_process = current_task.process().clone();
@@ -246,7 +241,6 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         .reserve(image.len().div_ceil(Size4KiB::SIZE.into_usize()))
         .unwrap()
         .leak(); // TODO: remember the segment in the process struct instead of leaking it
-    debug!("segment: {segment:#?}");
     current_process
         .address_space()
         .map_range::<Size4KiB>(
@@ -258,8 +252,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
 
     let slice =
         unsafe { from_raw_parts_mut(segment.start.as_mut_ptr::<u8>(), segment.len.into_usize()) };
-    // slice[..image.len()].copy_from_slice(&image);
-    slice.fill(0xcc); // int3
+    slice[..image.len()].copy_from_slice(&image);
 
     let code_ptr = unsafe {
         segment
