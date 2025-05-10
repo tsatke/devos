@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 device = { path = "crates/device" }
+kernel_elfloader = { path = "crates/kernel_elfloader" }
 physical_memory_manager = { path = "crates/physical_memory_manager" }
 vfs = { path = "crates/vfs" }
 virtual_memory_manager = { path = "crates/virtual_memory_manager" }

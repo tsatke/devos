@@ -8,12 +8,13 @@ ovmf-prebuilt = "0.2.3"
 
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
 
-sandbox = { path = "userspace/sandbox", artifact = "bin", target = "x86_64-unknown-none" }
+#sandbox = { path = "userspace/sandbox", artifact = "bin", target = "x86_64-unknown-none" }
 
 [workspace]
 members = [
     "kernel",
     "kernel/crates/device",
+    "kernel/crates/kernel_elfloader",
     "kernel/crates/physical_memory_manager",
     "kernel/crates/vfs",
     "kernel/crates/virtual_memory_manager",
@@ -22,6 +23,7 @@ members = [
 default-members = [
     ".",
     "kernel/crates/device",
+    "kernel/crates/kernel_elfloader",
     "kernel/crates/physical_memory_manager",
     "kernel/crates/vfs",
     "kernel/crates/virtual_memory_manager",
@@ -54,3 +56,4 @@ virtio-drivers = "0.9"
 volatile = { version = "0.6", features = ["derive"] }
 x2apic = "0.5"
 x86_64 = "0.15"
+zerocopy = { version = "0.9.0-alpha.0", features = ["alloc", "derive", "simd"] }

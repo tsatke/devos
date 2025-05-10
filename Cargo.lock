@@ -311,7 +311,6 @@ dependencies = [
  "clap",
  "kernel",
  "ovmf-prebuilt",
- "sandbox",
 ]
 
 [[package]]
@@ -502,6 +501,7 @@ dependencies = [
  "elf",
  "elfloader",
  "jiff",
+ "kernel_elfloader",
  "limine",
  "linked_list_allocator",
  "linkme",
@@ -519,6 +519,14 @@ dependencies = [
  "volatile 0.6.1",
  "x2apic",
  "x86_64",
+]
+
+[[package]]
+name = "kernel_elfloader"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+ "zerocopy 0.9.0-alpha.0",
 ]
 
 [[package]]
@@ -1218,7 +1226,7 @@ dependencies = [
  "enumn",
  "log",
  "thiserror",
- "zerocopy",
+ "zerocopy 0.8.24",
 ]
 
 [[package]]
@@ -1507,7 +1515,16 @@ version = "0.8.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2586fea28e186957ef732a5f8b3be2da217d65c5969d4b1e17f973ebbe876879"
 dependencies = [
- "zerocopy-derive",
+ "zerocopy-derive 0.8.24",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.9.0-alpha.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c9c378180b968f2e98efa0c4bba8c49fd4cd247dc82a7f01e72dc137d447d8c"
+dependencies = [
+ "zerocopy-derive 0.9.0-alpha.0",
 ]
 
 [[package]]
@@ -1515,6 +1532,17 @@ name = "zerocopy-derive"
 version = "0.8.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a996a8f63c5c4448cd959ac1bab0aaa3306ccfd060472f85943ee0750f0169be"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.9.0-alpha.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36811c5ea90dd441f941919fc99163e702f150a8e1495d72a268106a0100df09"
 dependencies = [
  "proc-macro2",
  "quote",
