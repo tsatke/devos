@@ -119,6 +119,20 @@ impl<'a> ElfFile<'a> {
     pub fn program_data(&self, header: &ProgramHeader) -> &[u8] {
         &self.source[header.offset..header.offset + header.filesz]
     }
+
+    pub fn symtab_data(&'a self, header: &'a SectionHeader) -> SymtabSection<'a> {
+        let data = self.section_data(header);
+        SymtabSection { header, data }
+    }
+
+    pub fn symbol_name(&self, symtab: &SymtabSection<'a>, symbol: &Symbol) -> Option<&str> {
+        let strtab_index = symtab.header.link as usize;
+        let strtab_hdr = self.section_headers().nth(strtab_index)?;
+        let strtab_data = self.section_data(strtab_hdr);
+        CStr::from_bytes_until_nul(&strtab_data[symbol.name as usize..])
+            .ok()
+            .and_then(|cstr| cstr.to_str().ok())
+    }
 }
 
 const _: () = {
@@ -188,6 +202,7 @@ pub struct ProgramHeader {
 }
 
 #[derive(TryFromBytes, KnownLayout, Immutable, Debug, Eq, PartialEq)]
+#[repr(transparent)]
 pub struct ProgramHeaderType(pub u16);
 
 impl ProgramHeaderType {
@@ -221,6 +236,7 @@ pub struct SectionHeader {
 }
 
 #[derive(TryFromBytes, KnownLayout, Immutable, Debug, Eq, PartialEq, Copy, Clone)]
+#[repr(transparent)]
 pub struct SectionHeaderType(pub u32);
 
 impl SectionHeaderType {
@@ -245,6 +261,7 @@ impl SectionHeaderType {
 }
 
 #[derive(TryFromBytes, KnownLayout, Immutable, Debug, Eq, PartialEq)]
+#[repr(transparent)]
 pub struct SectionHeaderFlags(pub u32);
 
 impl SectionHeaderFlags {
@@ -264,6 +281,31 @@ impl SectionHeaderFlags {
     }
 }
 
+pub struct SymtabSection<'a> {
+    header: &'a SectionHeader,
+    data: &'a [u8],
+}
+
+impl SymtabSection<'_> {
+    pub fn symbols(&self) -> impl Iterator<Item = &Symbol> {
+        self.data
+            .chunks_exact(size_of::<Symbol>())
+            .map(Symbol::try_ref_from_bytes)
+            .map(Result::unwrap)
+    }
+}
+
+#[derive(TryFromBytes, KnownLayout, Immutable, Debug, Eq, PartialEq)]
+#[repr(C)]
+pub struct Symbol {
+    pub name: u32,
+    pub value: usize,
+    pub size: u32,
+    pub info: u8,
+    pub other: u8,
+    pub shndx: u16,
+}
+
 #[cfg(test)]
 mod tests {
     use zerocopy::TryFromBytes;
@@ -281,9 +323,16 @@ mod tests {
         let data = std::fs::read(path).unwrap();
 
         let elf_file = ElfFile::try_parse(&data).unwrap();
-        elf_file
-            .section_headers()
-            .for_each(|header| std::println!("{:?}: {:x?}", elf_file.section_name(header), header));
+        // elf_file
+        //     .section_headers()
+        //     .for_each(|header| std::println!("{:?}: {:x?}", elf_file.section_name(header), header));
+
+        let symtab_hdr = elf_file.sections_by_name(".symtab").next().unwrap();
+        let symtab = elf_file.symtab_data(symtab_hdr);
+        symtab.symbols().for_each(|sym| {
+            let name = elf_file.symbol_name(&symtab, sym);
+            std::println!("{name:?}");
+        })
     }
 
     #[test]

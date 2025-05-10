@@ -3,7 +3,7 @@ extern crate alloc;
 
 mod file;
 
-use alloc::vec::Vec;
+use alloc::collections::BTreeMap;
 pub use file::*;
 use thiserror::Error;
 
@@ -23,7 +23,7 @@ where
 {
     allocator: A,
     elf_file: ElfFile<'a>,
-    allocations: Vec<A::Allocation>,
+    allocations: BTreeMap<usize, A::Allocation>,
 }
 
 #[derive(Debug, Eq, PartialEq, Error)]
@@ -42,33 +42,29 @@ where
         Self {
             allocator,
             elf_file,
-            allocations: Vec::new(),
+            allocations: BTreeMap::new(),
         }
     }
 
     pub fn load(&mut self) -> Result<(), LoadElfError> {
-        self.load_stage1()?;
-        todo!()
-    }
-
-    fn load_stage1(&mut self) -> Result<(), LoadElfError> {
-        for hdr in self
+        for (index, hdr) in self
             .elf_file
-            .section_headers()
-            .filter(|hdr| hdr.typ == SectionHeaderType::NOBITS)
-            .filter(|hdr| hdr.size > 0)
-            .filter(|hdr| hdr.flags.contains(&SectionHeaderFlags::ALLOC))
+            .program_headers()
+            .enumerate()
+            .filter(|(_, hdr)| [ProgramHeaderType::LOAD, ProgramHeaderType::TLS].contains(&hdr.typ))
         {
-            let size = hdr.size;
-            let align = hdr.addralign;
+            let pdata = self.elf_file.program_data(hdr);
 
             let mut alloc = self
                 .allocator
-                .allocate(size, align)
+                .allocate(hdr.memsz, hdr.align)
                 .ok_or(LoadElfError::AllocationFailed)?;
-            alloc.as_mut().fill(0);
 
-            self.allocations.push(alloc);
+            let mut slice = alloc.as_mut();
+            slice[..hdr.filesz].copy_from_slice(pdata);
+            slice[hdr.filesz..].fill(0);
+
+            self.allocations.insert(index, alloc);
         }
 
         Ok(())
