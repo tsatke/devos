@@ -323,16 +323,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "devos"
-version = "0.1.0"
-dependencies = [
- "clap",
- "kernel",
- "ovmf-prebuilt",
- "sandbox",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -738,6 +728,16 @@ dependencies = [
 name = "mkfs-filesystem"
 version = "0.1.0"
 source = "git+https://github.com/tsatke/mkfs#24c1cfba44f360c8d4936f08cee49a34a5e4f916"
+
+[[package]]
+name = "muffin"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "kernel",
+ "ovmf-prebuilt",
+ "sandbox",
+]
 
 [[package]]
 name = "nu-ansi-term"

@@ -98,6 +98,6 @@ jobs:
           cargo build --release
       - uses: actions/upload-artifact@v4
         with:
-          name: devos-boot-images
+          name: muffin-boot-images
           path: |
-            target/release/build/**/out/devos.iso
+            target/release/build/**/out/muffin.iso
