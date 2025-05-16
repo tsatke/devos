@@ -1,6 +1,7 @@
 use crate::arch::gdt;
 use crate::mcore::context::ExecutionContext;
 use crate::syscall::dispatch_syscall;
+use core::fmt::{Debug, Formatter};
 use core::mem::transmute;
 use log::{error, warn};
 use x86_64::instructions::{hlt, interrupts};
@@ -229,14 +230,15 @@ extern "x86-interrupt" fn segment_not_present_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
-    panic!("EXCEPTION: SEGMENT NOT PRESENT:\nerror code: {error_code:#X}\n{stack_frame:#?}");
+    let error_code = SelectorErrorCode::from(error_code);
+    panic!("EXCEPTION: SEGMENT NOT PRESENT:\nerror code: {error_code:#?}\n{stack_frame:#?}");
 }
 
 extern "x86-interrupt" fn stack_segment_fault_handler(
     stack_frame: InterruptStackFrame,
     error_code: u64,
 ) {
-    panic!("EXCEPTION: STACK SEGMENT FAULT:\nerror code: {error_code:#X}\n{stack_frame:#?}");
+    panic!("EXCEPTION: STACK SEGMENT FAULT:\nerror code: {error_code:#?}\n{stack_frame:#?}");
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
@@ -255,4 +257,52 @@ extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
 pub unsafe fn end_of_interrupt() {
     let ctx = ExecutionContext::load();
     unsafe { ctx.lapic().lock().end_of_interrupt() };
+}
+
+#[repr(transparent)]
+struct SelectorErrorCode(u32);
+
+impl From<u32> for SelectorErrorCode {
+    fn from(value: u32) -> Self {
+        Self(value)
+    }
+}
+
+impl From<u64> for SelectorErrorCode {
+    fn from(value: u64) -> Self {
+        let value = u32::try_from(value).unwrap();
+        value.into()
+    }
+}
+
+impl SelectorErrorCode {
+    fn external(&self) -> bool {
+        (self.0 & 1) > 0
+    }
+
+    fn tbl(&self) -> u8 {
+        ((self.0 >> 1) & 0b11) as u8
+    }
+
+    fn index(&self) -> u16 {
+        ((self.0 >> 3) & ((1 << 14) - 1)) as u16
+    }
+}
+
+impl Debug for SelectorErrorCode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SelectorErrorCode")
+            .field("index", &self.index())
+            .field(
+                "tbl",
+                &match self.tbl() {
+                    0b00 => "GDT",
+                    0b01 | 0b11 => "IDT",
+                    0b10 => "LDT",
+                    _ => unreachable!(),
+                },
+            )
+            .field("external", &self.external())
+            .finish()
+    }
 }
