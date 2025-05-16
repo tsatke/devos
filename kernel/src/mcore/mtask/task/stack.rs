@@ -54,7 +54,7 @@ impl Stack {
     /// physical or virtual.
     pub fn allocate(
         pages: usize,
-        vmm: impl VirtualMemoryAllocator,
+        vmm: &impl VirtualMemoryAllocator,
         user_accessible: StackUserAccessible,
         address_space: &AddressSpace,
         entry_point: extern "C" fn(*mut c_void),
@@ -94,9 +94,19 @@ impl Stack {
         Ok(stack)
     }
 
+    /// Allocates a plain, unmodified stack with the given number of 4KiB pages.
+    /// The stack will be mapped according to the given arguments.
+    ///
+    /// One page is reserved for the guard page, which is not mapped. It is at the
+    /// bottom of the stack. This implies that for `pages` pages, the usable stack
+    /// size is `pages - 1`.
+    ///
+    /// # Errors
+    /// Returns an error if stack memory couldn't be allocated, either
+    /// physical or virtual, or if mapping failed.
     pub fn allocate_plain(
         pages: usize,
-        vmm: impl VirtualMemoryAllocator,
+        vmm: &impl VirtualMemoryAllocator,
         user_accessible: StackUserAccessible,
         address_space: &AddressSpace,
     ) -> Result<Self, StackAllocationError> {
@@ -143,7 +153,6 @@ impl Stack {
     }
 
     /// Returns the full stack segment, including the guard page (which is not mapped).
-    #[must_use]
     pub fn segment(&self) -> &OwnedSegment {
         &self.segment
     }

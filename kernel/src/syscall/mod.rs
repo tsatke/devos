@@ -1,5 +1,6 @@
 use log::info;
 
+#[must_use]
 pub fn dispatch_syscall(
     n: usize,
     arg1: usize,

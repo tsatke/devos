@@ -178,6 +178,8 @@ impl Process {
 }
 
 impl Process {
+    // TODO: add documentation
+    #[allow(clippy::missing_errors_doc)]
     pub fn create_from_executable(
         parent: &Arc<Process>,
         path: impl AsRef<AbsolutePath>,
@@ -187,7 +189,7 @@ impl Process {
 
         let kstack = Stack::allocate(
             16,
-            VirtualMemoryHigherHalf,
+            &VirtualMemoryHigherHalf,
             StackUserAccessible::No,
             AddressSpace::kernel(),
             trampoline,
@@ -215,7 +217,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         .open(executable_path)
         .expect("should be able to open executable");
 
-    let mut data = Vec::with_capacity(1226576);
+    let mut data = Vec::with_capacity(1_226_576);
     let mut buf = [0; 4096];
     let mut offset = 0;
     loop {
@@ -253,7 +255,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
 
     let ustack = Stack::allocate_plain(
         256,
-        current_process.vmm(),
+        &current_process.vmm(),
         StackUserAccessible::Yes,
         current_process.address_space(),
     )
@@ -273,7 +275,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
 
     {
         let slice = unsafe { from_raw_parts(code_ptr as *const u8, 64) };
-        debug!("code: {:02x?}", slice);
+        debug!("code: {slice:02x?}");
     }
 
     let isfv = InterruptStackFrameValue::new(

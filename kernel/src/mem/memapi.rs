@@ -181,10 +181,13 @@ pub struct LowerHalfAllocation<T> {
 }
 
 impl<T: AllocationType> LowerHalfAllocation<T> {
+    #[must_use]
     pub fn start(&self) -> VirtAddr {
         self.start
     }
 
+    #[allow(clippy::len_without_is_empty)]
+    #[must_use]
     pub fn len(&self) -> usize {
         self.layout.size()
     }

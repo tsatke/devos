@@ -12,7 +12,14 @@ pub struct BlockBuf<const N: usize> {
     data: [u8; N],
 }
 
+impl<const N: usize> Default for BlockBuf<N> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const N: usize> BlockBuf<N> {
+    #[must_use]
     pub fn new() -> Self {
         Self { data: [0; N] }
     }

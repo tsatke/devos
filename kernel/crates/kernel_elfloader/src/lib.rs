@@ -38,7 +38,7 @@ pub enum LoadElfError {
 
 impl From<VirtAddrNotValid> for LoadElfError {
     fn from(value: VirtAddrNotValid) -> Self {
-        Self::InvalidVirtualAddress(value.0 as usize)
+        Self::InvalidVirtualAddress(usize::try_from(value.0).unwrap())
     }
 }
 
@@ -50,6 +50,11 @@ where
         Self { memory_api }
     }
 
+    /// # Errors
+    /// Returns an error if the ELF file is not supported or if a required memory allocation fails.
+    ///
+    /// # Panics
+    /// Panics if the ELF file is not of type `ET_EXEC`.
     pub fn load<'a>(&mut self, elf_file: ElfFile<'a>) -> Result<ElfImage<'a, M>, LoadElfError>
     where
         <M as MemoryApi>::WritableAllocation: Debug,
@@ -73,10 +78,7 @@ where
         Ok(image)
     }
 
-    fn load_loadable_headers<'a>(
-        &mut self,
-        image: &mut ElfImage<'a, M>,
-    ) -> Result<(), LoadElfError> {
+    fn load_loadable_headers(&mut self, image: &mut ElfImage<'_, M>) -> Result<(), LoadElfError> {
         for hdr in image
             .elf_file
             .program_headers_by_type(ProgramHeaderType::LOAD)
@@ -120,7 +122,7 @@ where
         Ok(())
     }
 
-    fn load_tls<'a>(&mut self, image: &mut ElfImage<'a, M>) -> Result<(), LoadElfError> {
+    fn load_tls(&mut self, image: &mut ElfImage<'_, M>) -> Result<(), LoadElfError> {
         let Some(tls) = image
             .elf_file
             .program_headers_by_type(ProgramHeaderType::TLS)

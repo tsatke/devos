@@ -410,6 +410,8 @@ impl AddressSpace {
         self.inner.write().unmap_range(pages.into(), callback);
     }
 
+    /// # Errors
+    /// Returns an error if the page is not mapped or flags are invalid.
     pub fn remap<S: PageSize, F: Fn(PageTableFlags) -> PageTableFlags>(
         &self,
         page: Page<S>,
@@ -421,6 +423,8 @@ impl AddressSpace {
         self.inner.write().remap(page, &f)
     }
 
+    /// # Errors
+    /// Returns an error if the pages are not mapped or flags are invalid.
     pub fn remap_range<S: PageSize, F: Fn(PageTableFlags) -> PageTableFlags>(
         &self,
         pages: impl Into<PageRangeInclusive<S>>,

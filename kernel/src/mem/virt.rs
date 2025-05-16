@@ -115,7 +115,7 @@ impl PartialEq<Self> for OwnedSegment<'_> {
     fn eq(&self, other: &Self) -> bool {
         let my_vmm = self.vmm.read();
         let other_vmm = other.vmm.read();
-        &*my_vmm == &*other_vmm
+        *my_vmm == *other_vmm
     }
 }
 
@@ -123,7 +123,7 @@ impl Eq for OwnedSegment<'_> {}
 
 impl PartialOrd<Self> for OwnedSegment<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.inner.partial_cmp(&other.inner)
+        Some(self.cmp(other))
     }
 }
 
@@ -197,7 +197,7 @@ impl VirtualMemoryAllocator for VirtualMemoryHigherHalf {
         vmm()
             .write()
             .mark_as_reserved(segment)
-            .map(|_| OwnedSegment::new_ref(vmm(), segment))
+            .map(|()| OwnedSegment::new_ref(vmm(), segment))
     }
 
     unsafe fn release(&self, segment: Segment) -> bool {
@@ -218,7 +218,7 @@ impl VirtualMemoryAllocator for Arc<RwLock<VirtualMemoryManager>> {
 
         self.write()
             .mark_as_reserved(segment)
-            .map(|_| OwnedSegment::new_rc(self.clone(), segment))
+            .map(|()| OwnedSegment::new_rc(self.clone(), segment))
     }
 
     unsafe fn release(&self, segment: Segment) -> bool {

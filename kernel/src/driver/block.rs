@@ -4,7 +4,6 @@ use crate::vfs::vfs;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
-use core::ops::Deref;
 use device::block::registry::BlockDeviceRegistry;
 use device::block::{BlockBuf, BlockDevice};
 use device::RegisterDeviceError;
@@ -18,7 +17,9 @@ static BLOCK_DEVICES: RwLock<BlockDeviceRegistry<KernelDeviceId, 512>> =
 pub struct BlockDevices;
 
 impl BlockDevices {
-    #[allow(clippy::missing_errors_doc)] // TODO: add documentation
+    // TODO: add documentation
+    #[allow(clippy::missing_errors_doc)]
+    #[allow(clippy::missing_panics_doc)]
     pub fn register_block_device<D>(device: D) -> Result<(), RegisterDeviceError<D>>
     where
         D: BlockDevice<KernelDeviceId, 512> + Send + Sync + 'static,
@@ -59,7 +60,7 @@ where
         self.inner
             .write()
             .read_block(sector_index, &mut block_buf)?;
-        buf.copy_from_slice(block_buf.deref());
+        buf.copy_from_slice(&*block_buf);
         Ok(block_buf.len())
     }
 

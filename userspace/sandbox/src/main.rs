@@ -7,7 +7,7 @@ use core::arch::x86_64::_mm_pause;
 #[unsafe(no_mangle)]
 extern "C" fn _start() {
     let res = syscall1(0, 17);
-    let _ = syscall1(1, res as usize);
+    let _ = syscall1(1, usize::try_from(res).unwrap());
     loop {
         unsafe { _mm_pause() };
     }

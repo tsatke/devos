@@ -89,7 +89,7 @@ impl Task {
     ) -> Result<Self, StackAllocationError> {
         let stack = Stack::allocate(
             16,
-            VirtualMemoryHigherHalf,
+            &VirtualMemoryHigherHalf,
             StackUserAccessible::No,
             AddressSpace::kernel(),
             entry_point,

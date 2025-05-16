@@ -59,7 +59,10 @@ pub fn create_idt() -> InterruptDescriptorTable {
 
     unsafe {
         idt[InterruptIndex::Syscall.as_u8()]
-            .set_handler_fn(transmute(syscall_handler as *mut fn()))
+            .set_handler_fn(transmute::<
+                *mut fn(),
+                extern "x86-interrupt" fn(x86_64::structures::idt::InterruptStackFrame),
+            >(syscall_handler as *mut fn()))
             .set_privilege_level(PrivilegeLevel::Ring3)
             .disable_interrupts(false);
     }
@@ -131,9 +134,9 @@ pub extern "sysv64" fn syscall_handler_impl(
     let arg5 = regs.r8;
     let arg6 = regs.r9;
 
-    let res = dispatch_syscall(n, arg1, arg2, arg3, arg4, arg5, arg6);
+    let result = dispatch_syscall(n, arg1, arg2, arg3, arg4, arg5, arg6);
 
-    regs.rax = res; // save result
+    regs.rax = result; // save result
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {

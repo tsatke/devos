@@ -48,16 +48,22 @@ pub trait MemoryApi {
         user_accessible: UserAccessible,
     ) -> Option<Self::WritableAllocation>;
 
+    /// # Errors
+    /// Returns an error if the allocation cannot be converted into an executable allocation.
     fn make_executable(
         &mut self,
         allocation: Self::WritableAllocation,
     ) -> Result<Self::ExecutableAllocation, Self::WritableAllocation>;
 
+    /// # Errors
+    /// Returns an error if the allocation cannot be converted into a writable allocation.
     fn make_writable(
         &mut self,
         allocation: Self::ExecutableAllocation,
     ) -> Result<Self::WritableAllocation, Self::ExecutableAllocation>;
 
+    /// # Errors
+    /// Returns an error if the allocation cannot be converted into a readonly allocation.
     fn make_readonly(
         &mut self,
         allocation: Self::WritableAllocation,

@@ -28,7 +28,14 @@ pub enum ElfParseError {
 }
 
 impl<'a> ElfFile<'a> {
+    /// # Errors
+    /// Returns an error if the ELF file is invalid or not supported.
     pub fn try_parse(source: &'a [u8]) -> Result<Self, ElfParseError> {
+        #[cfg(target_endian = "little")]
+        const ENDIAN: u8 = 1;
+        #[cfg(target_endian = "big")]
+        const ENDIAN: u8 = 2;
+
         let header = ElfHeader::try_ref_from_bytes(&source[..size_of::<ElfHeader>()])
             .map_err(|_| ElfParseError::HeaderParseError)?;
 
@@ -36,10 +43,6 @@ impl<'a> ElfFile<'a> {
             return Err(ElfParseError::InvalidMagic);
         }
 
-        #[cfg(target_endian = "little")]
-        const ENDIAN: u8 = 1;
-        #[cfg(target_endian = "big")]
-        const ENDIAN: u8 = 2;
         if header.ident.data != ENDIAN {
             return Err(ElfParseError::UnsupportedEndian);
         }
@@ -61,6 +64,7 @@ impl<'a> ElfFile<'a> {
         Ok(Self { source, header })
     }
 
+    #[must_use]
     pub fn entry(&self) -> usize {
         self.header.entry
     }
@@ -87,24 +91,25 @@ impl<'a> ElfFile<'a> {
         self.section_headers().filter(move |h| h.typ == typ)
     }
 
-    #[inline(always)]
     fn headers<T: TryFromBytes + KnownLayout + Immutable + 'a>(
         &self,
         header_offset: usize,
         header_num: usize,
     ) -> impl Iterator<Item = &T> {
         let size = size_of::<T>();
-        let data = &self.source[header_offset..header_offset + (usize::from(header_num) * size)];
+        let data = &self.source[header_offset..header_offset + (header_num * size)];
 
         data.chunks_exact(size)
             .map(T::try_ref_from_bytes)
             .map(Result::unwrap)
     }
 
+    #[must_use]
     pub fn section_data(&self, header: &SectionHeader) -> &[u8] {
         &self.source[header.offset..header.offset + header.size]
     }
 
+    #[must_use]
     pub fn section_name(&self, header: &SectionHeader) -> Option<&str> {
         let shstrtab = self
             .section_headers()
@@ -121,15 +126,18 @@ impl<'a> ElfFile<'a> {
             .filter(move |h| self.section_name(h) == Some(name))
     }
 
+    #[must_use]
     pub fn program_data(&self, header: &ProgramHeader) -> &[u8] {
         &self.source[header.offset..header.offset + header.filesz]
     }
 
+    #[must_use]
     pub fn symtab_data(&'a self, header: &'a SectionHeader) -> SymtabSection<'a> {
         let data = self.section_data(header);
         SymtabSection { header, data }
     }
 
+    #[must_use]
     pub fn symbol_name(&self, symtab: &SymtabSection<'a>, symbol: &Symbol) -> Option<&str> {
         let strtab_index = symtab.header.link as usize;
         let strtab_hdr = self.section_headers().nth(strtab_index)?;
@@ -229,15 +237,15 @@ impl Debug for ProgramHeaderType {
 
 impl Display for ProgramHeaderType {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        match self {
-            &ProgramHeaderType::NULL => write!(f, "NULL"),
-            &ProgramHeaderType::LOAD => write!(f, "LOAD"),
-            &ProgramHeaderType::DYNAMIC => write!(f, "DYNAMIC"),
-            &ProgramHeaderType::INTERP => write!(f, "INTERP"),
-            &ProgramHeaderType::NOTE => write!(f, "NOTE"),
-            &ProgramHeaderType::SHLIB => write!(f, "SHLIB"),
-            &ProgramHeaderType::PHDR => write!(f, "PHDR"),
-            &ProgramHeaderType::TLS => write!(f, "TLS"),
+        match *self {
+            ProgramHeaderType::NULL => write!(f, "NULL"),
+            ProgramHeaderType::LOAD => write!(f, "LOAD"),
+            ProgramHeaderType::DYNAMIC => write!(f, "DYNAMIC"),
+            ProgramHeaderType::INTERP => write!(f, "INTERP"),
+            ProgramHeaderType::NOTE => write!(f, "NOTE"),
+            ProgramHeaderType::SHLIB => write!(f, "SHLIB"),
+            ProgramHeaderType::PHDR => write!(f, "PHDR"),
+            ProgramHeaderType::TLS => write!(f, "TLS"),
             _ => write!(f, "UNKNOWN({})", self.0),
         }
     }
@@ -254,6 +262,7 @@ impl ProgramHeaderFlags {
 }
 
 impl ProgramHeaderFlags {
+    #[must_use]
     pub fn contains(&self, other: &Self) -> bool {
         self.0 & other.0 > 0
     }
@@ -355,6 +364,7 @@ impl SectionHeaderFlags {
     pub const GROUP: Self = Self(0x0200);
     pub const TLS: Self = Self(0x0400);
 
+    #[must_use]
     pub fn contains(&self, other: &Self) -> bool {
         self.0 & other.0 > 0
     }
