@@ -1,7 +1,11 @@
+#![no_std]
+#![no_main]
+
 use core::arch::asm;
 use core::arch::x86_64::_mm_pause;
 
-fn main() {
+#[unsafe(no_mangle)]
+extern "C" fn _start() {
     let res = syscall1(0, 17);
     let _ = syscall1(1, res as usize);
     loop {
@@ -20,4 +24,9 @@ fn syscall1(n: usize, arg: usize) -> isize {
         }
         res
     }
+}
+
+#[panic_handler]
+fn panic(_info: &core::panic::PanicInfo) -> ! {
+    loop {}
 }

@@ -1,6 +1,5 @@
 use crate::mcore::mtask::process::tree::{process_tree, ProcessTree};
 use crate::mem::address_space::AddressSpace;
-use addr2line::fallible_iterator::FallibleIterator;
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
@@ -9,29 +8,32 @@ use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
+use core::mem::ManuallyDrop;
 use core::ptr;
-use core::slice::from_raw_parts_mut;
-use elfloader::ElfBinary;
+use core::slice::from_raw_parts;
+use log::debug;
+use sha3::Digest;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
+use x86_64::instructions::segmentation::Segment64;
+use x86_64::registers::model_specific::FsBase;
 use x86_64::registers::rflags::RFlags;
+use x86_64::registers::segmentation::FS;
 use x86_64::structures::idt::InterruptStackFrameValue;
-use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
 use x86_64::VirtAddr;
 
 use crate::mcore::context::ExecutionContext;
-use crate::mcore::mtask::process::elf::ElfLoader;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::task::{Stack, StackAllocationError, StackUserAccessible, Task};
-use crate::mem::phys::PhysicalMemory;
+use crate::mem::memapi::LowerHalfMemoryApi;
 use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::vfs::vfs;
-use crate::U64Ext;
 pub use id::*;
+use kernel_elfloader::{ElfFile, ElfImage, ElfLoader};
+use kernel_memapi::{Allocation, Location, MemoryApi, UserAccessible};
 use vfs::path::{AbsoluteOwnedPath, AbsolutePath};
 
-mod elf;
 mod id;
 mod tree;
 
@@ -217,7 +219,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         .open(executable_path)
         .expect("should be able to open executable");
 
-    let mut data = Vec::new();
+    let mut data = Vec::with_capacity(1226576);
     let mut buf = [0; 4096];
     let mut offset = 0;
     loop {
@@ -229,37 +231,29 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         data.extend_from_slice(&buf[..read]);
     }
 
-    let elf_binary = ElfBinary::new(&data).expect("should be able to parse elf binary");
-    let mut elf_loader = ElfLoader::new(current_process.clone());
-    elf_binary
-        .load(&mut elf_loader)
-        .expect("should be able to load elf binary");
-    let image = elf_loader.into_inner();
+    let mut memapi = LowerHalfMemoryApi::new(current_process.clone());
 
-    let segment = current_process
-        .vmm()
-        .reserve(image.len().div_ceil(Size4KiB::SIZE.into_usize()))
-        .unwrap()
-        .leak(); // TODO: remember the segment in the process struct instead of leaking it
-    current_process
-        .address_space()
-        .map_range::<Size4KiB>(
-            &segment,
-            PhysicalMemory::allocate_frames_non_contiguous(),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
-        )
-        .unwrap();
+    let elf_file = ElfFile::try_parse(&data).expect("should be able to parse elf binary");
+    let elf_image = ElfLoader::new(memapi.clone())
+        .load(elf_file)
+        .expect("should be able to load elf file");
 
-    let slice =
-        unsafe { from_raw_parts_mut(segment.start.as_mut_ptr::<u8>(), segment.len.into_usize()) };
-    slice[..image.len()].copy_from_slice(&image);
+    if let Some(master_tls) = elf_image.tls_allocation() {
+        let mut tls_alloc = memapi
+            .allocate(Location::Anywhere, master_tls.layout(), UserAccessible::Yes)
+            .expect("should be able to allocate TLS data");
 
-    let code_ptr = unsafe {
-        segment
-            .start
-            .as_ptr::<u8>()
-            .add(elf_binary.entry_point() as usize)
-    };
+        let slice = tls_alloc.as_mut();
+        slice.copy_from_slice(master_tls.as_ref());
+
+        FsBase::write(tls_alloc.start());
+
+        {
+            let mut guard = current_task.tls().write();
+            assert!(guard.is_none(), "TLS should not exist yet");
+            *guard = Some(tls_alloc);
+        }
+    }
 
     let ustack = Stack::allocate_plain(
         256,
@@ -276,6 +270,15 @@ extern "C" fn trampoline(_arg: *mut c_void) {
     }
 
     let sel = ctx.selectors();
+
+    let code_ptr = elf_file.entry(); // TODO: this needs to be computed when the elf file is relocatable
+
+    debug!("code_ptr: {:p}", code_ptr as *const u8);
+
+    {
+        let slice = unsafe { from_raw_parts(code_ptr as *const u8, 64) };
+        debug!("code: {:02x?}", slice);
+    }
 
     let isfv = InterruptStackFrameValue::new(
         VirtAddr::new(code_ptr as u64),

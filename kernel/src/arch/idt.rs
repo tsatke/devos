@@ -1,9 +1,8 @@
 use crate::arch::gdt;
-use crate::backtrace::Backtrace;
 use crate::mcore::context::ExecutionContext;
 use crate::syscall::dispatch_syscall;
 use core::mem::transmute;
-use log::{error, info, warn};
+use log::{error, warn};
 use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
@@ -137,19 +136,6 @@ pub extern "sysv64" fn syscall_handler_impl(
     regs.rax = res; // save result
 }
 
-fn foo(
-    n: usize,
-    arg1: usize,
-    arg2: usize,
-    arg3: usize,
-    arg4: usize,
-    arg5: usize,
-    arg6: usize,
-) -> usize {
-    info!("syscall: {n} {arg1} {arg2} {arg3} {arg4} {arg5} {arg6}");
-    0
-}
-
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     unsafe {
         end_of_interrupt();
@@ -232,7 +218,7 @@ extern "x86-interrupt" fn page_fault_handler(
     }
 
     panic!(
-        "EXCEPTION: PAGE FAULT:\naccessed address: {accessed_address:?}\nerror code: {error_code:#X}\n{stack_frame:#?}"
+        "EXCEPTION: PAGE FAULT:\naccessed address: {accessed_address:?}\nerror code: {error_code:#?}\n{stack_frame:#?}"
     );
 }
 

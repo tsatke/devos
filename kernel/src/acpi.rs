@@ -5,6 +5,7 @@ use crate::U64Ext;
 use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 use conquer_once::spin::OnceCell;
 use core::ptr::NonNull;
+use log::debug;
 use spin::Mutex;
 use virtual_memory_manager::Segment;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
@@ -19,11 +20,13 @@ pub fn acpi_tables() -> &'static Mutex<AcpiTables<AcpiHandlerImpl>> {
 }
 
 pub fn init() {
-    let rsdp = PhysAddr::new(RSDP_REQUEST.get_response().unwrap().address() as u64);
-    let tables = unsafe { AcpiTables::from_rsdp(AcpiHandlerImpl, rsdp.as_u64().into_usize()) }
-        .expect("should be able to get ACPI tables from rsdp");
+    ACPI_TABLES.init_once(|| {
+        let rsdp = PhysAddr::new(RSDP_REQUEST.get_response().unwrap().address() as u64);
+        let tables = unsafe { AcpiTables::from_rsdp(AcpiHandlerImpl, rsdp.as_u64().into_usize()) }
+            .expect("should be able to get ACPI tables from rsdp");
 
-    ACPI_TABLES.init_once(|| Mutex::new(tables));
+        Mutex::new(tables)
+    });
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -36,6 +39,7 @@ impl AcpiHandler for AcpiHandlerImpl {
         size: usize,
     ) -> PhysicalMapping<Self, T> {
         assert!(size <= Size4KiB::SIZE.into_usize());
+        assert!(size_of::<T>() <= Size4KiB::SIZE.into_usize());
 
         let phys_addr = PhysAddr::new(physical_address as u64);
 
@@ -48,7 +52,7 @@ impl AcpiHandler for AcpiHandlerImpl {
                 PhysFrame::containing_address(phys_addr),
                 PageTableFlags::PRESENT | PageTableFlags::NO_EXECUTE | PageTableFlags::WRITABLE,
             )
-            .unwrap();
+            .expect("should be able to map the ACPI region");
 
         unsafe {
             PhysicalMapping::new(
@@ -62,14 +66,22 @@ impl AcpiHandler for AcpiHandlerImpl {
     }
 
     fn unmap_physical_region<T>(region: &PhysicalMapping<Self, T>) {
+        debug!(
+            "Unmapping ACPI region: {:p} -> {:p}",
+            region.virtual_start().as_ptr(),
+            region.physical_start() as *const ()
+        );
         let vaddr = VirtAddr::from_ptr(region.virtual_start().as_ptr());
+
+        let address_space = AddressSpace::kernel();
+        // don't deallocate physical, because we don't manage it - it's ACPI memory
+        address_space
+            .unmap(Page::<Size4KiB>::containing_address(vaddr))
+            .expect("address should have been mapped");
+
         let segment = Segment::new(vaddr, region.mapped_length() as u64);
         unsafe {
-            let _ = VirtualMemoryHigherHalf.release(segment);
+            assert!(VirtualMemoryHigherHalf.release(segment));
         }
-        let address_space = AddressSpace::kernel();
-
-        // don't deallocate physical, because we don't manage it - it's ACPI memory
-        let _ = address_space.unmap(Page::<Size4KiB>::containing_address(vaddr));
     }
 }

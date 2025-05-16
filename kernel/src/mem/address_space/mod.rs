@@ -5,12 +5,13 @@ use crate::{U64Ext, UsizeExt};
 use conquer_once::spin::OnceCell;
 use core::fmt::{Debug, Formatter};
 use limine::memory_map::EntryType;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace};
 use mapper::AddressSpaceMapper;
 use spin::RwLock;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::{
-    MapToError, MappedFrame, MapperAllSizes, PageTableFrameMapping, TranslateResult,
+    FlagUpdateError, MapToError, MappedFrame, MapperAllSizes, PageTableFrameMapping,
+    TranslateResult,
 };
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{
@@ -147,6 +148,12 @@ fn remap(
     start_vaddr: VirtAddr,
     len: usize,
 ) {
+    debug!(
+        "remapping {:p} - {:p}",
+        start_vaddr,
+        start_vaddr + len.into_u64()
+    );
+
     let mut current_addr = start_vaddr;
 
     while current_addr.as_u64() < start_vaddr.as_u64() + len as u64 {
@@ -401,6 +408,28 @@ impl AddressSpace {
         for<'a> RecursivePageTable<'a>: Mapper<S>,
     {
         self.inner.write().unmap_range(pages.into(), callback);
+    }
+
+    pub fn remap<S: PageSize, F: Fn(PageTableFlags) -> PageTableFlags>(
+        &self,
+        page: Page<S>,
+        f: F,
+    ) -> Result<(), FlagUpdateError>
+    where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        self.inner.write().remap(page, &f)
+    }
+
+    pub fn remap_range<S: PageSize, F: Fn(PageTableFlags) -> PageTableFlags>(
+        &self,
+        pages: impl Into<PageRangeInclusive<S>>,
+        f: F,
+    ) -> Result<(), FlagUpdateError>
+    where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        self.inner.write().remap_range(pages.into(), &f)
     }
 
     #[allow(dead_code)]

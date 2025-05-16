@@ -54,8 +54,8 @@ fn build_os_disk_dir() -> PathBuf {
     let bin = disk.join("bin");
     create_dir(&bin).unwrap();
 
-    // let sandbox = PathBuf::from(std::env::var_os("CARGO_BIN_FILE_SANDBOX_sandbox").unwrap());
-    // copy(sandbox, bin.join("sandbox")).unwrap();
+    let sandbox = PathBuf::from(std::env::var_os("CARGO_BIN_FILE_SANDBOX_sandbox").unwrap());
+    copy(sandbox, bin.join("sandbox")).unwrap();
 
     disk
 }

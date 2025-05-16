@@ -1,6 +1,5 @@
-use crate::limine::KERNEL_FILE_REQUEST;
-use crate::{U64Ext, UsizeExt};
-use addr2line::gimli::{Dwarf, EndianSlice, Error};
+use crate::UsizeExt;
+use addr2line::gimli::{EndianSlice, Error};
 use addr2line::{gimli, Context};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -8,11 +7,8 @@ use conquer_once::spin::OnceCell;
 use core::arch::asm;
 use core::fmt::{Debug, Display, Formatter};
 use core::iter;
-use core::slice::from_raw_parts;
-use elf::{ElfBytes, ParseError};
-use log::debug;
+use elf::ParseError;
 use thiserror::Error;
-use x86_64::VirtAddr;
 
 static BACKTRACE_CONTEXT: OnceCell<BacktraceContext> = OnceCell::uninit();
 
@@ -28,7 +24,8 @@ unsafe impl Send for BacktraceContext {}
 /// This function panics if the kernel elf file cannot be found or if something goes wrong
 /// during parsing.
 pub fn init() {
-    #[cfg(debug_assertions)] // TODO: make this work in release builds as well
+    // TODO: make this work in release builds as well
+    #[cfg(all(debug_assertions, feature = "backtrace"))]
     BACKTRACE_CONTEXT.init_once(|| {
         debug!("initializing backtrace context");
         let kernel_file = KERNEL_FILE_REQUEST.get_response().unwrap();

@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 device = { path = "crates/device" }
 kernel_elfloader = { path = "crates/kernel_elfloader" }
+kernel_memapi = { path = "crates/kernel_memapi" }
 physical_memory_manager = { path = "crates/physical_memory_manager" }
 vfs = { path = "crates/vfs" }
 virtual_memory_manager = { path = "crates/virtual_memory_manager" }
@@ -16,8 +17,9 @@ bitfield.workspace = true
 bitflags.workspace = true
 conquer-once.workspace = true
 cordyceps.workspace = true
+raw-cpuid.workspace = true
 elf.workspace = true
-elfloader.workspace = true
+itertools.workspace = true
 jiff.workspace = true
 limine.workspace = true
 linked_list_allocator.workspace = true
@@ -26,6 +28,7 @@ log.workspace = true
 mkfs-ext2.workspace = true
 mkfs-filesystem.workspace = true
 rustc-demangle.workspace = true
+sha3.workspace = true
 spin.workspace = true
 thiserror.workspace = true
 uart_16550.workspace = true
@@ -33,3 +36,7 @@ virtio-drivers.workspace = true
 volatile.workspace = true
 x2apic.workspace = true
 x86_64.workspace = true
+
+[features]
+default = []
+backtrace = []

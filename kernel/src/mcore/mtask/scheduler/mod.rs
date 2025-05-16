@@ -2,7 +2,6 @@ use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::scheduler::switch::switch_impl;
 use crate::mcore::mtask::task::Task;
 use alloc::boxed::Box;
-use alloc::string::ToString;
 use core::cell::UnsafeCell;
 use core::mem::swap;
 use core::pin::Pin;

@@ -5,6 +5,7 @@ use log::info;
 
 pub mod address_space;
 mod heap;
+pub mod memapi;
 pub mod phys;
 pub mod virt;
 

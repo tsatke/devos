@@ -3,27 +3,23 @@ extern crate alloc;
 
 mod file;
 
-use alloc::collections::BTreeMap;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::alloc::Layout;
+use core::fmt::Debug;
 pub use file::*;
+use itertools::Itertools;
+use kernel_memapi::{Location, MemoryApi, UserAccessible};
+use log::trace;
 use thiserror::Error;
+use x86_64::addr::VirtAddrNotValid;
+use x86_64::VirtAddr;
 
-pub trait MemoryAllocator {
-    type Allocation: Allocation;
-
-    fn allocate(&mut self, size: usize, align: usize) -> Option<Self::Allocation>;
-}
-
-/// Describes an allocation created by [`MemoryAllocator`]. An implementation
-/// must free the allocation upon drop.
-pub trait Allocation: AsRef<[u8]> + AsMut<[u8]> {}
-
-pub struct ElfLoader<'a, A>
+pub struct ElfLoader<M>
 where
-    A: MemoryAllocator,
+    M: MemoryApi,
 {
-    allocator: A,
-    elf_file: ElfFile<'a>,
-    allocations: BTreeMap<usize, A::Allocation>,
+    memory_api: M,
 }
 
 #[derive(Debug, Eq, PartialEq, Error)]
@@ -32,41 +28,156 @@ pub enum LoadElfError {
     AllocationFailed,
     #[error("unsupported file type")]
     UnsupportedFileType(ElfType),
+    #[error("size or alignment requirement is invalid")]
+    InvalidSizeOrAlign,
+    #[error("invalid virtual address 0x{0:016x}")]
+    InvalidVirtualAddress(usize),
+    #[error("more than one TLS header found")]
+    TooManyTlsHeaders,
 }
 
-impl<'a, A> ElfLoader<'a, A>
+impl From<VirtAddrNotValid> for LoadElfError {
+    fn from(value: VirtAddrNotValid) -> Self {
+        Self::InvalidVirtualAddress(value.0 as usize)
+    }
+}
+
+impl<M> ElfLoader<M>
 where
-    A: MemoryAllocator,
+    M: MemoryApi,
 {
-    pub fn new(allocator: A, elf_file: ElfFile<'a>) -> Self {
-        Self {
-            allocator,
-            elf_file,
-            allocations: BTreeMap::new(),
-        }
+    pub fn new(memory_api: M) -> Self {
+        Self { memory_api }
     }
 
-    pub fn load(&mut self) -> Result<(), LoadElfError> {
-        for (index, hdr) in self
+    pub fn load<'a>(&mut self, elf_file: ElfFile<'a>) -> Result<ElfImage<'a, M>, LoadElfError>
+    where
+        <M as MemoryApi>::WritableAllocation: Debug,
+    {
+        assert_eq!(
+            ElfType::Exec,
+            elf_file.header.typ,
+            "only ET_EXEC supported for now"
+        );
+
+        let mut image = ElfImage {
+            elf_file,
+            executable_allocations: vec![],
+            readonly_allocations: vec![],
+            tls_allocation: None,
+        };
+
+        self.load_loadable_headers(&mut image)?;
+        self.load_tls(&mut image)?;
+
+        Ok(image)
+    }
+
+    fn load_loadable_headers<'a>(
+        &mut self,
+        image: &mut ElfImage<'a, M>,
+    ) -> Result<(), LoadElfError> {
+        for hdr in image
             .elf_file
-            .program_headers()
-            .enumerate()
-            .filter(|(_, hdr)| [ProgramHeaderType::LOAD, ProgramHeaderType::TLS].contains(&hdr.typ))
+            .program_headers_by_type(ProgramHeaderType::LOAD)
         {
-            let pdata = self.elf_file.program_data(hdr);
+            trace!("load header {hdr:x?}");
+            let pdata = image.elf_file.program_data(hdr);
+
+            let location = Location::Fixed(VirtAddr::try_new(hdr.vaddr as u64)?);
+
+            let layout = Layout::from_size_align(hdr.memsz, hdr.align)
+                .map_err(|_| LoadElfError::InvalidSizeOrAlign)?;
 
             let mut alloc = self
-                .allocator
-                .allocate(hdr.memsz, hdr.align)
+                .memory_api
+                .allocate(location, layout, UserAccessible::Yes) // TODO: make user accessibility configurable
                 .ok_or(LoadElfError::AllocationFailed)?;
 
-            let mut slice = alloc.as_mut();
+            let slice = alloc.as_mut();
             slice[..hdr.filesz].copy_from_slice(pdata);
             slice[hdr.filesz..].fill(0);
 
-            self.allocations.insert(index, alloc);
+            assert!(
+                !(hdr.flags.contains(&ProgramHeaderFlags::EXECUTABLE)
+                    && hdr.flags.contains(&ProgramHeaderFlags::WRITABLE)),
+                "segments that are executable and writable are not supported"
+            );
+            if hdr.flags.contains(&ProgramHeaderFlags::EXECUTABLE) {
+                let alloc = self
+                    .memory_api
+                    .make_executable(alloc)
+                    .map_err(|_| LoadElfError::AllocationFailed)?;
+                image.executable_allocations.push(alloc);
+            } else {
+                let alloc = self
+                    .memory_api
+                    .make_readonly(alloc)
+                    .map_err(|_| LoadElfError::AllocationFailed)?;
+                image.readonly_allocations.push(alloc);
+            }
         }
+        Ok(())
+    }
+
+    fn load_tls<'a>(&mut self, image: &mut ElfImage<'a, M>) -> Result<(), LoadElfError> {
+        let Some(tls) = image
+            .elf_file
+            .program_headers_by_type(ProgramHeaderType::TLS)
+            .at_most_one()
+            .map_err(|_| LoadElfError::TooManyTlsHeaders)?
+        else {
+            return Ok(());
+        };
+
+        let pdata = image.elf_file.program_data(tls);
+
+        let layout = Layout::from_size_align(tls.memsz, tls.align)
+            .map_err(|_| LoadElfError::InvalidSizeOrAlign)?;
+
+        let mut alloc = self
+            .memory_api
+            .allocate(Location::Anywhere, layout, UserAccessible::Yes) // TODO: make user accessibility configurable
+            .ok_or(LoadElfError::AllocationFailed)?;
+
+        let slice = alloc.as_mut();
+        slice[..tls.filesz].copy_from_slice(pdata);
+        slice[tls.filesz..].fill(0);
+
+        let alloc = self
+            .memory_api
+            .make_readonly(alloc)
+            .map_err(|_| LoadElfError::AllocationFailed)?;
+
+        image.tls_allocation = Some(alloc);
 
         Ok(())
+    }
+}
+
+pub struct ElfImage<'a, M>
+where
+    M: MemoryApi,
+{
+    elf_file: ElfFile<'a>,
+    executable_allocations: Vec<M::ExecutableAllocation>,
+    readonly_allocations: Vec<M::ReadonlyAllocation>,
+    tls_allocation: Option<M::ReadonlyAllocation>,
+}
+
+impl<M> ElfImage<'_, M>
+where
+    M: MemoryApi,
+{
+    pub fn executable_allocations(&self) -> &[M::ExecutableAllocation] {
+        &self.executable_allocations
+    }
+
+    pub fn readonly_allocations(&self) -> &[M::ReadonlyAllocation] {
+        &self.readonly_allocations
+    }
+
+    pub fn tls_allocation(&self) -> Option<&M::ReadonlyAllocation> {
+        self.tls_allocation.as_ref()
     }
 }

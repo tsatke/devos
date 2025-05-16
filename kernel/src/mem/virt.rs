@@ -36,9 +36,10 @@ pub fn init() {
         let vaddr = recursive_index_to_virtual_address(recursive_index);
         let len = 512 * 1024 * 1024 * 1024; // 512 GiB
         let segment = Segment::new(vaddr, len);
-        VirtualMemoryHigherHalf
+        let _ = VirtualMemoryHigherHalf
             .mark_as_reserved(segment)
-            .expect("recursive index should not be reserved yet");
+            .expect("recursive index should not be reserved yet")
+            .leak();
     }
 
     // kernel code and bootloader reclaimable
@@ -58,16 +59,18 @@ pub fn init() {
             })
             .for_each(|e| {
                 let segment = Segment::new(VirtAddr::new(e.base + hhdm_offset), e.length);
-                VirtualMemoryHigherHalf
+                let _ = VirtualMemoryHigherHalf
                     .mark_as_reserved(segment)
-                    .expect("segment should not be reserved yet");
+                    .expect("segment should not be reserved yet")
+                    .leak();
             });
     }
 
     // heap
-    VirtualMemoryHigherHalf
+    let _ = VirtualMemoryHigherHalf
         .mark_as_reserved(Segment::new(Heap::bottom(), Heap::size() as u64))
-        .expect("heap should not be reserved yet");
+        .expect("heap should not be reserved yet")
+        .leak();
 }
 
 enum InnerVmm<'vmm> {
@@ -86,6 +89,7 @@ impl Deref for InnerVmm<'_> {
     }
 }
 
+#[must_use]
 pub struct OwnedSegment<'vmm> {
     vmm: InnerVmm<'vmm>,
     inner: Segment,
@@ -166,7 +170,7 @@ pub trait VirtualMemoryAllocator {
 
     /// # Errors
     /// This function returns an error if the segment is already reserved.
-    fn mark_as_reserved(&self, segment: Segment) -> Result<(), AlreadyReserved>;
+    fn mark_as_reserved(&self, segment: Segment) -> Result<OwnedSegment<'static>, AlreadyReserved>;
 
     /// # Safety
     /// The caller must ensure that the segment is not used after releasing it,
@@ -185,11 +189,15 @@ impl VirtualMemoryAllocator for VirtualMemoryHigherHalf {
             .map(|segment| OwnedSegment::new_ref(vmm(), segment))
             .inspect(|segment| assert!(segment.start.is_aligned(Size4KiB::SIZE)))
     }
-    fn mark_as_reserved(&self, segment: Segment) -> Result<(), AlreadyReserved> {
-        debug_assert!(segment.start.is_aligned(Size4KiB::SIZE));
-        debug_assert_eq!(segment.len % Size4KiB::SIZE, 0);
 
-        vmm().write().mark_as_reserved(segment)
+    fn mark_as_reserved(&self, segment: Segment) -> Result<OwnedSegment<'static>, AlreadyReserved> {
+        assert!(segment.start.is_aligned(Size4KiB::SIZE));
+        assert_eq!(segment.len % Size4KiB::SIZE, 0);
+
+        vmm()
+            .write()
+            .mark_as_reserved(segment)
+            .map(|_| OwnedSegment::new_ref(vmm(), segment))
     }
 
     unsafe fn release(&self, segment: Segment) -> bool {
@@ -204,8 +212,13 @@ impl VirtualMemoryAllocator for Arc<RwLock<VirtualMemoryManager>> {
             .map(|segment| OwnedSegment::new_rc(self.clone(), segment))
     }
 
-    fn mark_as_reserved(&self, segment: Segment) -> Result<(), AlreadyReserved> {
-        self.write().mark_as_reserved(segment)
+    fn mark_as_reserved(&self, segment: Segment) -> Result<OwnedSegment<'static>, AlreadyReserved> {
+        assert!(segment.start.is_aligned(Size4KiB::SIZE));
+        assert_eq!(segment.len % Size4KiB::SIZE, 0);
+
+        self.write()
+            .mark_as_reserved(segment)
+            .map(|_| OwnedSegment::new_rc(self.clone(), segment))
     }
 
     unsafe fn release(&self, segment: Segment) -> bool {

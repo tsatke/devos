@@ -3,7 +3,6 @@
 extern crate alloc;
 
 use core::panic::PanicInfo;
-use kernel::backtrace::Backtrace;
 use kernel::limine::BASE_REVISION;
 use kernel::mcore;
 use kernel::mcore::mtask::process::Process;
@@ -44,7 +43,9 @@ fn handle_panic(info: &PanicInfo) {
         location.column(),
     );
     error!("{}", info.message());
-    match Backtrace::try_capture() {
+
+    #[cfg(feature = "backtrace")]
+    match kernel::backtrace::Backtrace::try_capture() {
         Ok(bt) => {
             error!("stack backtrace:\n{bt}");
         }

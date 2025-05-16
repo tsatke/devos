@@ -4,7 +4,7 @@ use conquer_once::spin::OnceCell;
 use core::iter::from_fn;
 use core::mem::swap;
 use limine::memory_map::{Entry, EntryType};
-use log::info;
+use log::{debug, info, warn};
 use physical_memory_manager::{FrameState, PhysicalFrameAllocator, PhysicalMemoryManager};
 use spin::Mutex;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
@@ -183,7 +183,7 @@ where
     PhysicalMemoryManager: PhysicalFrameAllocator<S>,
 {
     fn allocate_frame(&mut self) -> Option<PhysFrame<S>> {
-        match self {
+        let res = match self {
             Self::Stage1(a) => {
                 if S::SIZE == Size4KiB::SIZE {
                     Some(
@@ -195,7 +195,11 @@ where
                 }
             }
             Self::Stage2(a) => a.allocate_frame(),
+        };
+        if res.is_none() {
+            warn!("out of physical memory");
         }
+        res
     }
 
     fn allocate_frames(&mut self, n: usize) -> Option<PhysFrameRangeInclusive<S>> {

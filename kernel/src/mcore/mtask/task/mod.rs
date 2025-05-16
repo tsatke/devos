@@ -1,6 +1,7 @@
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
 use crate::mem::address_space::AddressSpace;
+use crate::mem::memapi::{LowerHalfAllocation, Writable};
 use crate::mem::virt::VirtualMemoryHigherHalf;
 use crate::U64Ext;
 use alloc::boxed::Box;
@@ -50,6 +51,8 @@ pub struct Task {
     kstack: Option<Stack>,
     /// The user stack of the task. This is only set if the task is a userspace task.
     ustack: RwLock<Option<Stack>>,
+
+    tls: RwLock<Option<LowerHalfAllocation<Writable>>>,
 
     links: Links<Self>,
 }
@@ -113,6 +116,7 @@ impl Task {
             state,
             kstack: Some(stack),
             ustack: RwLock::new(None),
+            tls: RwLock::new(None),
             links,
         }
     }
@@ -135,6 +139,7 @@ impl Task {
             state,
             kstack: stack,
             ustack: RwLock::new(None),
+            tls: RwLock::new(None),
             links,
         }
     }
@@ -175,6 +180,7 @@ impl Task {
             state,
             kstack: stack,
             ustack: RwLock::new(None),
+            tls: RwLock::new(None),
             links: Links::default(),
         }
     }
@@ -209,6 +215,10 @@ impl Task {
 
     pub fn ustack(&self) -> &RwLock<Option<Stack>> {
         &self.ustack
+    }
+
+    pub fn tls(&self) -> &RwLock<Option<LowerHalfAllocation<Writable>>> {
+        &self.tls
     }
 
     pub fn last_stack_ptr(&mut self) -> &mut usize {

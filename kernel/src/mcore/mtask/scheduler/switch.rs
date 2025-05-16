@@ -97,16 +97,14 @@ pub unsafe extern "C" fn switch_impl(
     // $rsi -> new_stack
     // $rdx -> new_cr3_value
 
-    unsafe {
-        naked_asm!(
-            push_context!(),
-            "mov [rdi], rsp", // write the stack pointer rsp at *_old_stack
-            "mov rsp, rsi",   // write _new_stack into rsp
-            set_task_switched!(),
-            "mov cr3, rdx", // write _new_cr3_value into cr3
-            pop_context!(),
-            "sti", // enable interrupts
-            "ret"
-        )
-    }
+    naked_asm!(
+        push_context!(),
+        "mov [rdi], rsp", // write the stack pointer rsp at *_old_stack
+        "mov rsp, rsi",   // write _new_stack into rsp
+        set_task_switched!(),
+        "mov cr3, rdx", // write _new_cr3_value into cr3
+        pop_context!(),
+        "sti", // enable interrupts
+        "ret"
+    )
 }

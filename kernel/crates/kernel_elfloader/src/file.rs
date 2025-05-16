@@ -1,4 +1,5 @@
 use core::ffi::CStr;
+use core::fmt::{Debug, Display, Formatter};
 use thiserror::Error;
 use zerocopy::{Immutable, KnownLayout, TryFromBytes};
 
@@ -58,6 +59,10 @@ impl<'a> ElfFile<'a> {
         }
 
         Ok(Self { source, header })
+    }
+
+    pub fn entry(&self) -> usize {
+        self.header.entry
     }
 
     pub fn program_headers(&self) -> impl Iterator<Item = &ProgramHeader> {
@@ -192,7 +197,7 @@ const _: () = {
 #[repr(C)]
 pub struct ProgramHeader {
     pub typ: ProgramHeaderType,
-    pub flags: u32,
+    pub flags: ProgramHeaderFlags,
     pub offset: usize,
     pub vaddr: usize,
     pub paddr: usize,
@@ -201,7 +206,7 @@ pub struct ProgramHeader {
     pub align: usize,
 }
 
-#[derive(TryFromBytes, KnownLayout, Immutable, Debug, Eq, PartialEq)]
+#[derive(TryFromBytes, KnownLayout, Immutable, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct ProgramHeaderType(pub u16);
 
@@ -214,6 +219,80 @@ impl ProgramHeaderType {
     pub const SHLIB: Self = Self(0x05);
     pub const PHDR: Self = Self(0x06);
     pub const TLS: Self = Self(0x07);
+}
+
+impl Debug for ProgramHeaderType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "ProgramHeaderType({self})")
+    }
+}
+
+impl Display for ProgramHeaderType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        match self {
+            &ProgramHeaderType::NULL => write!(f, "NULL"),
+            &ProgramHeaderType::LOAD => write!(f, "LOAD"),
+            &ProgramHeaderType::DYNAMIC => write!(f, "DYNAMIC"),
+            &ProgramHeaderType::INTERP => write!(f, "INTERP"),
+            &ProgramHeaderType::NOTE => write!(f, "NOTE"),
+            &ProgramHeaderType::SHLIB => write!(f, "SHLIB"),
+            &ProgramHeaderType::PHDR => write!(f, "PHDR"),
+            &ProgramHeaderType::TLS => write!(f, "TLS"),
+            _ => write!(f, "UNKNOWN({})", self.0),
+        }
+    }
+}
+
+#[derive(TryFromBytes, KnownLayout, Immutable, Eq, PartialEq)]
+#[repr(transparent)]
+pub struct ProgramHeaderFlags(pub u32);
+
+impl ProgramHeaderFlags {
+    pub const EXECUTABLE: Self = Self(0x01);
+    pub const WRITABLE: Self = Self(0x02);
+    pub const READABLE: Self = Self(0x04);
+}
+
+impl ProgramHeaderFlags {
+    pub fn contains(&self, other: &Self) -> bool {
+        self.0 & other.0 > 0
+    }
+}
+
+impl Debug for ProgramHeaderFlags {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "ProgramHeaderFlags({self})")
+    }
+}
+
+impl Display for ProgramHeaderFlags {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        if self.0 == 0 {
+            return write!(f, "NONE");
+        }
+
+        let mut first = true;
+
+        if self.contains(&ProgramHeaderFlags::READABLE) {
+            write!(f, "R")?;
+            first = false;
+        }
+        if self.contains(&ProgramHeaderFlags::WRITABLE) {
+            if !first {
+                write!(f, "|")?;
+            }
+            write!(f, "W")?;
+            first = false;
+        }
+        if self.contains(&ProgramHeaderFlags::EXECUTABLE) {
+            if !first {
+                write!(f, "|")?;
+            }
+            write!(f, "X")?;
+        }
+
+        Ok(())
+    }
 }
 
 const _: () = {
@@ -310,30 +389,7 @@ pub struct Symbol {
 mod tests {
     use zerocopy::TryFromBytes;
 
-    extern crate std;
-
-    use crate::file::{ElfFile, ElfHeader, ElfIdent, ElfType};
-    use std::path::*;
-
-    #[test]
-    fn test_elf_file_parse() {
-        let path = Path::new(
-            "/Users/tsatke/Development/devos/target/debug/build/devos-4d6851d93689b62d/out/disk/bin/sandbox",
-        );
-        let data = std::fs::read(path).unwrap();
-
-        let elf_file = ElfFile::try_parse(&data).unwrap();
-        // elf_file
-        //     .section_headers()
-        //     .for_each(|header| std::println!("{:?}: {:x?}", elf_file.section_name(header), header));
-
-        let symtab_hdr = elf_file.sections_by_name(".symtab").next().unwrap();
-        let symtab = elf_file.symtab_data(symtab_hdr);
-        symtab.symbols().for_each(|sym| {
-            let name = elf_file.symbol_name(&symtab, sym);
-            std::println!("{name:?}");
-        })
-    }
+    use crate::file::{ElfHeader, ElfIdent, ElfType};
 
     #[test]
     fn test_elf_header_ref_from_bytes() {

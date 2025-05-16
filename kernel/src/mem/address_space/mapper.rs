@@ -1,7 +1,7 @@
 use crate::mem::phys::PhysicalMemory;
-use log::warn;
+use log::{info, warn};
 use x86_64::registers::control::Cr3;
-use x86_64::structures::paging::mapper::MapToError;
+use x86_64::structures::paging::mapper::{FlagUpdateError, MapToError, TranslateResult};
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{
     Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable, Translate,
@@ -111,6 +111,45 @@ impl AddressSpaceMapper {
         for page in pages {
             self.unmap(page).map(&callback);
         }
+    }
+
+    pub fn remap<S: PageSize, F: Fn(PageTableFlags) -> PageTableFlags>(
+        &mut self,
+        page: Page<S>,
+        f: &F,
+    ) -> Result<(), FlagUpdateError>
+    where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        assert!(self.is_active());
+
+        let TranslateResult::Mapped {
+            frame: _,
+            offset: _,
+            flags,
+        } = self.page_table.translate(page.start_address())
+        else {
+            return Err(FlagUpdateError::PageNotMapped);
+        };
+        let flusher = unsafe { self.page_table.update_flags(page, f(flags)) }?;
+        flusher.flush();
+        Ok(())
+    }
+
+    pub fn remap_range<S: PageSize, F: Fn(PageTableFlags) -> PageTableFlags>(
+        &mut self,
+        pages: PageRangeInclusive<S>,
+        f: &F,
+    ) -> Result<(), FlagUpdateError>
+    where
+        for<'a> RecursivePageTable<'a>: Mapper<S>,
+    {
+        assert!(self.is_active());
+
+        for page in pages {
+            self.remap(page, &f)?;
+        }
+        Ok(())
     }
 
     pub fn translate(&self, vaddr: VirtAddr) -> Option<PhysAddr> {
