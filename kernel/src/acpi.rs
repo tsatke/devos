@@ -5,7 +5,6 @@ use crate::U64Ext;
 use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 use conquer_once::spin::OnceCell;
 use core::ptr::NonNull;
-use log::debug;
 use spin::Mutex;
 use virtual_memory_manager::Segment;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
@@ -66,11 +65,6 @@ impl AcpiHandler for AcpiHandlerImpl {
     }
 
     fn unmap_physical_region<T>(region: &PhysicalMapping<Self, T>) {
-        debug!(
-            "Unmapping ACPI region: {:p} -> {:p}",
-            region.virtual_start().as_ptr(),
-            region.physical_start() as *const ()
-        );
         let vaddr = VirtAddr::from_ptr(region.virtual_start().as_ptr());
 
         let address_space = AddressSpace::kernel();

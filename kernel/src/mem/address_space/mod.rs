@@ -148,12 +148,6 @@ fn remap(
     start_vaddr: VirtAddr,
     len: usize,
 ) {
-    debug!(
-        "remapping {:p} - {:p}",
-        start_vaddr,
-        start_vaddr + len.into_u64()
-    );
-
     let mut current_addr = start_vaddr;
 
     while current_addr.as_u64() < start_vaddr.as_u64() + len as u64 {
