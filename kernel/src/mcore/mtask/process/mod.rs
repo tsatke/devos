@@ -8,18 +8,14 @@ use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
-use core::mem::ManuallyDrop;
 use core::ptr;
 use core::slice::from_raw_parts;
 use log::debug;
-use sha3::Digest;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
-use x86_64::instructions::segmentation::Segment64;
 use x86_64::registers::model_specific::FsBase;
 use x86_64::registers::rflags::RFlags;
-use x86_64::registers::segmentation::FS;
 use x86_64::structures::idt::InterruptStackFrameValue;
 use x86_64::VirtAddr;
 
@@ -30,7 +26,7 @@ use crate::mem::memapi::LowerHalfMemoryApi;
 use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::vfs::vfs;
 pub use id::*;
-use kernel_elfloader::{ElfFile, ElfImage, ElfLoader};
+use kernel_elfloader::{ElfFile, ElfLoader};
 use kernel_memapi::{Allocation, Location, MemoryApi, UserAccessible};
 use vfs::path::{AbsoluteOwnedPath, AbsolutePath};
 

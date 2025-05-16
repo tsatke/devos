@@ -7,8 +7,6 @@ use crate::driver::pci;
 use crate::limine::BOOT_TIME;
 use conquer_once::spin::OnceCell;
 use ::log::info;
-use raw_cpuid::CpuId;
-use x86_64::registers::control::{Cr4, Cr4Flags};
 
 mod acpi;
 mod apic;

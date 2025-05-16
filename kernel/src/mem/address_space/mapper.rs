@@ -1,5 +1,5 @@
 use crate::mem::phys::PhysicalMemory;
-use log::{info, warn};
+use log::warn;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::{FlagUpdateError, MapToError, TranslateResult};
 use x86_64::structures::paging::page::PageRangeInclusive;

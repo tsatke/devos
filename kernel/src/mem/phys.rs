@@ -4,7 +4,7 @@ use conquer_once::spin::OnceCell;
 use core::iter::from_fn;
 use core::mem::swap;
 use limine::memory_map::{Entry, EntryType};
-use log::{debug, info, warn};
+use log::{info, warn};
 use physical_memory_manager::{FrameState, PhysicalFrameAllocator, PhysicalMemoryManager};
 use spin::Mutex;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
