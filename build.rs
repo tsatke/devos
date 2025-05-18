@@ -96,7 +96,11 @@ fn build_iso(limine_checkout: impl AsRef<Path>, kernel_binary: impl AsRef<Path>)
     ] {
         let from = limine_checkout.join(path);
         let to = limine_dir.join(path);
-        copy(from, to).unwrap();
+        copy(&from, &to).expect(&format!(
+            "should be able to copy {} to {}",
+            from.display(),
+            to.display()
+        ));
     }
 
     for path in ["BOOTX64.EFI", "BOOTIA32.EFI"] {

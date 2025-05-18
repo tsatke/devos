@@ -1,0 +1,8 @@
+include_guard = "SIGNAL_H"
+language = "C"
+no_includes = true
+
+[export]
+include = [
+    "sigevent",
+]

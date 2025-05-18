@@ -1,0 +1,9 @@
+include_guard = "LOCALE_H"
+language = "C"
+no_includes = true
+
+[export]
+include = [
+    "float_t",
+    "double_t",
+]

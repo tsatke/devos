@@ -1,0 +1,11 @@
+[package]
+name = "muffin_libc"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+muffin_libc_spec_comment = { path = "muffin_libc_spec_comment" }
+
+[build-dependencies]
+cbindgen = "0.28"
+walkdir = "2.5"

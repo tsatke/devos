@@ -19,6 +19,8 @@ members = [
     "kernel/crates/physical_memory_manager",
     "kernel/crates/vfs",
     "kernel/crates/virtual_memory_manager",
+    "platform/muffin_libc",
+    "platform/muffin_libc/muffin_libc_spec_comment",
     "userspace/sandbox",
 ]
 default-members = [
@@ -29,6 +31,7 @@ default-members = [
     "kernel/crates/physical_memory_manager",
     "kernel/crates/vfs",
     "kernel/crates/virtual_memory_manager",
+    "platform/muffin_libc",
 ]
 
 [dependencies]
