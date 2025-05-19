@@ -3,6 +3,9 @@ name = "muffin_libc"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+test = false
+
 [dependencies]
 muffin_libc_spec_comment = { path = "muffin_libc_spec_comment" }
 
