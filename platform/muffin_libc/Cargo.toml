@@ -10,5 +10,5 @@ test = false
 muffin_libc_spec_comment = { path = "muffin_libc_spec_comment" }
 
 [build-dependencies]
-cbindgen = "0.28"
+cbindgen = "0.29"
 walkdir = "2.5"
