@@ -12,8 +12,8 @@ use itertools::Itertools;
 use kernel_memapi::{Location, MemoryApi, UserAccessible};
 use log::trace;
 use thiserror::Error;
-use x86_64::addr::VirtAddrNotValid;
 use x86_64::VirtAddr;
+use x86_64::addr::VirtAddrNotValid;
 
 pub struct ElfLoader<M>
 where
@@ -69,6 +69,7 @@ where
             elf_file,
             executable_allocations: vec![],
             readonly_allocations: vec![],
+            writable_allocations: vec![],
             tls_allocation: None,
         };
 
@@ -111,6 +112,8 @@ where
                     .make_executable(alloc)
                     .map_err(|_| LoadElfError::AllocationFailed)?;
                 image.executable_allocations.push(alloc);
+            } else if hdr.flags.contains(&ProgramHeaderFlags::WRITABLE) {
+                image.writable_allocations.push(alloc);
             } else {
                 let alloc = self
                     .memory_api
@@ -131,6 +134,7 @@ where
         else {
             return Ok(());
         };
+        trace!("tls header {tls:x?}");
 
         let pdata = image.elf_file.program_data(tls);
 
@@ -164,6 +168,7 @@ where
     elf_file: ElfFile<'a>,
     executable_allocations: Vec<M::ExecutableAllocation>,
     readonly_allocations: Vec<M::ReadonlyAllocation>,
+    writable_allocations: Vec<M::WritableAllocation>,
     tls_allocation: Option<M::ReadonlyAllocation>,
 }
 
@@ -177,6 +182,10 @@ where
 
     pub fn readonly_allocations(&self) -> &[M::ReadonlyAllocation] {
         &self.readonly_allocations
+    }
+
+    pub fn writable_allocations(&self) -> &[M::WritableAllocation] {
+        &self.writable_allocations
     }
 
     pub fn tls_allocation(&self) -> Option<&M::ReadonlyAllocation> {

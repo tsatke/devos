@@ -1,3 +1,4 @@
+use file_structure::{Dir, Kind};
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
 use std::fs::{copy, create_dir, create_dir_all, exists, remove_dir_all, remove_file};
 use std::path::{Path, PathBuf};
@@ -51,13 +52,34 @@ fn build_os_disk_dir() -> PathBuf {
     let _ = remove_dir_all(&disk);
     create_dir(&disk).unwrap();
 
-    let bin = disk.join("bin");
-    create_dir(&bin).unwrap();
-
-    let sandbox = PathBuf::from(std::env::var_os("CARGO_BIN_FILE_SANDBOX_sandbox").unwrap());
-    copy(sandbox, bin.join("sandbox")).unwrap();
+    build_dir(&disk, &file_structure::STRUCTURE);
 
     disk
+}
+
+fn build_dir(current_path: &Path, current_dir: &Dir<'_>) {
+    for file in current_dir.files {
+        let file_path = current_path.join(file.name);
+        match file.kind {
+            Kind::Executable => {
+                let env_var = format!("CARGO_BIN_FILE_{}_{}", file.name.to_uppercase(), file.name);
+                let bindep = std::env::var_os(&env_var).unwrap_or_else(|| {
+                    panic!("could not find the bindep {env_var} in the environment variables")
+                });
+                copy(&bindep, &file_path).unwrap();
+            }
+            Kind::Resource => {
+                todo!("copy resource into the disk image");
+            }
+        };
+    }
+
+    for subdir in current_dir.subdirs {
+        let subdir_path = current_path.join(subdir.name);
+        create_dir(&subdir_path).unwrap();
+
+        build_dir(&subdir_path, subdir);
+    }
 }
 
 fn ovmf() -> Prebuilt {

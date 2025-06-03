@@ -7,9 +7,9 @@ use limine::memory_map::{Entry, EntryType};
 use log::{info, warn};
 use physical_memory_manager::{FrameState, PhysicalFrameAllocator, PhysicalMemoryManager};
 use spin::Mutex;
+use x86_64::PhysAddr;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
-use x86_64::PhysAddr;
 
 static PHYS_ALLOC: OnceCell<Mutex<MultiStageAllocator>> = OnceCell::uninit();
 

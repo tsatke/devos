@@ -1,5 +1,5 @@
+use kernel_vfs::Vfs;
 use spin::RwLock;
-use vfs::Vfs;
 
 pub mod ext2;
 

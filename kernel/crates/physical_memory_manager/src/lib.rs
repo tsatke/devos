@@ -3,9 +3,9 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
+use x86_64::PhysAddr;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PageSize, PhysFrame, Size1GiB, Size2MiB, Size4KiB};
-use x86_64::PhysAddr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FrameState {

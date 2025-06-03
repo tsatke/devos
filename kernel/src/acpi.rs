@@ -1,7 +1,7 @@
+use crate::U64Ext;
 use crate::limine::RSDP_REQUEST;
 use crate::mem::address_space::AddressSpace;
 use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
-use crate::U64Ext;
 use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 use conquer_once::spin::OnceCell;
 use core::ptr::NonNull;

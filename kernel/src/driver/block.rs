@@ -4,12 +4,12 @@ use crate::vfs::vfs;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
-use device::block::registry::BlockDeviceRegistry;
-use device::block::{BlockBuf, BlockDevice};
-use device::RegisterDeviceError;
 use ext2::Ext2Fs;
+use kernel_device::RegisterDeviceError;
+use kernel_device::block::registry::BlockDeviceRegistry;
+use kernel_device::block::{BlockBuf, BlockDevice};
+use kernel_vfs::path::ROOT;
 use spin::RwLock;
-use vfs::path::ROOT;
 
 static BLOCK_DEVICES: RwLock<BlockDeviceRegistry<KernelDeviceId, 512>> =
     RwLock::new(BlockDeviceRegistry::new());

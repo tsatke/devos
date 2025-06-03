@@ -5,8 +5,8 @@ extern crate alloc;
 
 use crate::driver::pci;
 use crate::limine::BOOT_TIME;
-use conquer_once::spin::OnceCell;
 use ::log::info;
+use conquer_once::spin::OnceCell;
 
 mod acpi;
 mod apic;
@@ -19,6 +19,7 @@ mod log;
 pub mod mcore;
 pub mod mem;
 mod serial;
+pub mod sse;
 pub mod syscall;
 pub mod time;
 pub mod vfs;
@@ -39,6 +40,7 @@ pub fn init() {
     acpi::init();
     apic::init();
     hpet::init();
+    sse::init();
     backtrace::init();
     mcore::init();
     pci::init();

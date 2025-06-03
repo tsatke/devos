@@ -6,10 +6,10 @@ use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 use ext2::{Ext2Fs, Inode, InodeAddress, Type};
 use filesystem::BlockDevice;
+use kernel_vfs::fs::{FileSystem, FsHandle};
+use kernel_vfs::path::{OwnedPath, Path};
+use kernel_vfs::{CloseError, OpenError, ReadError};
 use spin::RwLock;
-use vfs::fs::{FileSystem, FsHandle};
-use vfs::path::{OwnedPath, Path};
-use vfs::{CloseError, OpenError, ReadError};
 
 pub struct VirtualExt2Fs<T> {
     ext2fs: Ext2Fs<T>,

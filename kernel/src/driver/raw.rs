@@ -1,6 +1,6 @@
 use crate::driver::KernelDeviceId;
-use device::raw::{RawDevice, RawDeviceRegistry};
-use device::RegisterDeviceError;
+use kernel_device::RegisterDeviceError;
+use kernel_device::raw::{RawDevice, RawDeviceRegistry};
 use spin::RwLock;
 
 static RAW_DEVICES: RwLock<RawDeviceRegistry<KernelDeviceId>> =

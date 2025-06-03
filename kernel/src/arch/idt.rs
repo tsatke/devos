@@ -1,13 +1,14 @@
 use crate::arch::gdt;
 use crate::mcore::context::ExecutionContext;
 use crate::syscall::dispatch_syscall;
+use core::arch::asm;
 use core::fmt::{Debug, Formatter};
 use core::mem::transmute;
 use log::{error, warn};
+use x86_64::PrivilegeLevel;
 use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
-use x86_64::PrivilegeLevel;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -44,6 +45,8 @@ pub fn create_idt() -> InterruptDescriptorTable {
     }
 
     idt.breakpoint.set_handler_fn(breakpoint_handler);
+    idt.device_not_available
+        .set_handler_fn(device_not_available_handler);
 
     idt.general_protection_fault
         .set_handler_fn(general_protection_fault_handler);
@@ -137,7 +140,7 @@ pub extern "sysv64" fn syscall_handler_impl(
 
     let result = dispatch_syscall(n, arg1, arg2, arg3, arg4, arg5, arg6);
 
-    regs.rax = result; // save result
+    regs.rax = result as usize; // save result
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
@@ -247,6 +250,14 @@ extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     loop {
         hlt();
     }
+}
+
+extern "x86-interrupt" fn device_not_available_handler(stack_frame: InterruptStackFrame) {
+    warn!("#NM:\n{stack_frame:?}");
+    unsafe {
+        asm!("clts");
+    }
+    // TODO: switch FPU context
 }
 
 /// Notifies the LAPIC that the interrupt has been handled.

@@ -6,8 +6,8 @@ use core::panic::PanicInfo;
 use kernel::limine::BASE_REVISION;
 use kernel::mcore;
 use kernel::mcore::mtask::process::Process;
+use kernel_vfs::path::AbsolutePath;
 use log::{error, info};
-use vfs::path::AbsolutePath;
 use x86_64::instructions::hlt;
 
 #[unsafe(export_name = "kernel_main")]

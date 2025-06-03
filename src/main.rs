@@ -91,6 +91,9 @@ continue"
     cmd.arg("-cdrom");
     cmd.arg(BOOTABLE_ISO);
 
+    cmd.arg("-cpu");
+    cmd.arg("max");
+
     cmd.arg("-smp");
     cmd.arg(args.smp.to_string());
 

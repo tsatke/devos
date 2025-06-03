@@ -1,6 +1,6 @@
+use x86_64::VirtAddr;
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{Page, PageSize};
-use x86_64::VirtAddr;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct Segment {

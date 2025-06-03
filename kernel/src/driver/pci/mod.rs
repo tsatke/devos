@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use alloc::string::ToString;
 use core::error::Error;
 use linkme::distributed_slice;
-use log::{debug, error, log_enabled, trace, Level};
+use log::{Level, debug, error, log_enabled, trace};
 
 pub use raw::PortCam;
 

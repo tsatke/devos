@@ -1,37 +1,46 @@
 [package]
-name = "muffin"
+name = "muffinos"
 version = "0.1.0"
 edition = "2024"
 
+default-run = "muffinos"
+
 [build-dependencies]
 ovmf-prebuilt = "0.2.3"
+file_structure = { path = "userspace/file_structure" }
 
 kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
 
-sandbox = { path = "userspace/sandbox", artifact = "bin", target = "x86_64-unknown-none" }
+sandbox = { path = "userspace/sandbox", artifact = "bin", target = "x86_64-unknown-muffin" }
 
 [workspace]
 members = [
     "kernel",
-    "kernel/crates/device",
+    "kernel/crates/kernel_abi",
+    "kernel/crates/kernel_device",
     "kernel/crates/kernel_elfloader",
     "kernel/crates/kernel_memapi",
+    "kernel/crates/kernel_syscall",
+    "kernel/crates/kernel_vfs",
     "kernel/crates/physical_memory_manager",
-    "kernel/crates/vfs",
     "kernel/crates/virtual_memory_manager",
-    "platform/muffin_libc",
-    "platform/muffin_libc/muffin_libc_spec_comment",
+    "userspace/file_structure",
+    "userspace/libmuffin",
     "userspace/sandbox",
 ]
 default-members = [
     ".",
-    "kernel/crates/device",
+    "kernel/crates/kernel_abi",
+    "kernel/crates/kernel_device",
     "kernel/crates/kernel_elfloader",
     "kernel/crates/kernel_memapi",
+    "kernel/crates/kernel_syscall",
+    "kernel/crates/kernel_vfs",
     "kernel/crates/physical_memory_manager",
-    "kernel/crates/vfs",
     "kernel/crates/virtual_memory_manager",
-    "platform/muffin_libc",
+    "userspace/file_structure",
+    "userspace/libmuffin",
+    "userspace/sandbox",
 ]
 
 [dependencies]
@@ -63,4 +72,13 @@ virtio-drivers = "0.9"
 volatile = { version = "0.6", features = ["derive"] }
 x2apic = "0.5"
 x86_64 = "0.15"
-zerocopy = { version = "0.9.0-alpha.0", features = ["alloc", "derive", "simd"] }
+zerocopy = { version = "0.9.0-alpha.0", features = ["alloc", "derive"] }
+
+[profile.dev]
+panic = "abort"
+[profile.release]
+panic = "abort"
+
+
+[patch.crates-io]
+libc = { path = "../rust-libc" }

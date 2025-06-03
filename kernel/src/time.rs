@@ -1,5 +1,5 @@
-use crate::hpet::hpet;
 use crate::BOOT_TIME_SECONDS;
+use crate::hpet::hpet;
 use jiff::Timestamp;
 
 pub trait TimestampExt {

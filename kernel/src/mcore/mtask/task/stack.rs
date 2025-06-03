@@ -7,9 +7,9 @@ use core::fmt::{Debug, Formatter};
 use core::slice::from_raw_parts_mut;
 use thiserror::Error;
 use virtual_memory_manager::Segment;
+use x86_64::VirtAddr;
 use x86_64::registers::rflags::RFlags;
 use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
-use x86_64::VirtAddr;
 
 #[derive(Debug, Copy, Clone, Error)]
 pub enum StackAllocationError {

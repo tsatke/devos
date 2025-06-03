@@ -5,9 +5,9 @@ use acpi::{InterruptModel, PlatformInfo};
 use conquer_once::spin::OnceCell;
 use core::ops::{Deref, DerefMut};
 use spin::Mutex;
+use x86_64::PhysAddr;
 use x86_64::instructions::port::Port;
 use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
-use x86_64::PhysAddr;
 
 static IO_APIC: OnceCell<Mutex<IoApic>> = OnceCell::uninit();
 

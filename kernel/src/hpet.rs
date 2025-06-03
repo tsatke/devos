@@ -11,8 +11,8 @@ use volatile::access::NoAccess;
 use volatile::access::ReadOnly;
 use volatile::access::ReadWrite;
 use volatile::{VolatileFieldAccess, VolatilePtr};
-use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::PhysAddr;
+use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
 
 static HPET: OnceCell<RwLock<Hpet>> = OnceCell::uninit();
 

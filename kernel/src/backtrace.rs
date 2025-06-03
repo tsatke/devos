@@ -1,6 +1,6 @@
 use crate::UsizeExt;
 use addr2line::gimli::{EndianSlice, Error};
-use addr2line::{gimli, Context};
+use addr2line::{Context, gimli};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use conquer_once::spin::OnceCell;
@@ -12,7 +12,7 @@ use thiserror::Error;
 
 static BACKTRACE_CONTEXT: OnceCell<BacktraceContext> = OnceCell::uninit();
 
-struct BacktraceContext(Context<EndianSlice<'static, gimli::NativeEndian>>);
+struct BacktraceContext(Context<EndianSlice<'static, addr2line::gimli::NativeEndian>>);
 
 unsafe impl Sync for BacktraceContext {}
 unsafe impl Send for BacktraceContext {}
@@ -27,6 +27,15 @@ pub fn init() {
     // TODO: make this work in release builds as well
     #[cfg(all(debug_assertions, feature = "backtrace"))]
     BACKTRACE_CONTEXT.init_once(|| {
+        use addr2line::gimli::Dwarf;
+        use core::slice::from_raw_parts;
+        use elf::ElfBytes;
+        use log::debug;
+        use x86_64::VirtAddr;
+
+        use crate::U64Ext;
+        use crate::limine::KERNEL_FILE_REQUEST;
+
         debug!("initializing backtrace context");
         let kernel_file = KERNEL_FILE_REQUEST.get_response().unwrap();
         let file_addr = VirtAddr::from_ptr(kernel_file.file().addr());
@@ -45,7 +54,7 @@ pub fn init() {
                         None => &[],
                     }
                 },
-                gimli::NativeEndian,
+                addr2line::gimli::NativeEndian,
             ))
         })
         .unwrap();
@@ -171,8 +180,8 @@ impl ReturnAddressIterator {
         let mut current_bp: *const usize;
         unsafe {
             asm!(
-                "mov {bp}, rbp",
-                bp = out(reg) current_bp,
+            "mov {bp}, rbp",
+            bp = out(reg) current_bp,
             );
         }
         Self { current_bp }

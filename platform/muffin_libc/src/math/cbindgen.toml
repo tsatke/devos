@@ -1,9 +1,0 @@
-include_guard = "TIME_H"
-language = "C"
-no_includes = true
-
-[export]
-include = [
-    "float_t",
-    "double_t",
-]
