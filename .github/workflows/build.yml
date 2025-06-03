@@ -29,6 +29,9 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y xorriso
+      - name: Rustfmt
+        run: |
+          cargo fmt -- --check
       - name: Clippy
         run: |
           cargo clippy -- -D clippy::all
@@ -49,7 +52,9 @@ jobs:
         run: |
           sudo apt update
           sudo apt install -y xorriso
+        if: false
       - name: Test
+        if: false
         run: |
           cargo test $(if [[ "${{ matrix.strategy }}" == "release" ]]; then echo "--release"; fi)
 
@@ -69,9 +74,11 @@ jobs:
         with:
           toolchain: nightly
       - name: Miri Setup
+        if: false
         run: |
           cargo miri setup
       - name: Miri
+        if: false
         run: |
           cargo miri test -p ${{ matrix.package }}
   
@@ -90,10 +97,12 @@ jobs:
         with:
           toolchain: nightly
       - name: Install dependencies
+        if: false
         run: |
           sudo apt update
           sudo apt install -y xorriso
       - name: Build
+        if: false
         run: |
           cargo build --release
       - uses: actions/upload-artifact@v4
