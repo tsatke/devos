@@ -1,4 +1,4 @@
-use crate::mcore::mtask::process::tree::{ProcessTree, process_tree};
+use crate::mcore::mtask::process::tree::{process_tree, ProcessTree};
 use crate::mem::address_space::AddressSpace;
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
@@ -14,10 +14,10 @@ use log::debug;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
-use x86_64::VirtAddr;
 use x86_64::registers::model_specific::FsBase;
 use x86_64::registers::rflags::RFlags;
 use x86_64::structures::idt::InterruptStackFrameValue;
+use x86_64::VirtAddr;
 
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
@@ -28,7 +28,7 @@ use crate::vfs::vfs;
 pub use id::*;
 use kernel_elfloader::{ElfFile, ElfLoader};
 use kernel_memapi::{Allocation, Location, MemoryApi, UserAccessible};
-use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath};
+use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath, ROOT};
 
 mod id;
 mod tree;
@@ -42,6 +42,7 @@ pub struct Process {
     ppid: RwLock<ProcessId>,
 
     executable_path: Option<AbsoluteOwnedPath>,
+    current_working_directory: RwLock<AbsoluteOwnedPath>,
 
     address_space: Option<AddressSpace>,
     lower_half_memory: Arc<RwLock<VirtualMemoryManager>>,
@@ -86,11 +87,12 @@ impl Process {
     pub fn root() -> &'static Arc<Process> {
         ROOT_PROCESS.get_or_init(|| {
             let pid = ProcessId::new();
-            let root = Arc::new(Process {
+            let root = Arc::new(Self {
                 pid,
                 name: "root".to_string(),
                 ppid: RwLock::new(pid),
                 executable_path: None,
+                current_working_directory: RwLock::new(ROOT.to_owned()),
                 address_space: None,
                 lower_half_memory: Arc::new(RwLock::new(VirtualMemoryManager::new(
                     VirtAddr::new(0x00),
@@ -116,6 +118,7 @@ impl Process {
             name,
             ppid: RwLock::new(parent_pid),
             executable_path: executable_path.map(|x| x.as_ref().to_owned()),
+            current_working_directory: RwLock::new(parent.current_working_directory.read().clone()),
             address_space: Some(address_space),
             lower_half_memory: Arc::new(RwLock::new(VirtualMemoryManager::new(
                 VirtAddr::new(0xF000),
@@ -174,6 +177,10 @@ impl Process {
 
     pub fn vmm(self: &Arc<Self>) -> impl VirtualMemoryAllocator {
         self.lower_half_memory.clone()
+    }
+
+    pub fn current_working_directory(&self) -> &RwLock<AbsoluteOwnedPath> {
+        &self.current_working_directory
     }
 }
 

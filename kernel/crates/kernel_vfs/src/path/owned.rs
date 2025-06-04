@@ -1,4 +1,4 @@
-use crate::path::{FILEPATH_SEPARATOR, Path};
+use crate::path::{Path, FILEPATH_SEPARATOR};
 use alloc::string::String;
 use core::borrow::Borrow;
 use core::fmt::Display;
@@ -53,7 +53,7 @@ impl OwnedPath {
     /// Appends a string to the end of the path.
     ///
     /// ```rust
-    /// # use vfs::path::OwnedPath;
+    /// # use kernel_vfs::path::OwnedPath;
     /// let mut path = OwnedPath::new("/foo");
     /// path.append_str(".txt");
     /// assert_eq!(path.as_str(), "/foo.txt");
@@ -68,7 +68,7 @@ impl OwnedPath {
     /// Appends a string to the end of the path as a new component.
     ///
     /// ```rust
-    /// # use vfs::path::OwnedPath;
+    /// # use kernel_vfs::path::OwnedPath;
     /// let mut path = OwnedPath::new("/foo");
     /// path.push("bar");
     /// assert_eq!(path.as_str(), "/foo/bar");
@@ -77,7 +77,7 @@ impl OwnedPath {
     /// If the path is empty, pushing a new component will make
     /// the path absolute.
     /// ```rust
-    /// # use vfs::path::OwnedPath;
+    /// # use kernel_vfs::path::OwnedPath;
     /// let mut path = OwnedPath::new("");
     /// path.push("foo");
     /// assert_eq!(path.as_str(), "/foo");

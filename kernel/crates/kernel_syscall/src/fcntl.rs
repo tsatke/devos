@@ -1,8 +1,9 @@
 use crate::UserspacePtr;
 use alloc::borrow::ToOwned;
 use core::ffi::CStr;
-use kernel_abi::{EACCES, EINVAL, ENAMETOOLONG, ENOSYS, Errno};
-use kernel_vfs::path::{AbsolutePath, Path};
+use core::slice::from_raw_parts;
+use kernel_abi::{Errno, EACCES, EINVAL, ENAMETOOLONG, ENOSYS};
+use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath, Path};
 use kernel_vfs::{OpenError, Vfs};
 use spin::rwlock::RwLock;
 
@@ -11,14 +12,20 @@ pub trait VfsAccess {
 }
 
 pub trait Process {
-    fn current_dir(&self) -> &AbsolutePath;
+    fn current_dir(&self) -> &RwLock<AbsoluteOwnedPath>;
 }
 
 pub trait ProcessAccess {
     type Process: Process;
-    type Task;
 
     fn current_process(&self) -> &Self::Process;
+}
+
+pub trait Task {}
+
+pub trait TaskAccess {
+    type Task: Task;
+
     fn current_task(&self) -> &Self::Task;
 }
 
@@ -34,14 +41,14 @@ pub fn sys_open<Cx: ProcessAccess + VfsAccess>(
     _mode: i32,
 ) -> Result<usize, Errno> {
     let path = {
-        let path_bytes_max = unsafe { path.as_slice(4096) };
+        let path_bytes_max = unsafe { from_raw_parts(*path, 4096) };
         let path = CStr::from_bytes_until_nul(path_bytes_max).map_err(|_| ENAMETOOLONG)?;
         let path = path.to_str().map_err(|_| EINVAL)?;
         let path = Path::new(path);
         match AbsolutePath::try_new(path) {
             Ok(p) => p.to_owned(),
             Err(_) => {
-                let mut p = cx.current_process().current_dir().to_owned();
+                let mut p = cx.current_process().current_dir().read().clone();
                 p.push(path);
                 p
             }

@@ -1,8 +1,14 @@
+use access::KernelAccess;
 use core::ops::Neg;
 use kernel_abi::syscall_name;
-use kernel_abi::{Errno, SYS_OPEN};
+use kernel_abi::Errno;
+use kernel_syscall::fcntl::sys_open;
+use kernel_syscall::unistd::sys_getcwd;
+use kernel_syscall::{UserspaceMutPtr, UserspacePtr};
 use log::{error, trace};
 use x86_64::instructions::hlt;
+
+mod access;
 
 #[must_use]
 pub fn dispatch_syscall(
@@ -17,7 +23,8 @@ pub fn dispatch_syscall(
     trace!("syscall: {n} {arg1} {arg2} {arg3} {arg4} {arg5} {arg6}");
 
     let result = match n {
-        SYS_OPEN => dispatch_sys_open(arg1, arg2, arg3),
+        kernel_abi::SYS_OPEN => dispatch_sys_open(arg1, arg2, arg3),
+        kernel_abi::SYS_GETCWD => dispatch_sys_getcwd(arg1, arg2),
         _ => {
             error!("unimplemented syscall: {} ({n})", syscall_name(n));
             loop {
@@ -38,8 +45,16 @@ pub fn dispatch_syscall(
     }
 }
 
-fn dispatch_sys_open(_path: usize, _oflag: usize, _mode: usize) -> Result<usize, Errno> {
-    // let path = unsafe { UserspacePtr::try_from_usize(path)? };
-    // sys_open(todo!(), path, oflag as i32, mode as i32)
-    todo!()
+fn dispatch_sys_getcwd(path: usize, size: usize) -> Result<usize, Errno> {
+    let cx = KernelAccess::new();
+
+    let path = unsafe { UserspaceMutPtr::try_from_usize(path)? };
+    sys_getcwd(&cx, path, size)
+}
+
+fn dispatch_sys_open(path: usize, oflag: usize, mode: usize) -> Result<usize, Errno> {
+    let cx = KernelAccess::new();
+
+    let path = unsafe { UserspacePtr::try_from_usize(path)? };
+    sys_open(&cx, path, oflag as i32, mode as i32)
 }

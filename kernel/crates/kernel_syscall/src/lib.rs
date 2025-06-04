@@ -2,12 +2,13 @@
 #![feature(negative_impls)]
 extern crate alloc;
 
-use core::ops::{Deref, DerefMut};
+use core::ops::Deref;
 use core::ptr::{with_exposed_provenance, with_exposed_provenance_mut};
-use kernel_abi::{EINVAL, Errno};
+use kernel_abi::{Errno, EINVAL};
 use thiserror::Error;
 
 pub mod fcntl;
+pub mod unistd;
 
 pub struct UserspacePtr<T> {
     ptr: *const T,
@@ -39,26 +40,27 @@ impl<T> UserspacePtr<T> {
         }
     }
 
-    /// # Safety
-    /// The caller must ensure that the pointer is valid and points to a slice of `len` elements.
-    pub unsafe fn as_slice(&self, len: usize) -> &[T] {
-        unsafe { core::slice::from_raw_parts(self.ptr, len) }
+    pub fn addr(&self) -> usize {
+        self.ptr as usize
     }
 }
 
 impl<T> Deref for UserspacePtr<T> {
-    type Target = T;
+    type Target = *const T;
 
     fn deref(&self) -> &Self::Target {
-        unsafe {
-            // SAFETY: The pointer is valid, which is an invariant of this type.
-            &*self.ptr
-        }
+        &self.ptr
     }
 }
 
 pub struct UserspaceMutPtr<T> {
     ptr: *mut T,
+}
+
+impl<T> From<*mut T> for UserspaceMutPtr<T> {
+    fn from(ptr: *mut T) -> Self {
+        Self { ptr }
+    }
 }
 
 impl<T> !Clone for UserspaceMutPtr<T> {}
@@ -78,24 +80,16 @@ impl<T> UserspaceMutPtr<T> {
             })
         }
     }
-}
 
-impl<T> Deref for UserspaceMutPtr<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe {
-            // SAFETY: The pointer is valid, which is an invariant of this type.
-            &*self.ptr
-        }
+    pub fn addr(&self) -> usize {
+        self.ptr as usize
     }
 }
 
-impl<T> DerefMut for UserspaceMutPtr<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe {
-            // SAFETY: The pointer is valid for mutable, which is an invariant of this type.
-            &mut *self.ptr
-        }
+impl<T> Deref for UserspaceMutPtr<T> {
+    type Target = *mut T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.ptr
     }
 }
