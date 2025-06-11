@@ -1,21 +1,45 @@
-use crate::ReadError;
 use crate::fs::{FileSystem, FsHandle};
 use crate::path::AbsoluteOwnedPath;
-use alloc::sync::Weak;
+use crate::{ReadError, WriteError};
+use alloc::sync::{Arc, Weak};
+use core::fmt::{Debug, Formatter};
+use core::ops::Deref;
 use spin::RwLock;
 
+#[derive(Clone)]
 pub struct VfsNode {
-    _path: AbsoluteOwnedPath,
+    inner: Arc<Inner>,
+}
+
+impl Debug for VfsNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("VfsNode")
+            .field("path", &self.inner.path)
+            .field("fs_handle", &self.inner.fs_handle)
+            .finish_non_exhaustive()
+    }
+}
+
+pub struct Inner {
+    path: AbsoluteOwnedPath,
     fs_handle: FsHandle,
     fs: Weak<RwLock<dyn FileSystem>>,
 }
 
-impl Drop for VfsNode {
+impl Drop for Inner {
     fn drop(&mut self) {
         if let Some(fs) = self.fs.upgrade() {
             let mut guard = fs.write();
             let _ = guard.close(self.fs_handle);
         }
+    }
+}
+
+impl Deref for VfsNode {
+    type Target = Inner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -26,9 +50,11 @@ impl VfsNode {
         fs: Weak<RwLock<dyn FileSystem>>,
     ) -> Self {
         Self {
-            _path: path,
-            fs_handle,
-            fs,
+            inner: Arc::new(Inner {
+                path,
+                fs_handle,
+                fs,
+            }),
         }
     }
 
@@ -48,6 +74,17 @@ impl VfsNode {
 
         let mut guard = fs.write();
         guard.read(self.fs_handle, buf, offset)
+    }
+
+    pub fn write<B>(&self, buf: B, offset: usize) -> Result<usize, WriteError>
+    where
+        B: AsRef<[u8]>,
+    {
+        let fs = self.fs.upgrade().ok_or(WriteError::FileSystemNotOpen)?;
+        let buf = buf.as_ref();
+
+        let mut guard = fs.write();
+        guard.write(self.fs_handle, buf, offset)
     }
 }
 

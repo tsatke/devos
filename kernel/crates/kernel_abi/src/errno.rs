@@ -28,7 +28,7 @@ macro_rules! n {
         $(pub const $name: Errno = Errno($val);)*
 
         #[allow(dead_code)]
-        pub fn errno_name(n: &Errno) -> &'static str {
+        #[must_use] pub fn errno_name(n: &Errno) -> &'static str {
             match n.0 {
                 $( $val => stringify!($name), )*
                 _ => "<unknown>",

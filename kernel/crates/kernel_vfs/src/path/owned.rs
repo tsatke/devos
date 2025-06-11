@@ -9,7 +9,7 @@ use thiserror::Error;
 #[error("path is not absolute")]
 pub struct PathNotAbsoluteError;
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct OwnedPath {
     inner: String,
 }

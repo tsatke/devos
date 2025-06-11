@@ -1,5 +1,6 @@
 use file_structure::{Dir, Kind};
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
+use std::fs;
 use std::fs::{copy, create_dir, create_dir_all, exists, remove_dir_all, remove_file};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -54,6 +55,8 @@ fn build_os_disk_dir() -> PathBuf {
 
     build_dir(&disk, &file_structure::STRUCTURE);
 
+    fs::write(disk.join("var/hello.txt"), "Hello, Muffin OS!\n").unwrap();
+
     disk
 }
 
@@ -71,7 +74,7 @@ fn build_dir(current_path: &Path, current_dir: &Dir<'_>) {
             Kind::Resource => {
                 todo!("copy resource into the disk image");
             }
-        };
+        }
     }
 
     for subdir in current_dir.subdirs {

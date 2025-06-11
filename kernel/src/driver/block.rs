@@ -1,13 +1,13 @@
 use crate::driver::KernelDeviceId;
-use crate::vfs::ext2::VirtualExt2Fs;
-use crate::vfs::vfs;
+use crate::file::ext2::VirtualExt2Fs;
+use crate::file::vfs;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
 use ext2::Ext2Fs;
-use kernel_device::RegisterDeviceError;
 use kernel_device::block::registry::BlockDeviceRegistry;
 use kernel_device::block::{BlockBuf, BlockDevice};
+use kernel_device::RegisterDeviceError;
 use kernel_vfs::path::ROOT;
 use spin::RwLock;
 

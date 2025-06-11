@@ -1,6 +1,6 @@
 use crate::fs::{FileSystem, FsHandle};
 use crate::path::{OwnedPath, Path};
-use crate::{CloseError, OpenError, ReadError};
+use crate::{CloseError, OpenError, ReadError, WriteError};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
@@ -67,14 +67,34 @@ impl FileSystem for TestFs {
         buf[..bytes_to_copy].copy_from_slice(&data[offset..offset + bytes_to_copy]);
         Ok(bytes_to_copy)
     }
+
+    fn write(&mut self, handle: FsHandle, buf: &[u8], offset: usize) -> Result<usize, WriteError> {
+        let path = self
+            .open_files
+            .get(&handle)
+            .ok_or(WriteError::InvalidHandle)?;
+
+        // file can't be deleted while it's open, so if we have a handle, it must exist in `self.files`
+        let file = self.files.get(path).unwrap();
+
+        let mut guard = file.write();
+        let file_len = guard.len();
+        let need_max_len = offset + buf.len();
+        if need_max_len > file_len {
+            guard.resize(need_max_len, 0);
+        }
+
+        guard[offset..offset + buf.len()].copy_from_slice(buf);
+        Ok(buf.len())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::CloseError;
     use crate::fs::FileSystem;
     use crate::path::{OwnedPath, Path};
     use crate::testing::TestFs;
+    use crate::CloseError;
 
     #[test]
     fn test_open_close() {

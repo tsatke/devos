@@ -4,15 +4,19 @@
 extern crate alloc;
 
 use crate::driver::pci;
+use crate::file::devfs::DevFs;
+use crate::file::vfs;
 use crate::limine::BOOT_TIME;
-use ::log::info;
 use conquer_once::spin::OnceCell;
+use kernel_vfs::path::AbsoluteOwnedPath;
+use ::log::info;
 
 mod acpi;
 mod apic;
 mod arch;
 pub mod backtrace;
 pub mod driver;
+pub mod file;
 pub mod hpet;
 pub mod limine;
 mod log;
@@ -22,7 +26,6 @@ mod serial;
 pub mod sse;
 pub mod syscall;
 pub mod time;
-pub mod vfs;
 
 static BOOT_TIME_SECONDS: OnceCell<u64> = OnceCell::uninit();
 
@@ -44,6 +47,11 @@ pub fn init() {
     backtrace::init();
     mcore::init();
     pci::init();
+
+    vfs()
+        .write()
+        .mount(AbsoluteOwnedPath::try_from("/dev").unwrap(), DevFs::new())
+        .expect("Failed to mount root filesystem");
 
     info!("kernel initialized");
 }

@@ -2,6 +2,7 @@ use crate::mcore::mtask::process::tree::{process_tree, ProcessTree};
 use crate::mem::address_space::AddressSpace;
 use alloc::borrow::ToOwned;
 use alloc::boxed::Box;
+use alloc::collections::BTreeMap;
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
@@ -9,7 +10,6 @@ use conquer_once::spin::OnceCell;
 use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
 use core::ptr;
-use core::slice::from_raw_parts;
 use log::debug;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use thiserror::Error;
@@ -19,17 +19,19 @@ use x86_64::registers::rflags::RFlags;
 use x86_64::structures::idt::InterruptStackFrameValue;
 use x86_64::VirtAddr;
 
+use crate::file::{vfs, OpenFileDescription};
 use crate::mcore::context::ExecutionContext;
+use crate::mcore::mtask::process::fd::{FdNum, FileDescriptor, FileDescriptorFlags};
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::task::{Stack, StackAllocationError, StackUserAccessible, Task};
 use crate::mem::memapi::LowerHalfMemoryApi;
 use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
-use crate::vfs::vfs;
 pub use id::*;
 use kernel_elfloader::{ElfFile, ElfLoader};
 use kernel_memapi::{Allocation, Location, MemoryApi, UserAccessible};
 use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath, ROOT};
 
+pub mod fd;
 mod id;
 mod tree;
 
@@ -46,6 +48,8 @@ pub struct Process {
 
     address_space: Option<AddressSpace>,
     lower_half_memory: Arc<RwLock<VirtualMemoryManager>>,
+
+    file_descriptors: RwLock<BTreeMap<FdNum, FileDescriptor>>,
 }
 
 impl Debug for Process {
@@ -98,13 +102,14 @@ impl Process {
                     VirtAddr::new(0x00),
                     0x0000_7FFF_FFFF_FFFF,
                 ))),
+                file_descriptors: RwLock::new(BTreeMap::new()),
             });
             process_tree().write().processes.insert(pid, root.clone());
             root
         })
     }
 
-    pub fn create_new(
+    fn create_new(
         parent: &Arc<Process>,
         name: String,
         executable_path: Option<impl AsRef<AbsolutePath>>,
@@ -124,6 +129,7 @@ impl Process {
                 VirtAddr::new(0xF000),
                 0x0000_7FFF_FFFF_0FFF,
             ))),
+            file_descriptors: RwLock::new(BTreeMap::new()),
         };
 
         let res = Arc::new(process);
@@ -141,6 +147,10 @@ impl Process {
 
     pub fn name(&self) -> &str {
         &self.name
+    }
+
+    pub fn file_descriptors(&self) -> &RwLock<BTreeMap<FdNum, FileDescriptor>> {
+        &self.file_descriptors
     }
 
     #[allow(clippy::missing_panics_doc)] // this panic must not happen, so the caller shouldn't have to care about it
@@ -281,8 +291,39 @@ extern "C" fn trampoline(_arg: *mut c_void) {
     debug!("code_ptr: {:p}", code_ptr as *const u8);
 
     {
-        let slice = unsafe { from_raw_parts(code_ptr as *const u8, 64) };
-        debug!("code: {slice:02x?}");
+        let mut guard = current_process.file_descriptors.write();
+
+        let devnull = vfs()
+            .read()
+            .open(AbsolutePath::try_new("/dev/null").unwrap())
+            .expect("should be able to open /dev/null");
+        let devnull_ofd = Arc::new(OpenFileDescription::from(devnull));
+        guard.insert(
+            0.into(),
+            FileDescriptor::new(0.into(), FileDescriptorFlags::empty(), devnull_ofd.clone()),
+        );
+
+        let devserial = vfs()
+            .read()
+            .open(AbsolutePath::try_new("/dev/serial").unwrap())
+            .expect("should be able to open /dev/serial");
+        let devserial_ofd = Arc::new(OpenFileDescription::from(devserial));
+        guard.insert(
+            1.into(),
+            FileDescriptor::new(
+                1.into(),
+                FileDescriptorFlags::empty(),
+                devserial_ofd.clone(),
+            ),
+        );
+        guard.insert(
+            2.into(),
+            FileDescriptor::new(
+                2.into(),
+                FileDescriptorFlags::empty(),
+                devserial_ofd.clone(),
+            ),
+        );
     }
 
     let isfv = InterruptStackFrameValue::new(

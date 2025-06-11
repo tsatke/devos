@@ -1,5 +1,5 @@
 use crate::path::Path;
-use crate::{CloseError, OpenError, ReadError};
+use crate::{CloseError, OpenError, ReadError, WriteError};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FsHandle(u64);
@@ -37,4 +37,6 @@ pub trait FileSystem: Send + Sync {
     /// a hardware error).
     fn read(&mut self, handle: FsHandle, buf: &mut [u8], offset: usize)
     -> Result<usize, ReadError>;
+
+    fn write(&mut self, handle: FsHandle, buf: &[u8], offset: usize) -> Result<usize, WriteError>;
 }

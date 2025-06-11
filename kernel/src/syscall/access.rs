@@ -1,15 +1,19 @@
+use crate::file::{vfs, OpenFileDescription};
 use crate::mcore::context::ExecutionContext;
+use crate::mcore::mtask::process::fd::{FdNum, FileDescriptor, FileDescriptorFlags};
 use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::task::Task;
-use crate::vfs::vfs;
+use crate::U64Ext;
 use alloc::sync::Arc;
-use kernel_syscall::fcntl::{ProcessAccess, TaskAccess, VfsAccess};
-use kernel_vfs::Vfs;
+use core::sync::atomic::Ordering::Relaxed;
+use kernel_syscall::access::{CwdAccess, FileAccess};
+use kernel_vfs::node::VfsNode;
+use kernel_vfs::path::AbsolutePath;
 use spin::rwlock::RwLock;
 
 pub struct KernelAccess<'a> {
-    task: KernelTask<'a>,
-    process: KernelProcess,
+    _task: &'a Task,
+    process: Arc<Process>,
 }
 
 impl<'a> KernelAccess<'a> {
@@ -19,56 +23,79 @@ impl<'a> KernelAccess<'a> {
         let task = task.into();
         let process = process.into();
 
-        KernelAccess { task, process }
+        KernelAccess {
+            _task: task,
+            process,
+        }
     }
 }
 
-impl ProcessAccess for KernelAccess<'_> {
-    type Process = KernelProcess;
-
-    fn current_process(&self) -> &Self::Process {
-        &self.process
-    }
-}
-
-impl<'a> TaskAccess for KernelAccess<'a> {
-    type Task = KernelTask<'a>;
-
-    fn current_task(&self) -> &Self::Task {
-        &self.task
-    }
-}
-
-pub struct KernelTask<'a> {
-    _task: &'a Task,
-}
-
-impl<'a> From<&'a Task> for KernelTask<'a> {
-    fn from(task: &'a Task) -> Self {
-        KernelTask { _task: task }
-    }
-}
-
-impl kernel_syscall::fcntl::Task for KernelTask<'_> {}
-
-pub struct KernelProcess {
-    process: Arc<Process>,
-}
-
-impl From<Arc<Process>> for KernelProcess {
-    fn from(process: Arc<Process>) -> Self {
-        KernelProcess { process }
-    }
-}
-
-impl kernel_syscall::fcntl::Process for KernelProcess {
-    fn current_dir(&self) -> &RwLock<kernel_vfs::path::AbsoluteOwnedPath> {
+impl CwdAccess for KernelAccess<'_> {
+    fn current_working_directory(&self) -> &RwLock<kernel_vfs::path::AbsoluteOwnedPath> {
         self.process.current_working_directory()
     }
 }
 
-impl VfsAccess for KernelAccess<'_> {
-    fn vfs(&self) -> &RwLock<Vfs> {
-        vfs()
+pub struct FileInfo {
+    node: VfsNode,
+}
+
+impl kernel_syscall::access::FileInfo for FileInfo {}
+
+impl FileAccess for KernelAccess<'_> {
+    type FileInfo = FileInfo;
+    type Fd = FdNum;
+
+    fn file_info(&self, path: &AbsolutePath) -> Option<Self::FileInfo> {
+        Some(FileInfo {
+            node: vfs().read().open(&path).ok()?,
+        })
+    }
+
+    fn open(&self, info: &Self::FileInfo) -> Result<Self::Fd, ()> {
+        let ofd = OpenFileDescription::from(info.node.clone());
+        let num = self
+            .process
+            .file_descriptors()
+            .read()
+            .keys()
+            .fold(0, |acc, &fd| {
+                if acc == Into::<i32>::into(fd) {
+                    acc + 1
+                } else {
+                    acc
+                }
+            })
+            .into();
+        let fd = FileDescriptor::new(num, FileDescriptorFlags::empty(), ofd.into());
+
+        self.process.file_descriptors().write().insert(num, fd);
+
+        Ok(num)
+    }
+
+    fn read(&self, fd: Self::Fd, buf: &mut [u8]) -> Result<usize, ()> {
+        let fds = self.process.file_descriptors();
+        let guard = fds.read();
+
+        let desc = guard.get(&fd).ok_or(())?;
+        let ofd = desc.file_description();
+        let offset = ofd.position().fetch_add(buf.len() as u64, Relaxed); // TODO: respect file max len
+        ofd.read(buf, offset.into_usize()).map_err(|_| ())
+    }
+
+    fn write(&self, fd: Self::Fd, buf: &[u8]) -> Result<usize, ()> {
+        let fds = self.process.file_descriptors();
+        let guard = fds.read();
+
+        let desc = guard.get(&fd).ok_or(())?;
+        let ofd = desc.file_description();
+        let offset = ofd.position().fetch_add(buf.len() as u64, Relaxed); // TODO: respect file max len
+        ofd.write(buf, offset.into_usize()).map_err(|_| ())
+    }
+
+    fn close(&self, fd: Self::Fd) -> Result<(), ()> {
+        self.process.file_descriptors().write().remove(&fd);
+        Ok(())
     }
 }

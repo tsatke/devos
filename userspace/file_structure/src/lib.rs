@@ -1,7 +1,14 @@
 pub const STRUCTURE: Dir<'static> = Dir::new(
     "",
     &[
-        Dir::new("bin", &[], &[File::new("sandbox", Kind::Executable)]),
+        Dir::new(
+            "bin",
+            &[],
+            &[
+                File::new("sandbox", Kind::Executable),
+                File::new("sandbox_nostd", Kind::Executable),
+            ],
+        ),
         Dir::new("dev", &[Dir::new("fd", &[], &[])], &[]),
         Dir::new("var", &[Dir::new("tmp", &[], &[])], &[]),
     ],
@@ -15,7 +22,7 @@ pub struct Dir<'a> {
 }
 
 impl<'a> Dir<'a> {
-    pub const fn new(name: &'a str, subdirs: &'a [Dir<'a>], files: &'a [File<'a>]) -> Self {
+    #[must_use] pub const fn new(name: &'a str, subdirs: &'a [Dir<'a>], files: &'a [File<'a>]) -> Self {
         Self {
             name,
             subdirs,
@@ -30,7 +37,7 @@ pub struct File<'a> {
 }
 
 impl<'a> File<'a> {
-    pub const fn new(name: &'a str, kind: Kind) -> Self {
+    #[must_use] pub const fn new(name: &'a str, kind: Kind) -> Self {
         Self { name, kind }
     }
 }

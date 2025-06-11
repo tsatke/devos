@@ -607,6 +607,7 @@ version = "0.1.0"
 dependencies = [
  "kernel_abi",
  "kernel_vfs",
+ "log",
  "spin",
  "thiserror",
 ]
@@ -781,6 +782,7 @@ dependencies = [
  "kernel",
  "ovmf-prebuilt",
  "sandbox",
+ "sandbox_nostd",
 ]
 
 [[package]]
@@ -1030,6 +1032,14 @@ checksum = "f7c45b9784283f1b2e7fb61b42047c2fd678ef0960d4f6f1eba131594cc369d4"
 
 [[package]]
 name = "sandbox"
+version = "0.1.0"
+dependencies = [
+ "libmuffin",
+ "x86_64",
+]
+
+[[package]]
+name = "sandbox_nostd"
 version = "0.1.0"
 dependencies = [
  "libmuffin",

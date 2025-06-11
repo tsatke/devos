@@ -83,34 +83,42 @@ impl Vfs {
     where
         P: AsRef<AbsolutePath>,
     {
+        // FIXME: reuse already open VfsNodes
+
         let path = path.as_ref();
-        let fs = self.find_mount(path).ok_or(OpenError::NotFound)?;
+        let (mount_path, fs) = self.find_mount(path).ok_or(OpenError::NotFound)?;
+        let relative_path = if mount_path == ROOT {
+            path
+        } else {
+            path.strip_prefix(&***mount_path).unwrap()
+        };
+        let relative_path = unsafe { AbsolutePath::new_unchecked((&relative_path).as_ref()) };
         let mut guard = fs.write();
         guard
-            .open(path)
+            .open(relative_path)
             .map(|handle| VfsNode::new(path.to_owned(), handle, Arc::downgrade(&fs)))
     }
 
-    fn find_mount(&self, path: &AbsolutePath) -> Option<Fs> {
+    fn find_mount<'a>(&'a self, path: &'a AbsolutePath) -> Option<(&'a AbsolutePath, Fs)> {
         let mut current = path;
         if let Some(fs) = self.file_systems.get(current) {
-            return Some(fs.clone());
+            return Some((path, fs.clone()));
         }
         while let Some(parent) = current.parent() {
             if let Some(fs) = self.file_systems.get(parent) {
-                return Some(fs.clone());
+                return Some((parent, fs.clone()));
             }
             current = parent;
         }
-        self.file_systems.get(ROOT).cloned()
+        self.file_systems.get(ROOT).cloned().map(|v| (ROOT, v))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::Vfs;
     use crate::path::{AbsolutePath, ROOT};
     use crate::testing::TestFs;
+    use crate::Vfs;
     use alloc::vec;
     use alloc::vec::Vec;
 

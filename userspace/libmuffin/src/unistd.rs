@@ -1,3 +1,4 @@
+use crate::syscall::syscall3;
 use crate::unimplemented_function;
 use kernel_abi::{SYS_CLOSE, SYS_GETCWD, SYS_LSEEK, SYS_READ, SYS_WRITE, SYS_WRITEV};
 use libc::{c_char, c_int, size_t, ssize_t};
@@ -14,12 +15,12 @@ pub extern "C" fn getcwd(buf: *mut c_char, size: size_t) -> *mut c_char {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn read(fildes: c_int, buf: *mut c_char, nbyte: size_t) -> ssize_t {
-    unimplemented_function(SYS_READ)
+    syscall3(SYS_READ, fildes as usize, buf as usize, nbyte as usize)
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn write(fildes: c_int, buf: *const c_char, nbyte: size_t) -> ssize_t {
-    unimplemented_function(SYS_WRITE)
+    syscall3(SYS_WRITE, fildes as usize, buf as usize, nbyte as usize)
 }
 
 #[unsafe(no_mangle)]

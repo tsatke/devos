@@ -2,7 +2,7 @@ use crate::path::{AbsolutePath, OwnedPath, PathNotAbsoluteError};
 use core::borrow::Borrow;
 use core::ops::{Deref, DerefMut};
 
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
 pub struct AbsoluteOwnedPath {
     inner: OwnedPath,

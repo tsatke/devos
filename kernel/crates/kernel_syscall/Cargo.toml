@@ -7,5 +7,6 @@ edition = "2024"
 kernel_abi = { path = "../kernel_abi" }
 kernel_vfs = { path = "../kernel_vfs" }
 
+log.workspace = true
 spin.workspace = true
 thiserror.workspace = true

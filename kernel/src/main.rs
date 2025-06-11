@@ -18,7 +18,7 @@ unsafe extern "C" fn main() -> ! {
 
     let proc = Process::create_from_executable(
         Process::root(),
-        AbsolutePath::try_new("/bin/sandbox").unwrap(),
+        AbsolutePath::try_new("/bin/sandbox_nostd").unwrap(),
     )
     .unwrap();
     info!("have process pid={}", proc.pid());

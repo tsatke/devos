@@ -16,7 +16,7 @@ mod owned;
 pub const FILEPATH_SEPARATOR: char = '/';
 pub const ROOT: &AbsolutePath = unsafe { &*(ptr::from_ref::<str>("/") as *const AbsolutePath) };
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
 pub struct Path {
     inner: str,

@@ -13,6 +13,7 @@
 
 extern crate compiler_builtins;
 extern crate unwinding;
+
 pub mod fcntl;
 pub mod poll;
 pub mod pthread;
@@ -20,7 +21,6 @@ pub mod signal;
 pub mod stdlib;
 pub mod string;
 pub mod sys;
-#[cfg(target_os = "muffin")]
 pub mod syscall;
 pub mod unistd;
 

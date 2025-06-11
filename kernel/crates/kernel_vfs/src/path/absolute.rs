@@ -4,7 +4,7 @@ use core::fmt::{Display, Formatter};
 use core::ops::Deref;
 use core::ptr;
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
 pub struct AbsolutePath {
     inner: Path,
