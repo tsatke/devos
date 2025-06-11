@@ -7,9 +7,9 @@ use crate::driver::pci;
 use crate::file::devfs::DevFs;
 use crate::file::vfs;
 use crate::limine::BOOT_TIME;
+use ::log::info;
 use conquer_once::spin::OnceCell;
 use kernel_vfs::path::AbsoluteOwnedPath;
-use ::log::info;
 
 mod acpi;
 mod apic;

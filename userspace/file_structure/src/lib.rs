@@ -22,7 +22,8 @@ pub struct Dir<'a> {
 }
 
 impl<'a> Dir<'a> {
-    #[must_use] pub const fn new(name: &'a str, subdirs: &'a [Dir<'a>], files: &'a [File<'a>]) -> Self {
+    #[must_use]
+    pub const fn new(name: &'a str, subdirs: &'a [Dir<'a>], files: &'a [File<'a>]) -> Self {
         Self {
             name,
             subdirs,
@@ -37,7 +38,8 @@ pub struct File<'a> {
 }
 
 impl<'a> File<'a> {
-    #[must_use] pub const fn new(name: &'a str, kind: Kind) -> Self {
+    #[must_use]
+    pub const fn new(name: &'a str, kind: Kind) -> Self {
         Self { name, kind }
     }
 }

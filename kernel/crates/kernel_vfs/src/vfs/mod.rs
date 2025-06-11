@@ -116,9 +116,9 @@ impl Vfs {
 
 #[cfg(test)]
 mod tests {
+    use crate::Vfs;
     use crate::path::{AbsolutePath, ROOT};
     use crate::testing::TestFs;
-    use crate::Vfs;
     use alloc::vec;
     use alloc::vec::Vec;
 

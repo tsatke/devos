@@ -1,6 +1,6 @@
 use core::ops::Deref;
 use core::ptr::{with_exposed_provenance, with_exposed_provenance_mut};
-use kernel_abi::{Errno, EINVAL};
+use kernel_abi::{EINVAL, Errno};
 use thiserror::Error;
 
 #[derive(Copy, Clone)]
@@ -38,7 +38,8 @@ impl<T> UserspacePtr<T> {
         Self { ptr }
     }
 
-    #[must_use] pub fn addr(&self) -> usize {
+    #[must_use]
+    pub fn addr(&self) -> usize {
         self.ptr as usize
     }
 }
@@ -79,7 +80,8 @@ impl<T> UserspaceMutPtr<T> {
         }
     }
 
-    #[must_use] pub fn addr(&self) -> usize {
+    #[must_use]
+    pub fn addr(&self) -> usize {
         self.ptr as usize
     }
 }

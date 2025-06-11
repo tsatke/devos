@@ -1,9 +1,9 @@
 use crate::access::{CwdAccess, FileAccess};
 use crate::ptr::UserspacePtr;
 use alloc::borrow::ToOwned;
-use core::ffi::{c_int, CStr};
+use core::ffi::{CStr, c_int};
 use core::slice::from_raw_parts;
-use kernel_abi::{Errno, EINVAL, ENAMETOOLONG, ENOENT};
+use kernel_abi::{EINVAL, ENAMETOOLONG, ENOENT, Errno};
 use kernel_vfs::path::{AbsolutePath, Path};
 use log::debug;
 
@@ -23,7 +23,9 @@ pub fn sys_open<Cx: CwdAccess + FileAccess>(
         let path = CStr::from_bytes_until_nul(path_bytes_max).map_err(|_| ENAMETOOLONG)?;
         let path = path.to_str().map_err(|_| EINVAL)?;
         let path = Path::new(path);
-        if let Ok(p) = AbsolutePath::try_new(path) { p.to_owned() } else {
+        if let Ok(p) = AbsolutePath::try_new(path) {
+            p.to_owned()
+        } else {
             let mut p = cx.current_working_directory().read().clone();
             p.push(path);
             p
@@ -40,10 +42,10 @@ pub fn sys_open<Cx: CwdAccess + FileAccess>(
 
 #[cfg(test)]
 mod tests {
+    use crate::UserspacePtr;
     use crate::access::testing::{MemoryFile, MemoryFileAccess};
     use crate::access::{CwdAccess, FileAccess};
     use crate::fcntl::sys_open;
-    use crate::UserspacePtr;
     use alloc::borrow::ToOwned;
     use alloc::ffi::CString;
     use alloc::sync::Arc;

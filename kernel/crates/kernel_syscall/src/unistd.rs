@@ -1,7 +1,7 @@
 use crate::access::{CwdAccess, FileAccess};
 use crate::ptr::UserspaceMutPtr;
 use core::slice::from_raw_parts_mut;
-use kernel_abi::{Errno, EINVAL, ERANGE};
+use kernel_abi::{EINVAL, ERANGE, Errno};
 
 pub fn sys_getcwd<Cx: CwdAccess>(
     cx: &Cx,

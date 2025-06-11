@@ -1,4 +1,4 @@
-use crate::path::{Path, FILEPATH_SEPARATOR};
+use crate::path::{FILEPATH_SEPARATOR, Path};
 use alloc::string::String;
 use core::borrow::Borrow;
 use core::fmt::Display;
