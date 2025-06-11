@@ -1,10 +1,12 @@
-use crate::U64Ext;
 use alloc::boxed::Box;
 use alloc::vec;
+
 use x86_64::structures::gdt::{Descriptor, GlobalDescriptorTable, SegmentSelector};
 use x86_64::structures::paging::{PageSize, Size4KiB};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::{PrivilegeLevel, VirtAddr};
+
+use crate::U64Ext;
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 pub const PAGE_FAULT_IST_INDEX: u16 = 1;

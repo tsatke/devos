@@ -1,10 +1,12 @@
-use crate::arch::idt::InterruptIndex;
-use crate::mem::address_space::AddressSpace;
-use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use core::ops::{Deref, DerefMut};
+
 use x2apic::lapic::{LocalApicBuilder, TimerDivide, TimerMode, xapic_base};
 use x86_64::PhysAddr;
 use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
+
+use crate::arch::idt::InterruptIndex;
+use crate::mem::address_space::AddressSpace;
+use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 
 #[derive(Debug)]
 pub struct Lapic {

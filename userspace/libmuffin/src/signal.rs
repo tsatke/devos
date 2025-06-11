@@ -1,5 +1,6 @@
-use crate::unimplemented_function;
 use kernel_abi::SYS_SIGNAL;
+
+use crate::unimplemented_function;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn signal(

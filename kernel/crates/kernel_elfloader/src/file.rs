@@ -1,5 +1,6 @@
 use core::ffi::CStr;
 use core::fmt::{Debug, Display, Formatter};
+
 use thiserror::Error;
 use zerocopy::{Immutable, KnownLayout, TryFromBytes};
 

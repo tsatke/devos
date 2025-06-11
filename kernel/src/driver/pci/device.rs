@@ -1,3 +1,7 @@
+use core::fmt::{Debug, Display, Formatter};
+
+use bitflags::bitflags;
+
 use crate::driver::pci::raw::{
     OFFSET_BAR0, OFFSET_BAR1, OFFSET_BAR2, OFFSET_BAR3, OFFSET_BAR4, OFFSET_BAR5, OFFSET_BIST,
     OFFSET_CLASS, OFFSET_COMMAND, OFFSET_DEVICE_ID, OFFSET_HEADER_TYPE, OFFSET_INTERRUPT_LINE,
@@ -6,8 +10,6 @@ use crate::driver::pci::raw::{
     read_config_word,
 };
 use crate::driver::pci::register::{BaseAddressRegister, PciRegister};
-use bitflags::bitflags;
-use core::fmt::{Debug, Display, Formatter};
 
 pub struct PciDevice {
     bus: u8,

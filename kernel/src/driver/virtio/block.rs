@@ -1,13 +1,8 @@
-use crate::U64Ext;
-use crate::driver::KernelDeviceId;
-use crate::driver::block::BlockDevices;
-use crate::driver::pci::device::PciDevice;
-use crate::driver::pci::{PCI_DRIVERS, PciDriverDescriptor, PciDriverType};
-use crate::driver::virtio::hal::{HalImpl, transport};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
 use core::fmt::{Debug, Formatter};
+
 use kernel_device::Device;
 use kernel_device::block::{BlockBuf, BlockDevice};
 use linkme::distributed_slice;
@@ -15,6 +10,13 @@ use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::transport::{DeviceType, Transport};
+
+use crate::U64Ext;
+use crate::driver::KernelDeviceId;
+use crate::driver::block::BlockDevices;
+use crate::driver::pci::device::PciDevice;
+use crate::driver::pci::{PCI_DRIVERS, PciDriverDescriptor, PciDriverType};
+use crate::driver::virtio::hal::{HalImpl, transport};
 
 #[distributed_slice(PCI_DRIVERS)]
 static VIRTIO_BLK: PciDriverDescriptor = PciDriverDescriptor {

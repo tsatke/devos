@@ -1,6 +1,7 @@
-use crate::path::{AbsolutePath, OwnedPath, PathNotAbsoluteError};
 use core::borrow::Borrow;
 use core::ops::{Deref, DerefMut};
+
+use crate::path::{AbsolutePath, OwnedPath, PathNotAbsoluteError};
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]

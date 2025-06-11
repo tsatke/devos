@@ -1,9 +1,6 @@
-use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
-use crate::mem::phys::PhysicalMemory;
-use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
-use crate::{U64Ext, UsizeExt};
-use conquer_once::spin::OnceCell;
 use core::fmt::{Debug, Formatter};
+
+use conquer_once::spin::OnceCell;
 use limine::memory_map::EntryType;
 use log::{debug, info, trace};
 use mapper::AddressSpaceMapper;
@@ -19,6 +16,11 @@ use x86_64::structures::paging::{
     RecursivePageTable, Size4KiB, Translate,
 };
 use x86_64::{PhysAddr, VirtAddr};
+
+use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
+use crate::mem::phys::PhysicalMemory;
+use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
+use crate::{U64Ext, UsizeExt};
 
 mod mapper;
 

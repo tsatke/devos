@@ -1,8 +1,9 @@
+use core::ops::{Deref, DerefMut};
+
 use crate::driver::pci::raw::{
     read_config_double_word, read_config_half_word, read_config_word, write_config_double_word,
     write_config_half_word, write_config_word,
 };
-use core::ops::{Deref, DerefMut};
 
 macro_rules! impl_reg_ops {
     ($typ:ty, $read_fn:ident, $write_fn:ident) => {

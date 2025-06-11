@@ -1,8 +1,10 @@
-use crate::{Device, DeviceId, RegisterDeviceError};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
+
 use spin::RwLock;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
+
+use crate::{Device, DeviceId, RegisterDeviceError};
 
 pub trait RawDevice<Id: DeviceId>: Device<Id> {
     fn physical_memory(&self) -> PhysFrameRangeInclusive;

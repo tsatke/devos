@@ -1,18 +1,18 @@
-use crate::acpi::acpi_tables;
-use crate::mem::address_space::AddressSpace;
-use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator, VirtualMemoryHigherHalf};
+use core::mem::MaybeUninit;
+use core::ptr::NonNull;
+
 use acpi::HpetInfo;
 use bitfield::bitfield;
 use conquer_once::spin::OnceCell;
-use core::mem::MaybeUninit;
-use core::ptr::NonNull;
 use spin::RwLock;
-use volatile::access::NoAccess;
-use volatile::access::ReadOnly;
-use volatile::access::ReadWrite;
+use volatile::access::{NoAccess, ReadOnly, ReadWrite};
 use volatile::{VolatileFieldAccess, VolatilePtr};
 use x86_64::PhysAddr;
 use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
+
+use crate::acpi::acpi_tables;
+use crate::mem::address_space::AddressSpace;
+use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 
 static HPET: OnceCell<RwLock<Hpet>> = OnceCell::uninit();
 

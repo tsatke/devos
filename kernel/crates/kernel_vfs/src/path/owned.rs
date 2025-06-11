@@ -1,9 +1,11 @@
-use crate::path::{FILEPATH_SEPARATOR, Path};
 use alloc::string::String;
 use core::borrow::Borrow;
 use core::fmt::Display;
 use core::ops::Deref;
+
 use thiserror::Error;
+
+use crate::path::{FILEPATH_SEPARATOR, Path};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 #[error("path is not absolute")]

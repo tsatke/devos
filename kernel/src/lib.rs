@@ -3,13 +3,14 @@
 #![feature(abi_x86_interrupt, negative_impls)]
 extern crate alloc;
 
+use ::log::info;
+use conquer_once::spin::OnceCell;
+use kernel_vfs::path::AbsoluteOwnedPath;
+
 use crate::driver::pci;
 use crate::file::devfs::DevFs;
 use crate::file::vfs;
 use crate::limine::BOOT_TIME;
-use ::log::info;
-use conquer_once::spin::OnceCell;
-use kernel_vfs::path::AbsoluteOwnedPath;
 
 mod acpi;
 mod apic;

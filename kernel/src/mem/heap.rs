@@ -1,11 +1,13 @@
-use crate::mem::address_space::{AddressSpace, virt_addr_from_page_table_indices};
-use crate::mem::phys::PhysicalMemory;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
+
 use log::info;
 use x86_64::VirtAddr;
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{Page, PageTableFlags, Size2MiB, Size4KiB};
+
+use crate::mem::address_space::{AddressSpace, virt_addr_from_page_table_indices};
+use crate::mem::phys::PhysicalMemory;
 
 static HEAP_INITIALIZED: AtomicBool = AtomicBool::new(false);
 static HEAP_START: VirtAddr = virt_addr_from_page_table_indices([257, 0, 0, 0], 0);

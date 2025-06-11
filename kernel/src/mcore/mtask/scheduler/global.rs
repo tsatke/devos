@@ -1,7 +1,9 @@
-use crate::mcore::mtask::task::{Task, TaskQueue};
 use alloc::boxed::Box;
-use conquer_once::spin::OnceCell;
 use core::pin::Pin;
+
+use conquer_once::spin::OnceCell;
+
+use crate::mcore::mtask::task::{Task, TaskQueue};
 
 static GLOBAL_QUEUE: OnceCell<TaskQueue> = OnceCell::uninit();
 

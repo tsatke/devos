@@ -1,9 +1,11 @@
-use crate::{Device, DeviceId};
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
 use core::ops::{Deref, DerefMut};
+
 use spin::RwLock;
+
+use crate::{Device, DeviceId};
 
 pub mod registry;
 

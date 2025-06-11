@@ -1,4 +1,3 @@
-use crate::unimplemented_function;
 use kernel_abi::{
     SYS_PTHREAD_COND_DESTROY, SYS_PTHREAD_COND_INIT, SYS_PTHREAD_COND_SIGNAL,
     SYS_PTHREAD_COND_WAIT, SYS_PTHREAD_CONDATTR_DESTROY, SYS_PTHREAD_CONDATTR_INIT,
@@ -8,6 +7,8 @@ use kernel_abi::{
     SYS_PTHREAD_MUTEXATTR_INIT, SYS_PTHREAD_MUTEXATTR_SETTYPE, SYS_PTHREAD_SETSPECIFIC,
 };
 use libc::{c_int, c_void};
+
+use crate::unimplemented_function;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn pthread_cond_init(

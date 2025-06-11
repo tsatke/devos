@@ -1,6 +1,7 @@
-use crate::unimplemented_function;
 use kernel_abi::SYS_STRERROR_R;
 use libc::{c_char, c_int, c_void, size_t};
+
+use crate::unimplemented_function;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn memcpy(dest: *mut c_char, src: *const c_char, n: size_t) -> *mut c_void {

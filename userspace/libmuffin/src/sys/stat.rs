@@ -1,6 +1,7 @@
-use crate::unimplemented_function;
 use kernel_abi::{SYS_FSTAT, SYS_STAT};
 use libc::{c_char, c_int};
+
+use crate::unimplemented_function;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn stat(path: *const c_char, buf: *mut libc::stat) -> c_int {

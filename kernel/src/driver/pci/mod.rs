@@ -1,12 +1,13 @@
-use crate::driver::pci::device::PciDevice;
-use crate::driver::pci::raw::iterate_all;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use core::error::Error;
+
 use linkme::distributed_slice;
 use log::{Level, debug, error, log_enabled, trace};
-
 pub use raw::PortCam;
+
+use crate::driver::pci::device::PciDevice;
+use crate::driver::pci::raw::iterate_all;
 
 pub mod device;
 mod raw;

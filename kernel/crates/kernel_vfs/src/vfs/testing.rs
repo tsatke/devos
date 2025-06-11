@@ -1,12 +1,14 @@
-use crate::fs::{FileSystem, FsHandle};
-use crate::path::{OwnedPath, Path};
-use crate::{CloseError, OpenError, ReadError, WriteError};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
 use spin::RwLock;
+
+use crate::fs::{FileSystem, FsHandle};
+use crate::path::{OwnedPath, Path};
+use crate::{CloseError, OpenError, ReadError, WriteError};
 
 #[derive(Default)]
 pub struct TestFs {

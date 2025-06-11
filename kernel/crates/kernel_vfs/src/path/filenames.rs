@@ -1,5 +1,6 @@
-use crate::path::{FILEPATH_SEPARATOR, Path};
 use core::str::CharIndices;
+
+use crate::path::{FILEPATH_SEPARATOR, Path};
 
 pub struct Filenames<'a> {
     inner: &'a Path,

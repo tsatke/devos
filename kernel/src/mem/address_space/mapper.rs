@@ -1,4 +1,3 @@
-use crate::mem::phys::PhysicalMemory;
 use log::warn;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::{FlagUpdateError, MapToError, TranslateResult};
@@ -7,6 +6,8 @@ use x86_64::structures::paging::{
     Mapper, Page, PageSize, PageTable, PageTableFlags, PhysFrame, RecursivePageTable, Translate,
 };
 use x86_64::{PhysAddr, VirtAddr};
+
+use crate::mem::phys::PhysicalMemory;
 
 #[derive(Debug)]
 pub struct AddressSpaceMapper {

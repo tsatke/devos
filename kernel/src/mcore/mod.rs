@@ -1,15 +1,8 @@
-use crate::apic::io_apic;
-use crate::arch::gdt::create_gdt_and_tss;
-use crate::arch::idt::create_idt;
-use crate::limine::MP_REQUEST;
-use crate::mcore::context::ExecutionContext;
-use crate::mcore::mtask::process::Process;
-use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
-use crate::mcore::mtask::task::Task;
 use alloc::boxed::Box;
 use core::arch::asm;
 use core::ffi::c_void;
 use core::ptr;
+
 use log::{info, trace};
 use x86_64::instructions::segmentation::{CS, DS, SS};
 use x86_64::instructions::tables::load_tss;
@@ -19,6 +12,15 @@ use x86_64::registers::model_specific::KernelGsBase;
 use x86_64::registers::segmentation::Segment;
 use x86_64::structures::paging::PhysFrame;
 use x86_64::{PhysAddr, VirtAddr};
+
+use crate::apic::io_apic;
+use crate::arch::gdt::create_gdt_and_tss;
+use crate::arch::idt::create_idt;
+use crate::limine::MP_REQUEST;
+use crate::mcore::context::ExecutionContext;
+use crate::mcore::mtask::process::Process;
+use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
+use crate::mcore::mtask::task::Task;
 
 pub mod context;
 mod lapic;

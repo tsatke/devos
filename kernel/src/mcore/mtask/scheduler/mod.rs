@@ -1,11 +1,13 @@
-use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
-use crate::mcore::mtask::scheduler::switch::switch_impl;
-use crate::mcore::mtask::task::Task;
 use alloc::boxed::Box;
 use core::cell::UnsafeCell;
 use core::mem::swap;
 use core::pin::Pin;
+
 use x86_64::instructions::interrupts;
+
+use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
+use crate::mcore::mtask::scheduler::switch::switch_impl;
+use crate::mcore::mtask::task::Task;
 
 pub mod global;
 mod switch;

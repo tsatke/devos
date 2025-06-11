@@ -1,5 +1,6 @@
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
 use kernel_device::DeviceId;
 
 pub mod block;

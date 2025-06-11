@@ -1,14 +1,16 @@
-use crate::U64Ext;
-use crate::limine::RSDP_REQUEST;
-use crate::mem::address_space::AddressSpace;
-use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
+use core::ptr::NonNull;
+
 use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 use conquer_once::spin::OnceCell;
-use core::ptr::NonNull;
 use spin::Mutex;
 use virtual_memory_manager::Segment;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
+
+use crate::U64Ext;
+use crate::limine::RSDP_REQUEST;
+use crate::mem::address_space::AddressSpace;
+use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 
 static ACPI_TABLES: OnceCell<Mutex<AcpiTables<AcpiHandlerImpl>>> = OnceCell::uninit();
 

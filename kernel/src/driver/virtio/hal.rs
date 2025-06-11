@@ -1,10 +1,5 @@
-use crate::driver::pci::PortCam;
-use crate::driver::pci::device::PciDevice;
-use crate::mem::address_space::AddressSpace;
-use crate::mem::phys::PhysicalMemory;
-use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
-use crate::{U64Ext, UsizeExt};
 use core::ptr::NonNull;
+
 use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::transport::pci::bus::{DeviceFunction, PciRoot};
 use virtio_drivers::{BufferDirection, Hal};
@@ -12,6 +7,13 @@ use virtual_memory_manager::Segment;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
+
+use crate::driver::pci::PortCam;
+use crate::driver::pci::device::PciDevice;
+use crate::mem::address_space::AddressSpace;
+use crate::mem::phys::PhysicalMemory;
+use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
+use crate::{U64Ext, UsizeExt};
 
 pub fn transport(device: &PciDevice) -> PciTransport {
     let mut root = PciRoot::new(PortCam);

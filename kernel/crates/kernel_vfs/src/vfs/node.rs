@@ -1,10 +1,12 @@
-use crate::fs::{FileSystem, FsHandle};
-use crate::path::AbsoluteOwnedPath;
-use crate::{ReadError, WriteError};
 use alloc::sync::{Arc, Weak};
 use core::fmt::{Debug, Formatter};
 use core::ops::Deref;
+
 use spin::RwLock;
+
+use crate::fs::{FileSystem, FsHandle};
+use crate::path::AbsoluteOwnedPath;
+use crate::{ReadError, WriteError};
 
 #[derive(Clone)]
 pub struct VfsNode {
@@ -90,10 +92,11 @@ impl VfsNode {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
+
     use crate::path::{AbsolutePath, ROOT};
     use crate::testing::TestFs;
     use crate::{CloseError, Vfs};
-    use alloc::vec;
 
     #[test]
     fn test_drop() {

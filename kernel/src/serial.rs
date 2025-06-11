@@ -11,6 +11,7 @@ static SERIAL1: Lazy<Mutex<SerialPort>> = Lazy::new(|| {
 #[doc(hidden)]
 pub fn internal_print(args: core::fmt::Arguments) {
     use core::fmt::Write;
+
     use x86_64::instructions::interrupts;
 
     // disable interrupts while holding a lock on the WRITER

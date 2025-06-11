@@ -1,9 +1,10 @@
-use crate::unimplemented_function;
 use kernel_abi::{
     SYS_ABORT, SYS_CALLOC, SYS_FREE, SYS_GETENV, SYS_MALLOC, SYS_POSIX_MEMALIGN, SYS_REALLOC,
     SYS_REALPATH,
 };
 use libc::{c_char, c_int, c_void, size_t};
+
+use crate::unimplemented_function;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn getenv(name: *const c_char) -> *const c_char {

@@ -1,8 +1,10 @@
-use crate::mcore::mtask::task::Task;
 use alloc::boxed::Box;
-use cordyceps::MpscQueue;
 use core::fmt::{Debug, Formatter};
 use core::ops::Deref;
+
+use cordyceps::MpscQueue;
+
+use crate::mcore::mtask::task::Task;
 
 pub struct TaskQueue {
     inner: MpscQueue<Task>,

@@ -1,14 +1,16 @@
-use crate::arch::gdt;
-use crate::mcore::context::ExecutionContext;
-use crate::syscall::dispatch_syscall;
 use core::arch::asm;
 use core::fmt::{Debug, Formatter};
 use core::mem::transmute;
+
 use log::{error, warn};
 use x86_64::PrivilegeLevel;
 use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+
+use crate::arch::gdt;
+use crate::mcore::context::ExecutionContext;
+use crate::syscall::dispatch_syscall;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]

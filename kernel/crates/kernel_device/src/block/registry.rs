@@ -1,8 +1,10 @@
-use crate::block::BlockDevice;
-use crate::{DeviceId, RegisterDeviceError};
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
+
 use spin::RwLock;
+
+use crate::block::BlockDevice;
+use crate::{DeviceId, RegisterDeviceError};
 
 pub struct BlockDeviceRegistry<Id, const N: usize>
 where

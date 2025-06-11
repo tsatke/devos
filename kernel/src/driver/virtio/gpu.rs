@@ -1,14 +1,8 @@
-use crate::UsizeExt;
-use crate::driver::KernelDeviceId;
-use crate::driver::pci::device::PciDevice;
-use crate::driver::pci::{PCI_DRIVERS, PciDriverDescriptor, PciDriverType};
-use crate::driver::raw::RawDevices;
-use crate::driver::virtio::hal::{HalImpl, transport};
-use crate::mem::address_space::AddressSpace;
 use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::error::Error;
 use core::fmt::{Debug, Formatter};
+
 use kernel_device::Device;
 use kernel_device::raw::RawDevice;
 use linkme::distributed_slice;
@@ -19,6 +13,14 @@ use virtio_drivers::transport::{DeviceType, Transport};
 use x86_64::VirtAddr;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PhysFrame, Size4KiB};
+
+use crate::UsizeExt;
+use crate::driver::KernelDeviceId;
+use crate::driver::pci::device::PciDevice;
+use crate::driver::pci::{PCI_DRIVERS, PciDriverDescriptor, PciDriverType};
+use crate::driver::raw::RawDevices;
+use crate::driver::virtio::hal::{HalImpl, transport};
+use crate::mem::address_space::AddressSpace;
 
 #[distributed_slice(PCI_DRIVERS)]
 static VIRTIO_GPU: PciDriverDescriptor = PciDriverDescriptor {

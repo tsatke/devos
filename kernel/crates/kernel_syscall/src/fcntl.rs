@@ -1,11 +1,13 @@
-use crate::access::{CwdAccess, FileAccess};
-use crate::ptr::UserspacePtr;
 use alloc::borrow::ToOwned;
 use core::ffi::{CStr, c_int};
 use core::slice::from_raw_parts;
+
 use kernel_abi::{EINVAL, ENAMETOOLONG, ENOENT, Errno};
 use kernel_vfs::path::{AbsolutePath, Path};
 use log::debug;
+
+use crate::access::{CwdAccess, FileAccess};
+use crate::ptr::UserspacePtr;
 
 /// Open a file at the given path with the specified flags and mode.
 /// This is the kernel side implementation of [`open`] in [`POSIX.1-2024`].
@@ -42,18 +44,20 @@ pub fn sys_open<Cx: CwdAccess + FileAccess>(
 
 #[cfg(test)]
 mod tests {
-    use crate::UserspacePtr;
-    use crate::access::testing::{MemoryFile, MemoryFileAccess};
-    use crate::access::{CwdAccess, FileAccess};
-    use crate::fcntl::sys_open;
     use alloc::borrow::ToOwned;
     use alloc::ffi::CString;
     use alloc::sync::Arc;
     use alloc::vec;
+
     use kernel_abi::ENOENT;
     use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath, ROOT};
     use spin::mutex::Mutex;
     use spin::rwlock::RwLock;
+
+    use crate::UserspacePtr;
+    use crate::access::testing::{MemoryFile, MemoryFileAccess};
+    use crate::access::{CwdAccess, FileAccess};
+    use crate::fcntl::sys_open;
 
     struct TestOpenCx<F> {
         cwd: RwLock<AbsoluteOwnedPath>,

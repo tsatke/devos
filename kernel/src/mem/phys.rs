@@ -1,8 +1,8 @@
-use crate::mem::heap::Heap;
 use alloc::vec;
-use conquer_once::spin::OnceCell;
 use core::iter::from_fn;
 use core::mem::swap;
+
+use conquer_once::spin::OnceCell;
 use limine::memory_map::{Entry, EntryType};
 use log::{info, warn};
 use physical_memory_manager::{FrameState, PhysicalFrameAllocator, PhysicalMemoryManager};
@@ -10,6 +10,8 @@ use spin::Mutex;
 use x86_64::PhysAddr;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
+
+use crate::mem::heap::Heap;
 
 static PHYS_ALLOC: OnceCell<Mutex<MultiStageAllocator>> = OnceCell::uninit();
 

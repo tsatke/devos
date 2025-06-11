@@ -1,8 +1,10 @@
-use crate::mem::heap::Heap;
 use alloc::boxed::Box;
 use core::arch::x86_64::_fxsave;
+
 use raw_cpuid::CpuId;
 use x86_64::registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags};
+
+use crate::mem::heap::Heap;
 
 pub fn init() {
     let cpuid = CpuId::new();

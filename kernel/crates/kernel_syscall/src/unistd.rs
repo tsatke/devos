@@ -1,7 +1,9 @@
+use core::slice::from_raw_parts_mut;
+
+use kernel_abi::{EINVAL, ERANGE, Errno};
+
 use crate::access::{CwdAccess, FileAccess};
 use crate::ptr::UserspaceMutPtr;
-use core::slice::from_raw_parts_mut;
-use kernel_abi::{EINVAL, ERANGE, Errno};
 
 pub fn sys_getcwd<Cx: CwdAccess>(
     cx: &Cx,
@@ -41,12 +43,14 @@ pub fn sys_write<Cx: FileAccess>(cx: &Cx, fildes: Cx::Fd, buf: &[u8]) -> Result<
 
 #[cfg(test)]
 mod tests {
-    use crate::access::CwdAccess;
-    use crate::unistd::sys_getcwd;
     use alloc::vec;
+
     use kernel_abi::{EINVAL, ERANGE};
     use kernel_vfs::path::AbsoluteOwnedPath;
     use spin::rwlock::RwLock;
+
+    use crate::access::CwdAccess;
+    use crate::unistd::sys_getcwd;
 
     #[test]
     fn test_getcwd() {

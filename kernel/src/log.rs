@@ -1,6 +1,7 @@
+use log::{Level, Metadata, Record};
+
 use crate::mcore::context::ExecutionContext;
 use crate::serial_println;
-use log::{Level, Metadata, Record};
 
 pub(crate) fn init() {
     log::set_logger(&SerialLogger).unwrap();

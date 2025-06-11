@@ -1,17 +1,19 @@
-use crate::limine::{HHDM_REQUEST, MEMORY_MAP_REQUEST};
-use crate::mem::address_space::{RECURSIVE_INDEX, recursive_index_to_virtual_address};
-use crate::mem::heap::Heap;
 use alloc::sync::Arc;
-use conquer_once::spin::OnceCell;
 use core::cmp::Ordering;
 use core::fmt::Debug;
 use core::mem::ManuallyDrop;
 use core::ops::Deref;
+
+use conquer_once::spin::OnceCell;
 use limine::memory_map::EntryType;
 use spin::RwLock;
 use virtual_memory_manager::{AlreadyReserved, Segment, VirtualMemoryManager};
 use x86_64::VirtAddr;
 use x86_64::structures::paging::{PageSize, Size4KiB};
+
+use crate::limine::{HHDM_REQUEST, MEMORY_MAP_REQUEST};
+use crate::mem::address_space::{RECURSIVE_INDEX, recursive_index_to_virtual_address};
+use crate::mem::heap::Heap;
 
 static VMM: OnceCell<RwLock<VirtualMemoryManager>> = OnceCell::uninit();
 

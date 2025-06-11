@@ -1,14 +1,16 @@
+use alloc::sync::Arc;
+use core::cell::UnsafeCell;
+
+use spin::Mutex;
+use x86_64::registers::model_specific::KernelGsBase;
+use x86_64::structures::gdt::GlobalDescriptorTable;
+use x86_64::structures::idt::InterruptDescriptorTable;
+
 use crate::arch::gdt::Selectors;
 use crate::mcore::lapic::Lapic;
 use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::scheduler::Scheduler;
 use crate::mcore::mtask::task::Task;
-use alloc::sync::Arc;
-use core::cell::UnsafeCell;
-use spin::Mutex;
-use x86_64::registers::model_specific::KernelGsBase;
-use x86_64::structures::gdt::GlobalDescriptorTable;
-use x86_64::structures::idt::InterruptDescriptorTable;
 
 #[derive(Debug)]
 pub struct ExecutionContext {

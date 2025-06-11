@@ -1,12 +1,13 @@
-use crate::fs::FileSystem;
-use crate::node::VfsNode;
-use crate::path::{AbsoluteOwnedPath, AbsolutePath, ROOT};
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
-use spin::RwLock;
 
 pub use error::*;
+use spin::RwLock;
+
+use crate::fs::FileSystem;
+use crate::node::VfsNode;
+use crate::path::{AbsoluteOwnedPath, AbsolutePath, ROOT};
 
 mod error;
 pub mod node;
@@ -116,11 +117,12 @@ impl Vfs {
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec;
+    use alloc::vec::Vec;
+
     use crate::Vfs;
     use crate::path::{AbsolutePath, ROOT};
     use crate::testing::TestFs;
-    use alloc::vec;
-    use alloc::vec::Vec;
 
     #[test]
     fn test_read() {

@@ -112,8 +112,9 @@ impl ToOwned for Path {
 
 #[cfg(test)]
 mod tests {
-    use crate::path::Path;
     use alloc::borrow::Cow;
+
+    use crate::path::Path;
 
     #[test]
     fn test_make_absolute() {

@@ -1,11 +1,13 @@
-use crate::serial_print;
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
+
 use kernel_vfs::fs::{FileSystem, FsHandle};
 use kernel_vfs::path::Path;
 use kernel_vfs::{CloseError, OpenError, ReadError, WriteError};
+
+use crate::serial_print;
 
 pub struct DevFs {
     handles: BTreeMap<FsHandle, Box<dyn DevFile + 'static>>,

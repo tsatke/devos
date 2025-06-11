@@ -1,13 +1,15 @@
-use crate::acpi::acpi_tables;
-use crate::mem::address_space::AddressSpace;
-use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator, VirtualMemoryHigherHalf};
+use core::ops::{Deref, DerefMut};
+
 use acpi::{InterruptModel, PlatformInfo};
 use conquer_once::spin::OnceCell;
-use core::ops::{Deref, DerefMut};
 use spin::Mutex;
 use x86_64::PhysAddr;
 use x86_64::instructions::port::Port;
 use x86_64::structures::paging::{Page, PageTableFlags, PhysFrame, Size4KiB};
+
+use crate::acpi::acpi_tables;
+use crate::mem::address_space::AddressSpace;
+use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 
 static IO_APIC: OnceCell<Mutex<IoApic>> = OnceCell::uninit();
 

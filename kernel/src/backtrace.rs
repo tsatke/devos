@@ -1,14 +1,16 @@
-use crate::UsizeExt;
-use addr2line::gimli::{EndianSlice, Error};
-use addr2line::{Context, gimli};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use conquer_once::spin::OnceCell;
 use core::arch::asm;
 use core::fmt::{Debug, Display, Formatter};
 use core::iter;
+
+use addr2line::gimli::{EndianSlice, Error};
+use addr2line::{Context, gimli};
+use conquer_once::spin::OnceCell;
 use elf::ParseError;
 use thiserror::Error;
+
+use crate::UsizeExt;
 
 static BACKTRACE_CONTEXT: OnceCell<BacktraceContext> = OnceCell::uninit();
 
@@ -27,8 +29,9 @@ pub fn init() {
     // TODO: make this work in release builds as well
     #[cfg(all(debug_assertions, feature = "backtrace"))]
     BACKTRACE_CONTEXT.init_once(|| {
-        use addr2line::gimli::Dwarf;
         use core::slice::from_raw_parts;
+
+        use addr2line::gimli::Dwarf;
         use elf::ElfBytes;
         use log::debug;
         use x86_64::VirtAddr;

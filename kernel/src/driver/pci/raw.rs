@@ -1,6 +1,7 @@
-use crate::driver::pci::device::{PciDevice, ProbeResult};
 use virtio_drivers::transport::pci::bus::{ConfigurationAccess, DeviceFunction};
 use x86_64::instructions::port::Port;
+
+use crate::driver::pci::device::{PciDevice, ProbeResult};
 
 const CONFIG_ADDRESS: u16 = 0xCF8;
 const CONFIG_DATA: u16 = 0xCFC;

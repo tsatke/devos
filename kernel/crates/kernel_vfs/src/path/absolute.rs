@@ -1,8 +1,9 @@
-use crate::path::{AbsoluteOwnedPath, Path, PathNotAbsoluteError};
 use alloc::borrow::ToOwned;
 use core::fmt::{Display, Formatter};
 use core::ops::Deref;
 use core::ptr;
+
+use crate::path::{AbsoluteOwnedPath, Path, PathNotAbsoluteError};
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]

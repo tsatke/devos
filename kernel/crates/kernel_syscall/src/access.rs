@@ -1,4 +1,5 @@
 use core::ffi::c_int;
+
 use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath};
 use spin::rwlock::RwLock;
 
@@ -25,7 +26,6 @@ pub trait FileAccess {
 
 #[cfg(test)]
 pub mod testing {
-    use crate::access::{FileAccess, FileInfo};
     use alloc::borrow::ToOwned;
     use alloc::collections::BTreeMap;
     use alloc::sync::Arc;
@@ -33,9 +33,12 @@ pub mod testing {
     use core::ffi::c_int;
     use core::sync::atomic::AtomicUsize;
     use core::sync::atomic::Ordering::Relaxed;
+
     use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath};
     use spin::mutex::Mutex;
     use spin::rwlock::RwLock;
+
+    use crate::access::{FileAccess, FileInfo};
 
     #[derive(Default)]
     pub struct MemoryFileAccess {

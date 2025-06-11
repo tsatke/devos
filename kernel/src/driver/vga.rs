@@ -1,7 +1,6 @@
-use crate::driver::pci::device::PciDevice;
-use crate::driver::pci::{PCI_DRIVERS, PciDriverDescriptor, PciDriverType};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
+
 use conquer_once::spin::OnceCell;
 use linkme::distributed_slice;
 use spin::Mutex;
@@ -9,6 +8,9 @@ use thiserror::Error;
 use x86_64::PhysAddr;
 use x86_64::structures::paging::PhysFrame;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
+
+use crate::driver::pci::device::PciDevice;
+use crate::driver::pci::{PCI_DRIVERS, PciDriverDescriptor, PciDriverType};
 
 #[distributed_slice(PCI_DRIVERS)]
 static GENERIC_VGA: PciDriverDescriptor = PciDriverDescriptor {

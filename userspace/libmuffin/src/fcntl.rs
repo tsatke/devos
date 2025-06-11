@@ -1,10 +1,10 @@
 //! fcntl.h
 
-use crate::syscall::syscall2;
-use crate::unimplemented_function;
-
 use kernel_abi::{SYS_FCNTL, SYS_OPEN};
 use libc::{c_char, c_int};
+
+use crate::syscall::syscall2;
+use crate::unimplemented_function;
 
 #[unsafe(no_mangle)]
 #[allow(unused_mut)]

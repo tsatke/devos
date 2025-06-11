@@ -1,10 +1,12 @@
-use crate::file::OpenFileDescription;
 use alloc::sync::Arc;
-use bitflags::bitflags;
 use core::cmp::Ordering;
 use core::ffi::c_int;
 use core::fmt::Debug;
+
+use bitflags::bitflags;
 use spin::rwlock::RwLock;
+
+use crate::file::OpenFileDescription;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FdNum(i32);
