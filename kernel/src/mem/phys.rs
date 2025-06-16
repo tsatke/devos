@@ -3,13 +3,13 @@ use core::iter::from_fn;
 use core::mem::swap;
 
 use conquer_once::spin::OnceCell;
+use kernel_physical_memory::{FrameState, PhysicalFrameAllocator, PhysicalMemoryManager};
 use limine::memory_map::{Entry, EntryType};
 use log::{info, warn};
-use physical_memory_manager::{FrameState, PhysicalFrameAllocator, PhysicalMemoryManager};
 use spin::Mutex;
-use x86_64::PhysAddr;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PageSize, PhysFrame, Size4KiB};
+use x86_64::PhysAddr;
 
 use crate::mem::heap::Heap;
 

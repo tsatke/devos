@@ -546,6 +546,7 @@ dependencies = [
  "kernel_device",
  "kernel_elfloader",
  "kernel_memapi",
+ "kernel_physical_memory",
  "kernel_syscall",
  "kernel_vfs",
  "limine",
@@ -554,7 +555,6 @@ dependencies = [
  "log",
  "mkfs-ext2",
  "mkfs-filesystem",
- "physical_memory_manager",
  "raw-cpuid 11.5.0",
  "rustc-demangle",
  "sha3",
@@ -599,6 +599,14 @@ name = "kernel_memapi"
 version = "0.1.0"
 dependencies = [
  "log",
+ "x86_64",
+]
+
+[[package]]
+name = "kernel_physical_memory"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
  "x86_64",
 ]
 
@@ -832,14 +840,6 @@ name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
-
-[[package]]
-name = "physical_memory_manager"
-version = "0.1.0"
-dependencies = [
- "thiserror",
- "x86_64",
-]
 
 [[package]]
 name = "pin-project-lite"

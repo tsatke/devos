@@ -1,5 +1,5 @@
 [package]
-name = "physical_memory_manager"
+name = "kernel_physical_memory"
 version = "0.1.0"
 edition = "2024"
 
