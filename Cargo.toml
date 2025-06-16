@@ -9,7 +9,7 @@ default-run = "muffinos"
 ovmf-prebuilt = "0.2.3"
 file_structure = { path = "userspace/file_structure" }
 
-kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none", features = ["backtrace"] }
+kernel = { path = "kernel", artifact = "bin", target = "x86_64-unknown-none" }
 
 sandbox = { path = "userspace/sandbox", artifact = "bin", target = "x86_64-unknown-muffin" }
 sandbox_nostd = { path = "userspace/sandbox_nostd", artifact = "bin", target = "x86_64-unknown-muffin" }
@@ -41,6 +41,7 @@ default-members = [
     "kernel/crates/physical_memory_manager",
     "kernel/crates/virtual_memory_manager",
     "userspace/file_structure",
+    "userspace/libmuffin",
     "userspace/sandbox",
 ]
 

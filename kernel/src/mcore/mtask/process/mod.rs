@@ -16,15 +16,15 @@ use log::debug;
 use spin::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use thiserror::Error;
 use virtual_memory_manager::VirtualMemoryManager;
-use x86_64::VirtAddr;
 use x86_64::registers::model_specific::FsBase;
 use x86_64::registers::rflags::RFlags;
 use x86_64::structures::idt::InterruptStackFrameValue;
+use x86_64::VirtAddr;
 
-use crate::file::{OpenFileDescription, vfs};
+use crate::file::{vfs, OpenFileDescription};
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::fd::{FdNum, FileDescriptor, FileDescriptorFlags};
-use crate::mcore::mtask::process::tree::{ProcessTree, process_tree};
+use crate::mcore::mtask::process::tree::{process_tree, ProcessTree};
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::task::{Stack, StackAllocationError, StackUserAccessible, Task};
 use crate::mem::address_space::AddressSpace;
@@ -235,7 +235,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         .open(executable_path)
         .expect("should be able to open executable");
 
-    let mut data = Vec::with_capacity(1_226_576);
+    let mut data = Vec::with_capacity(1024 * 1024);
     let mut buf = [0; 4096];
     let mut offset = 0;
     loop {
@@ -284,11 +284,13 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         assert!(ustack_guard.is_none(), "ustack should not exist yet");
         *ustack_guard = Some(ustack);
     }
+    assert!(ustack_rsp.is_aligned(16_u64));
 
     let sel = ctx.selectors();
 
     let code_ptr = elf_file.entry(); // TODO: this needs to be computed when the elf file is relocatable
 
+    debug!("stack_ptr: {:p}", ustack_rsp.as_ptr::<u8>());
     debug!("code_ptr: {:p}", code_ptr as *const u8);
 
     {

@@ -1,7 +1,4 @@
 use alloc::boxed::Box;
-use core::arch::asm;
-use core::ffi::c_void;
-use core::ptr;
 
 use log::{info, trace};
 use x86_64::instructions::segmentation::{CS, DS, SS};
@@ -18,9 +15,8 @@ use crate::arch::gdt::create_gdt_and_tss;
 use crate::arch::idt::create_idt;
 use crate::limine::MP_REQUEST;
 use crate::mcore::context::ExecutionContext;
-use crate::mcore::mtask::process::Process;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
-use crate::mcore::mtask::task::Task;
+use crate::sse;
 
 pub mod context;
 mod lapic;
@@ -44,12 +40,12 @@ pub fn init() {
         cpu.extra = cr3_val;
     });
 
+    GlobalTaskQueue::init();
+
     // then call the `cpu_init` function on each CPU (no-op on bootstrap CPU)
-    resp.cpus().iter().for_each(|cpu| {
+    resp.cpus().iter().skip(1).for_each(|cpu| {
         cpu.goto_address.write(cpu_init_and_idle);
     });
-
-    GlobalTaskQueue::init();
 
     // then call the `cpu_init` function on the bootstrap CPU
     unsafe { cpu_init_and_return(resp.cpus()[0]) }
@@ -92,6 +88,8 @@ unsafe extern "C" fn cpu_init_and_return(cpu: &limine::mp::Cpu) {
         KernelGsBase::write(addr);
     }
 
+    sse::init();
+
     init_interrupts();
 
     // load it back and print a message
@@ -99,11 +97,6 @@ unsafe extern "C" fn cpu_init_and_return(cpu: &limine::mp::Cpu) {
     info!("cpu {} initialized", ctx.cpu_id());
 
     interrupts::enable();
-
-    // spawn short-lived task to make sure that stack alignment is correct
-    GlobalTaskQueue::enqueue(Box::pin(
-        Task::create_new(Process::root(), task_check_stack_alignment, ptr::null_mut()).unwrap(),
-    ));
 }
 
 unsafe extern "C" fn cpu_init_and_idle(cpu: &limine::mp::Cpu) -> ! {
@@ -143,22 +136,4 @@ fn init_interrupts() {
         //     io_apic.enable_irq(vector);
         // }
     }
-}
-
-extern "C" fn task_check_stack_alignment(_arg: *mut c_void) {
-    info!("checking stack alignment");
-    #[cfg(target_arch = "x86_64")]
-    {
-        let rsp: u64;
-        unsafe {
-            asm!("mov {}, rsp", out(reg) rsp);
-        }
-        let rsp_addr = VirtAddr::new(rsp);
-        assert!(
-            rsp_addr.is_aligned(16_u64),
-            "stack pointer is not aligned to 16 bytes, got {rsp_addr:p}"
-        );
-    }
-    #[cfg(not(target_arch = "x86_64"))]
-    compile_error!("unsupported architecture");
 }

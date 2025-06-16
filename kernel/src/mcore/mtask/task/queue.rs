@@ -7,6 +7,10 @@ use cordyceps::MpscQueue;
 use crate::mcore::mtask::task::Task;
 
 pub struct TaskQueue {
+    // Although this is a Mpsc, we can use it as Mpmc, because it spins if the queue
+    // is currently being used by another thread. This is ok, because the spinning
+    // is busy, and not by halting the CPU. (if you think that this might be incorrect,
+    // double check obviously).
     inner: MpscQueue<Task>,
 }
 

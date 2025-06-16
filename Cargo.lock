@@ -566,6 +566,7 @@ dependencies = [
  "volatile 0.6.1",
  "x2apic",
  "x86_64",
+ "zerocopy 0.9.0-alpha.0",
 ]
 
 [[package]]

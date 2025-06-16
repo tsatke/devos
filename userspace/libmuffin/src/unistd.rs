@@ -1,7 +1,10 @@
-use kernel_abi::{SYS_CLOSE, SYS_GETCWD, SYS_LSEEK, SYS_READ, SYS_WRITE, SYS_WRITEV};
+use core::slice::{from_raw_parts, from_raw_parts_mut};
+
+use kernel_abi::{SYS_CLOSE, SYS_GETCWD, SYS_LSEEK, SYS_WRITEV};
 use libc::{c_char, c_int, size_t, ssize_t};
 
-use crate::syscall::syscall3;
+use crate::errno::set_errno;
+use crate::syscall::Syscall;
 use crate::unimplemented_function;
 
 #[unsafe(no_mangle)]
@@ -16,12 +19,28 @@ pub extern "C" fn getcwd(buf: *mut c_char, size: size_t) -> *mut c_char {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn read(fildes: c_int, buf: *mut c_char, nbyte: size_t) -> ssize_t {
-    syscall3(SYS_READ, fildes as usize, buf as usize, nbyte as usize)
+    match Syscall::read(fildes as usize, unsafe {
+        from_raw_parts_mut(buf as *mut u8, nbyte)
+    }) {
+        Ok(bytes_read) => bytes_read as ssize_t,
+        Err(e) => {
+            set_errno(e);
+            -1
+        }
+    }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn write(fildes: c_int, buf: *const c_char, nbyte: size_t) -> ssize_t {
-    syscall3(SYS_WRITE, fildes as usize, buf as usize, nbyte as usize)
+    match Syscall::write(fildes as usize, unsafe {
+        from_raw_parts(buf as *const u8, nbyte)
+    }) {
+        Ok(bytes_written) => bytes_written as ssize_t,
+        Err(e) => {
+            set_errno(e);
+            -1
+        }
+    }
 }
 
 #[unsafe(no_mangle)]

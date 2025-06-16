@@ -1,10 +1,5 @@
-use alloc::boxed::Box;
-use core::arch::x86_64::_fxsave;
-
 use raw_cpuid::CpuId;
 use x86_64::registers::control::{Cr0, Cr0Flags, Cr4, Cr4Flags};
-
-use crate::mem::heap::Heap;
 
 pub fn init() {
     let cpuid = CpuId::new();
@@ -33,15 +28,4 @@ pub fn init() {
             cr4.insert(Cr4Flags::OSXMMEXCPT_ENABLE);
         });
     }
-
-    assert!(Heap::is_initialized());
-
-    // FIXME: THIS CAN'T BE A KERNEL ALLOCATION!
-    let fx_area_ptr = Box::into_raw(Box::new(FxArea { data: [0; 512] }));
-    unsafe { _fxsave(fx_area_ptr.cast()) };
-}
-
-#[repr(C)]
-struct FxArea {
-    data: [u8; 512],
 }

@@ -1,7 +1,6 @@
-use core::ops::Deref;
 use core::ptr::{with_exposed_provenance, with_exposed_provenance_mut};
 
-use kernel_abi::{EINVAL, Errno};
+use kernel_abi::{Errno, EINVAL};
 use thiserror::Error;
 
 #[derive(Copy, Clone)]
@@ -43,13 +42,9 @@ impl<T> UserspacePtr<T> {
     pub fn addr(&self) -> usize {
         self.ptr as usize
     }
-}
 
-impl<T> Deref for UserspacePtr<T> {
-    type Target = *const T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.ptr
+    pub fn as_ptr(&self) -> *const T {
+        self.ptr
     }
 }
 
@@ -85,12 +80,12 @@ impl<T> UserspaceMutPtr<T> {
     pub fn addr(&self) -> usize {
         self.ptr as usize
     }
-}
 
-impl<T> Deref for UserspaceMutPtr<T> {
-    type Target = *mut T;
+    pub fn as_ptr(&self) -> *const T {
+        self.ptr as *const T
+    }
 
-    fn deref(&self) -> &Self::Target {
-        &self.ptr
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        self.ptr
     }
 }

@@ -9,11 +9,12 @@
 
 #![no_std]
 #![allow(unused_variables)] // TODO: remove
-#![feature(c_variadic, linkage)]
+#![feature(c_variadic, linkage, thread_local)]
 
 extern crate compiler_builtins;
 extern crate unwinding;
 
+pub mod errno;
 pub mod fcntl;
 pub mod poll;
 pub mod pthread;
@@ -28,9 +29,8 @@ use kernel_abi::SYS_EXIT;
 use libc::c_int;
 
 fn unimplemented_function(n: usize) -> ! {
-    #[cfg(target_os = "muffin")]
     syscall::syscall1(n, 0);
-    loop {}
+    unreachable!();
 }
 
 #[linkage = "weak"]
@@ -43,9 +43,4 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 #[unsafe(no_mangle)]
 pub extern "C" fn exit(result: c_int) -> ! {
     unimplemented_function(SYS_EXIT);
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn errno_location() -> *mut c_int {
-    unimplemented_function(0);
 }

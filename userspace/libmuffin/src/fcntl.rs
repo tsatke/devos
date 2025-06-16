@@ -1,15 +1,29 @@
 //! fcntl.h
 
-use kernel_abi::{SYS_FCNTL, SYS_OPEN};
+use core::slice::from_raw_parts;
+
+use compiler_builtins::mem::strlen;
+use kernel_abi::SYS_FCNTL;
 use libc::{c_char, c_int};
 
-use crate::syscall::syscall2;
+use crate::syscall::Syscall;
 use crate::unimplemented_function;
 
 #[unsafe(no_mangle)]
 #[allow(unused_mut)]
 pub unsafe extern "C" fn open(path: *const c_char, oflag: c_int, mut varargs: ...) -> c_int {
-    syscall2(SYS_OPEN, path as usize, oflag as usize) as c_int
+    match Syscall::open(
+        unsafe { from_raw_parts(path as *const u8, strlen(path)) },
+        oflag as usize,
+        0,
+    ) {
+        Ok(fd) => fd as c_int,
+        Err(e) => {
+            // Set errno based on the error
+            crate::errno::set_errno(e);
+            -1
+        }
+    }
 }
 
 #[unsafe(no_mangle)]

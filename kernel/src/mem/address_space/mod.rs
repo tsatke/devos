@@ -311,7 +311,7 @@ impl AddressSpace {
             .map::<Size4KiB>(
                 old_pt_page,
                 Self::kernel().level4_frame,
-                PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::NO_EXECUTE,
+                PageTableFlags::PRESENT | PageTableFlags::NO_EXECUTE,
             )
             .unwrap();
 
@@ -325,7 +325,7 @@ impl AddressSpace {
             .unwrap();
 
         let new_page_table = unsafe { &mut *new_pt_segment.start.as_mut_ptr::<PageTable>() };
-        let old_page_table = unsafe { &mut *old_pt_segment.start.as_mut_ptr::<PageTable>() };
+        let old_page_table = unsafe { &*old_pt_segment.start.as_mut_ptr::<PageTable>() };
 
         new_page_table.zero();
         new_page_table

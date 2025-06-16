@@ -8,27 +8,27 @@ use core::ptr::NonNull;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
-use cordyceps::Linked;
 use cordyceps::mpsc_queue::Links;
-pub use id::*;
+use cordyceps::Linked;
 use log::trace;
-pub use queue::*;
 use spin::RwLock;
-pub use stack::*;
-pub use state::*;
 use x86_64::instructions::hlt;
 
-use crate::U64Ext;
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
 use crate::mem::address_space::AddressSpace;
 use crate::mem::memapi::{LowerHalfAllocation, Writable};
 use crate::mem::virt::VirtualMemoryHigherHalf;
+use crate::U64Ext;
 
 mod id;
+pub use id::*;
 mod queue;
+pub use queue::*;
 mod stack;
+pub use stack::*;
 mod state;
+pub use state::*;
 
 #[derive(Debug)]
 pub struct Task {
@@ -55,8 +55,14 @@ pub struct Task {
     ustack: RwLock<Option<Stack>>,
 
     tls: RwLock<Option<LowerHalfAllocation<Writable>>>,
+    fx_area: RwLock<Option<LowerHalfAllocation<Writable>>>,
 
     links: Links<Self>,
+}
+
+#[repr(C, align(16))]
+pub(crate) struct FxArea {
+    data: [u8; 512],
 }
 
 impl Unpin for Task {}
@@ -119,6 +125,7 @@ impl Task {
             kstack: Some(stack),
             ustack: RwLock::new(None),
             tls: RwLock::new(None),
+            fx_area: RwLock::new(None),
             links,
         }
     }
@@ -130,7 +137,7 @@ impl Task {
         let should_terminate = AtomicBool::new(false);
         let last_stack_ptr = Box::pin(0);
         let state = State::Finished;
-        let stack = None;
+        let kstack = None;
         let links = Links::new_stub();
         Self {
             tid,
@@ -139,9 +146,10 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            kstack: stack,
+            kstack,
             ustack: RwLock::new(None),
             tls: RwLock::new(None),
+            fx_area: RwLock::new(None),
             links,
         }
     }
@@ -183,6 +191,7 @@ impl Task {
             kstack: stack,
             ustack: RwLock::new(None),
             tls: RwLock::new(None),
+            fx_area: RwLock::new(None),
             links: Links::default(),
         }
     }
@@ -221,6 +230,10 @@ impl Task {
 
     pub fn tls(&self) -> &RwLock<Option<LowerHalfAllocation<Writable>>> {
         &self.tls
+    }
+
+    pub fn fx_area(&self) -> &RwLock<Option<LowerHalfAllocation<Writable>>> {
+        &self.fx_area
     }
 
     pub fn last_stack_ptr(&mut self) -> &mut usize {

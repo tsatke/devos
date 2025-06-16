@@ -1,6 +1,6 @@
 use core::slice::from_raw_parts_mut;
 
-use kernel_abi::{EINVAL, ERANGE, Errno};
+use kernel_abi::{Errno, EINVAL, ERANGE};
 
 use crate::access::{CwdAccess, FileAccess};
 use crate::ptr::UserspaceMutPtr;
@@ -10,14 +10,15 @@ pub fn sys_getcwd<Cx: CwdAccess>(
     buf: UserspaceMutPtr<u8>,
     size: usize,
 ) -> Result<usize, Errno> {
-    if buf.is_null() {
+    if buf.as_ptr().is_null() {
         return Err(EINVAL);
     }
     if size == 0 {
         return Err(EINVAL);
     }
 
-    let slice = unsafe { from_raw_parts_mut(*buf, size) };
+    let mut buf = buf;
+    let slice = unsafe { from_raw_parts_mut(buf.as_mut_ptr(), size) };
 
     let cwd = cx.current_working_directory();
     let guard = cwd.read();

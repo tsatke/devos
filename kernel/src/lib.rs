@@ -3,9 +3,9 @@
 #![feature(abi_x86_interrupt, negative_impls)]
 extern crate alloc;
 
-use ::log::info;
 use conquer_once::spin::OnceCell;
 use kernel_vfs::path::AbsoluteOwnedPath;
+use ::log::info;
 
 use crate::driver::pci;
 use crate::file::devfs::DevFs;
@@ -44,7 +44,6 @@ pub fn init() {
     acpi::init();
     apic::init();
     hpet::init();
-    sse::init();
     backtrace::init();
     mcore::init();
     pci::init();

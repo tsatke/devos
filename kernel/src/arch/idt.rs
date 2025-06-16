@@ -1,15 +1,21 @@
+use core::alloc::Layout;
 use core::arch::asm;
+use core::arch::x86_64::{_fxrstor, _fxsave};
 use core::fmt::{Debug, Formatter};
 use core::mem::transmute;
 
+use kernel_memapi::{Location, MemoryApi, UserAccessible};
 use log::{error, warn};
-use x86_64::PrivilegeLevel;
 use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::Cr2;
+use x86_64::registers::debug::{Dr6, Dr7};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::PrivilegeLevel;
 
 use crate::arch::gdt;
 use crate::mcore::context::ExecutionContext;
+use crate::mcore::mtask::task::FxArea;
+use crate::mem::memapi::LowerHalfMemoryApi;
 use crate::syscall::dispatch_syscall;
 
 #[derive(Debug, Clone, Copy)]
@@ -46,6 +52,7 @@ pub fn create_idt() -> InterruptDescriptorTable {
             .set_stack_index(gdt::PAGE_FAULT_IST_INDEX);
     }
 
+    idt.debug.set_handler_fn(debug_handler);
     idt.breakpoint.set_handler_fn(breakpoint_handler);
     idt.device_not_available
         .set_handler_fn(device_not_available_handler);
@@ -67,10 +74,10 @@ pub fn create_idt() -> InterruptDescriptorTable {
         idt[InterruptIndex::Syscall.as_u8()]
             .set_handler_fn(transmute::<
                 *mut fn(),
-                extern "x86-interrupt" fn(x86_64::structures::idt::InterruptStackFrame),
+                extern "x86-interrupt" fn(InterruptStackFrame),
             >(syscall_handler as *mut fn()))
             .set_privilege_level(PrivilegeLevel::Ring3)
-            .disable_interrupts(false);
+            .disable_interrupts(true);
     }
 
     idt
@@ -254,12 +261,48 @@ extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
     }
 }
 
-extern "x86-interrupt" fn device_not_available_handler(stack_frame: InterruptStackFrame) {
-    warn!("#NM:\n{stack_frame:?}");
-    unsafe {
-        asm!("clts");
+extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {
+    warn!("DEBUG:\n{stack_frame:#?}");
+    let dr6_flags = Dr6::read();
+    warn!("DR6 flags: {:#?}", dr6_flags);
+    let dr7_flags = Dr7::read();
+    warn!("DR7 flags: {:#?}", dr7_flags);
+}
+
+extern "x86-interrupt" fn device_not_available_handler(_stack_frame: InterruptStackFrame) {
+    let cx = ExecutionContext::load();
+    let current_task = cx.current_task();
+
+    let mut guard = current_task.fx_area().write();
+    let (fresh, fx_area) = if let Some(fx_area) = &*guard {
+        (false, fx_area)
+    } else {
+        let process = current_task.process();
+        let mut memapi = LowerHalfMemoryApi::new(process.clone());
+        let fx_area = memapi
+            .allocate(
+                Location::Anywhere,
+                Layout::new::<FxArea>(),
+                UserAccessible::Yes,
+            )
+            .expect("should be able to allocate fx area");
+
+        (true, guard.insert(fx_area) as &_)
+    };
+
+    let fx_area_ptr = fx_area.start().as_mut_ptr::<u8>();
+    drop(guard); // _fxrstor could trigger #NM again, so we must drop the guard before calling it
+
+    unsafe { asm!("clts") };
+
+    // saving is done every time we switch tasks, so we can only restore it here
+    if fresh {
+        unsafe {
+            asm!("finit");
+            _fxsave(fx_area_ptr);
+        }
     }
-    // TODO: switch FPU context
+    unsafe { _fxrstor(fx_area_ptr) };
 }
 
 /// Notifies the LAPIC that the interrupt has been handled.

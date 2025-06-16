@@ -17,9 +17,21 @@ impl Debug for Errno {
     }
 }
 
+impl From<Errno> for c_int {
+    fn from(value: Errno) -> Self {
+        value.0
+    }
+}
+
 impl From<Errno> for isize {
     fn from(errno: Errno) -> Self {
         errno.0 as isize
+    }
+}
+
+impl From<isize> for Errno {
+    fn from(errno: isize) -> Self {
+        Errno(errno as c_int)
     }
 }
 
