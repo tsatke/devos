@@ -112,6 +112,10 @@ pub mod testing {
     impl FileAccess for Mutex<MemoryFileAccess> {
         type FileInfo = MemoryFileInfo;
         type Fd = MemoryFd;
+        type OpenError = ();
+        type ReadError = ();
+        type WriteError = ();
+        type CloseError = ();
 
         fn file_info(&self, path: &AbsolutePath) -> Option<Self::FileInfo> {
             let guard = self.lock();

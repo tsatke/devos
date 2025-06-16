@@ -2,7 +2,7 @@ use alloc::borrow::ToOwned;
 use core::ffi::c_int;
 use core::slice::from_raw_parts;
 
-use kernel_abi::{EINVAL, ENAMETOOLONG, ENOENT, Errno, PATH_MAX};
+use kernel_abi::{Errno, EINVAL, ENAMETOOLONG, ENOENT, PATH_MAX};
 use kernel_vfs::path::{AbsolutePath, Path};
 use log::debug;
 
@@ -52,10 +52,10 @@ mod tests {
     use spin::mutex::Mutex;
     use spin::rwlock::RwLock;
 
-    use crate::UserspacePtr;
     use crate::access::testing::{MemoryFile, MemoryFileAccess};
     use crate::access::{CwdAccess, FileAccess};
     use crate::fcntl::sys_open;
+    use crate::UserspacePtr;
 
     struct TestOpenCx<F> {
         cwd: RwLock<AbsoluteOwnedPath>,
@@ -89,24 +89,28 @@ mod tests {
     {
         type FileInfo = F::FileInfo;
         type Fd = F::Fd;
+        type OpenError = F::OpenError;
+        type ReadError = F::ReadError;
+        type WriteError = F::WriteError;
+        type CloseError = F::CloseError;
 
         fn file_info(&self, path: &AbsolutePath) -> Option<Self::FileInfo> {
             self.file_access.file_info(path)
         }
 
-        fn open(&self, info: &Self::FileInfo) -> Result<Self::Fd, ()> {
+        fn open(&self, info: &Self::FileInfo) -> Result<Self::Fd, Self::OpenError> {
             self.file_access.open(info)
         }
 
-        fn read(&self, fd: Self::Fd, buf: &mut [u8]) -> Result<usize, ()> {
+        fn read(&self, fd: Self::Fd, buf: &mut [u8]) -> Result<usize, Self::ReadError> {
             self.file_access.read(fd, buf)
         }
 
-        fn write(&self, fd: Self::Fd, buf: &[u8]) -> Result<usize, ()> {
+        fn write(&self, fd: Self::Fd, buf: &[u8]) -> Result<usize, Self::WriteError> {
             self.file_access.write(fd, buf)
         }
 
-        fn close(&self, fd: Self::Fd) -> Result<(), ()> {
+        fn close(&self, fd: Self::Fd) -> Result<(), Self::CloseError> {
             self.file_access.close(fd)
         }
     }
