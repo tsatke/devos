@@ -8,7 +8,7 @@
 //! [`POSIX.1-2024`]: https://pubs.opengroup.org/onlinepubs/9799919799
 
 #![no_std]
-#![allow(unused_variables)] // TODO: remove
+#![allow(unused_variables, clippy::missing_safety_doc)] // TODO: remove
 #![feature(c_variadic, linkage, thread_local)]
 
 extern crate compiler_builtins;

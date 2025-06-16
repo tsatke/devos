@@ -43,10 +43,10 @@ impl Scheduler {
     /// Trivially unsafe. If you don't know why, please don't call this function.
     pub unsafe fn reschedule(&mut self) {
         // in theory, we could move this to the end of this function, but I'd rather not do this right now
-        if let Some(zombie_task) = self.zombie_task.take() {
-            if !zombie_task.should_terminate() {
-                GlobalTaskQueue::enqueue(zombie_task);
-            }
+        if let Some(zombie_task) = self.zombie_task.take()
+            && !zombie_task.should_terminate()
+        {
+            GlobalTaskQueue::enqueue(zombie_task);
         }
 
         interrupts::disable();
@@ -68,20 +68,20 @@ impl Scheduler {
             old_task.last_stack_ptr() as *mut usize
         };
 
-        if let Some(mut guard) = old_task.fx_area().try_write() {
-            if let Some(fx_area) = guard.as_mut() {
-                unsafe { asm!("clts") };
-                unsafe {
-                    // Safety: Safe because we hold a mutable reference to the fx_area
-                    _fxsave(fx_area.start().as_mut_ptr::<u8>());
-                }
+        if let Some(mut guard) = old_task.fx_area().try_write()
+            && let Some(fx_area) = guard.as_mut()
+        {
+            unsafe { asm!("clts") };
+            unsafe {
+                // Safety: Safe because we hold a mutable reference to the fx_area
+                _fxsave(fx_area.start().as_mut_ptr::<u8>());
             }
         }
 
-        if let Some(guard) = self.current_task.tls().try_read() {
-            if let Some(tls) = guard.as_ref() {
-                FsBase::write(tls.start());
-            }
+        if let Some(guard) = self.current_task.tls().try_read()
+            && let Some(tls) = guard.as_ref()
+        {
+            FsBase::write(tls.start());
         }
 
         assert!(self.zombie_task.is_none());

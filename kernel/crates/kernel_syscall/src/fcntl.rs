@@ -36,7 +36,7 @@ pub fn sys_open<Cx: CwdAccess + FileAccess>(
     debug!("path: {path:?}");
 
     let info = cx.file_info(path.as_ref()).ok_or(ENOENT)?;
-    let fd = cx.open(&info).map_err(|()| EINVAL)?; // TODO: check error
+    let fd = cx.open(&info).map_err(|_| EINVAL)?; // TODO: check error
     let fd_num = Into::<c_int>::into(fd);
     Ok(fd_num as usize)
 }

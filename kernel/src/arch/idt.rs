@@ -264,9 +264,9 @@ extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
 extern "x86-interrupt" fn debug_handler(stack_frame: InterruptStackFrame) {
     warn!("DEBUG:\n{stack_frame:#?}");
     let dr6_flags = Dr6::read();
-    warn!("DR6 flags: {:#?}", dr6_flags);
+    warn!("DR6 flags: {dr6_flags:#?}");
     let dr7_flags = Dr7::read();
-    warn!("DR7 flags: {:#?}", dr7_flags);
+    warn!("DR7 flags: {dr7_flags:#?}");
 }
 
 extern "x86-interrupt" fn device_not_available_handler(_stack_frame: InterruptStackFrame) {

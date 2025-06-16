@@ -90,7 +90,7 @@ fn dispatch_sys_open(
 fn dispatch_sys_read(fd: usize, buf: usize, nbyte: usize) -> Result<usize, Errno> {
     let cx = KernelAccess::new();
 
-    let fd = i32::try_from(fd).map_err(|_| Errno::from(EINVAL))?;
+    let fd = i32::try_from(fd).map_err(|_| EINVAL)?;
     let fd = <KernelAccess as FileAccess>::Fd::from(fd);
 
     let slice = unsafe { slice_from_ptr_and_len_mut(buf, nbyte) }?;
@@ -100,7 +100,7 @@ fn dispatch_sys_read(fd: usize, buf: usize, nbyte: usize) -> Result<usize, Errno
 fn dispatch_sys_write(fd: usize, buf: usize, nbyte: usize) -> Result<usize, Errno> {
     let cx = KernelAccess::new();
 
-    let fd = i32::try_from(fd).map_err(|_| Errno::from(EINVAL))?;
+    let fd = i32::try_from(fd).map_err(|_| EINVAL)?;
     let fd = <KernelAccess as FileAccess>::Fd::from(fd);
 
     let slice = unsafe { slice_from_ptr_and_len(buf, nbyte) }?;

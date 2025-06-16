@@ -44,6 +44,12 @@ impl DevFile for Serial {
     }
 }
 
+impl Default for DevFs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DevFs {
     pub fn new() -> Self {
         DevFs {

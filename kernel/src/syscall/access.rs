@@ -22,8 +22,6 @@ impl<'a> KernelAccess<'a> {
     pub fn new() -> Self {
         let task = ExecutionContext::load().current_task();
         let process = task.process().clone();
-        let task = task.into();
-        let process = process.into();
 
         KernelAccess {
             _task: task,
@@ -47,10 +45,14 @@ impl kernel_syscall::access::FileInfo for FileInfo {}
 impl FileAccess for KernelAccess<'_> {
     type FileInfo = FileInfo;
     type Fd = FdNum;
+    type OpenError = ();
+    type ReadError = ();
+    type WriteError = ();
+    type CloseError = ();
 
     fn file_info(&self, path: &AbsolutePath) -> Option<Self::FileInfo> {
         Some(FileInfo {
-            node: vfs().read().open(&path).ok()?,
+            node: vfs().read().open(path).ok()?,
         })
     }
 

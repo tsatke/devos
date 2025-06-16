@@ -12,16 +12,20 @@ pub trait FileInfo {}
 pub trait FileAccess {
     type FileInfo: FileInfo;
     type Fd: From<c_int> + Into<c_int>;
+    type OpenError;
+    type ReadError;
+    type WriteError;
+    type CloseError;
 
     fn file_info(&self, path: &AbsolutePath) -> Option<Self::FileInfo>;
 
-    fn open(&self, info: &Self::FileInfo) -> Result<Self::Fd, ()>;
+    fn open(&self, info: &Self::FileInfo) -> Result<Self::Fd, Self::OpenError>;
 
-    fn read(&self, fd: Self::Fd, buf: &mut [u8]) -> Result<usize, ()>;
+    fn read(&self, fd: Self::Fd, buf: &mut [u8]) -> Result<usize, Self::ReadError>;
 
-    fn write(&self, fd: Self::Fd, buf: &[u8]) -> Result<usize, ()>;
+    fn write(&self, fd: Self::Fd, buf: &[u8]) -> Result<usize, Self::WriteError>;
 
-    fn close(&self, fd: Self::Fd) -> Result<(), ()>;
+    fn close(&self, fd: Self::Fd) -> Result<(), Self::CloseError>;
 }
 
 #[cfg(test)]

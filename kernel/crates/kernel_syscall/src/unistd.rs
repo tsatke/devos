@@ -35,11 +35,11 @@ pub fn sys_getcwd<Cx: CwdAccess>(
 }
 
 pub fn sys_read<Cx: FileAccess>(cx: &Cx, fildes: Cx::Fd, buf: &mut [u8]) -> Result<usize, Errno> {
-    cx.read(fildes, buf).map_err(|()| EINVAL)
+    cx.read(fildes, buf).map_err(|_| EINVAL)
 }
 
 pub fn sys_write<Cx: FileAccess>(cx: &Cx, fildes: Cx::Fd, buf: &[u8]) -> Result<usize, Errno> {
-    cx.write(fildes, buf).map_err(|()| EINVAL)
+    cx.write(fildes, buf).map_err(|_| EINVAL)
 }
 
 #[cfg(test)]
