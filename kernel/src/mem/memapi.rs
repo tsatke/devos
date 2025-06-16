@@ -6,7 +6,7 @@ use core::ops::Deref;
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 
 use kernel_memapi::{Allocation, Location, MemoryApi, UserAccessible, WritableAllocation};
-use virtual_memory_manager::Segment;
+use kernel_virtual_memory::Segment;
 use x86_64::VirtAddr;
 use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
 

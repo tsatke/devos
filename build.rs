@@ -44,7 +44,7 @@ fn build_os_disk_image() -> PathBuf {
     cmd.arg("5M");
 
     let rc = cmd.status().unwrap();
-    assert_eq!(0, rc.code().unwrap());
+    assert_eq!(0, rc.code().unwrap(), "process should exit successfully");
 
     disk_image
 }

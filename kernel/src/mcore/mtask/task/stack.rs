@@ -2,8 +2,8 @@ use core::ffi::c_void;
 use core::fmt::{Debug, Formatter};
 use core::slice::from_raw_parts_mut;
 
+use kernel_virtual_memory::Segment;
 use thiserror::Error;
-use virtual_memory_manager::Segment;
 use x86_64::VirtAddr;
 use x86_64::registers::rflags::RFlags;
 use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};

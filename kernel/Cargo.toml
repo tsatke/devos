@@ -11,7 +11,7 @@ kernel_memapi = { path = "crates/kernel_memapi" }
 kernel_syscall = { path = "crates/kernel_syscall" }
 kernel_physical_memory = { path = "crates/kernel_physical_memory" }
 kernel_vfs = { path = "crates/kernel_vfs" }
-virtual_memory_manager = { path = "crates/virtual_memory_manager" }
+kernel_virtual_memory = { path = "crates/kernel_virtual_memory" }
 
 acpi.workspace = true
 addr2line.workspace = true

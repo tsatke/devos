@@ -5,9 +5,9 @@ use core::mem::ManuallyDrop;
 use core::ops::Deref;
 
 use conquer_once::spin::OnceCell;
+use kernel_virtual_memory::{AlreadyReserved, Segment, VirtualMemoryManager};
 use limine::memory_map::EntryType;
 use spin::RwLock;
-use virtual_memory_manager::{AlreadyReserved, Segment, VirtualMemoryManager};
 use x86_64::VirtAddr;
 use x86_64::structures::paging::{PageSize, Size4KiB};
 

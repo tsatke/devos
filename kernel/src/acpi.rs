@@ -2,8 +2,8 @@ use core::ptr::NonNull;
 
 use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 use conquer_once::spin::OnceCell;
+use kernel_virtual_memory::Segment;
 use spin::Mutex;
-use virtual_memory_manager::Segment;
 use x86_64::structures::paging::{Page, PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 

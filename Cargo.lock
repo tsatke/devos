@@ -549,6 +549,7 @@ dependencies = [
  "kernel_physical_memory",
  "kernel_syscall",
  "kernel_vfs",
+ "kernel_virtual_memory",
  "limine",
  "linked_list_allocator",
  "linkme",
@@ -562,7 +563,6 @@ dependencies = [
  "thiserror",
  "uart_16550",
  "virtio-drivers",
- "virtual_memory_manager",
  "volatile 0.6.1",
  "x2apic",
  "x86_64",
@@ -628,6 +628,15 @@ dependencies = [
  "mkfs-filesystem",
  "spin",
  "thiserror",
+]
+
+[[package]]
+name = "kernel_virtual_memory"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "thiserror",
+ "x86_64",
 ]
 
 [[package]]
@@ -1368,15 +1377,6 @@ dependencies = [
  "log",
  "thiserror",
  "zerocopy 0.8.24",
-]
-
-[[package]]
-name = "virtual_memory_manager"
-version = "0.1.0"
-dependencies = [
- "log",
- "thiserror",
- "x86_64",
 ]
 
 [[package]]

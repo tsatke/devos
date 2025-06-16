@@ -1,9 +1,9 @@
 use core::ptr::NonNull;
 
+use kernel_virtual_memory::Segment;
 use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::transport::pci::bus::{DeviceFunction, PciRoot};
 use virtio_drivers::{BufferDirection, Hal};
-use virtual_memory_manager::Segment;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
