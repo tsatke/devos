@@ -28,11 +28,21 @@ pub enum CloseError {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum ReadError {
+pub enum FsError {
     #[error("filesystem is not open")]
     FileSystemNotOpen,
     #[error("invalid handle")]
     InvalidHandle,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum ReadError {
+    #[error("{0}")]
+    FsError(
+        #[from]
+        #[source]
+        FsError,
+    ),
     #[error("end of file")]
     EndOfFile,
     #[error("read failed")]
@@ -43,12 +53,24 @@ pub enum ReadError {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
 pub enum WriteError {
-    #[error("filesystem is not open")]
-    FileSystemNotOpen,
-    #[error("invalid handle")]
-    InvalidHandle,
+    #[error("{0}")]
+    FsError(
+        #[from]
+        #[source]
+        FsError,
+    ),
     #[error("write failed")]
     WriteFailed,
     #[error("file is not writable")]
     NotWritable,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
+pub enum StatError {
+    #[error("{0}")]
+    FsError(
+        #[from]
+        #[source]
+        FsError,
+    ),
 }

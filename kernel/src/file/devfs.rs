@@ -5,7 +5,7 @@ use core::sync::atomic::Ordering::Relaxed;
 
 use kernel_vfs::fs::{FileSystem, FsHandle};
 use kernel_vfs::path::Path;
-use kernel_vfs::{CloseError, OpenError, ReadError, WriteError};
+use kernel_vfs::{CloseError, FsError, OpenError, ReadError, Stat, StatError, WriteError};
 
 use crate::serial_print;
 
@@ -80,12 +80,16 @@ impl FileSystem for DevFs {
         buf: &mut [u8],
         offset: usize,
     ) -> Result<usize, ReadError> {
-        let file = &self.handles.get(&handle).ok_or(ReadError::InvalidHandle)?;
+        let file = &self.handles.get(&handle).ok_or(FsError::InvalidHandle)?;
         file.read(buf, offset)
     }
 
     fn write(&mut self, handle: FsHandle, buf: &[u8], offset: usize) -> Result<usize, WriteError> {
-        let file = &self.handles.get(&handle).ok_or(WriteError::InvalidHandle)?;
+        let file = &self.handles.get(&handle).ok_or(FsError::InvalidHandle)?;
         file.write(buf, offset)
+    }
+
+    fn stat(&mut self, _handle: FsHandle, _stat: &mut Stat) -> Result<(), StatError> {
+        todo!()
     }
 }

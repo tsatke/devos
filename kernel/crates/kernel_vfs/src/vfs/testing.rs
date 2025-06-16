@@ -8,19 +8,21 @@ use spin::RwLock;
 
 use crate::fs::{FileSystem, FsHandle};
 use crate::path::{OwnedPath, Path};
-use crate::{CloseError, OpenError, ReadError, WriteError};
+use crate::{CloseError, FsError, OpenError, ReadError, Stat, StatError, WriteError};
 
 #[derive(Default)]
 pub struct TestFs {
     handle_counter: AtomicU64,
     files: BTreeMap<OwnedPath, RwLock<Vec<u8>>>,
+    stats: BTreeMap<OwnedPath, Stat>,
     open_files: BTreeMap<FsHandle, OwnedPath>,
 }
 
 impl TestFs {
-    pub fn insert_file(&mut self, path: impl AsRef<Path>, data: Vec<u8>) {
+    pub fn insert_file(&mut self, path: impl AsRef<Path>, data: Vec<u8>, stat: Stat) {
         let path = path.as_ref().to_owned();
-        self.files.insert(path, RwLock::new(data));
+        self.files.insert(path.clone(), RwLock::new(data));
+        self.stats.insert(path, stat);
     }
 }
 
@@ -49,10 +51,7 @@ impl FileSystem for TestFs {
         buf: &mut [u8],
         offset: usize,
     ) -> Result<usize, ReadError> {
-        let path = self
-            .open_files
-            .get(&handle)
-            .ok_or(ReadError::InvalidHandle)?;
+        let path = self.open_files.get(&handle).ok_or(FsError::InvalidHandle)?;
 
         // file can't be deleted while it's open, so if we have a handle, it must exist in `self.files`
         let file = self.files.get(path).unwrap();
@@ -71,10 +70,7 @@ impl FileSystem for TestFs {
     }
 
     fn write(&mut self, handle: FsHandle, buf: &[u8], offset: usize) -> Result<usize, WriteError> {
-        let path = self
-            .open_files
-            .get(&handle)
-            .ok_or(WriteError::InvalidHandle)?;
+        let path = self.open_files.get(&handle).ok_or(FsError::InvalidHandle)?;
 
         // file can't be deleted while it's open, so if we have a handle, it must exist in `self.files`
         let file = self.files.get(path).unwrap();
@@ -89,14 +85,18 @@ impl FileSystem for TestFs {
         guard[offset..offset + buf.len()].copy_from_slice(buf);
         Ok(buf.len())
     }
+
+    fn stat(&mut self, _handle: FsHandle, _stat: &mut Stat) -> Result<(), StatError> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::CloseError;
     use crate::fs::FileSystem;
     use crate::path::{OwnedPath, Path};
     use crate::testing::TestFs;
+    use crate::CloseError;
 
     #[test]
     fn test_open_close() {

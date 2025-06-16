@@ -9,7 +9,7 @@ use ext2::{Ext2Fs, Inode, InodeAddress, Type};
 use filesystem::BlockDevice;
 use kernel_vfs::fs::{FileSystem, FsHandle};
 use kernel_vfs::path::{OwnedPath, Path};
-use kernel_vfs::{CloseError, OpenError, ReadError, WriteError};
+use kernel_vfs::{CloseError, FsError, OpenError, ReadError, Stat, StatError, WriteError};
 use spin::RwLock;
 
 pub struct VirtualExt2Fs<T> {
@@ -81,7 +81,7 @@ where
         buf: &mut [u8],
         offset: usize,
     ) -> Result<usize, ReadError> {
-        let inode = &self.handles.get(&handle).ok_or(ReadError::InvalidHandle)?.1;
+        let inode = &self.handles.get(&handle).ok_or(FsError::InvalidHandle)?.1;
 
         let guard = inode.read();
         match &guard.inner {
@@ -100,6 +100,19 @@ where
         _offset: usize,
     ) -> Result<usize, WriteError> {
         todo!("write support for ext2");
+    }
+
+    fn stat(&mut self, handle: FsHandle, stat: &mut Stat) -> Result<(), StatError> {
+        let inode = &self.handles.get(&handle).ok_or(FsError::InvalidHandle)?.1;
+
+        let guard = inode.read();
+        match &guard.inner {
+            Inner::RegularFile(file) => {
+                stat.size = file.len();
+            }
+            _ => todo!(),
+        }
+        Ok(())
     }
 }
 

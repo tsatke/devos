@@ -11,6 +11,8 @@ use crate::path::{AbsoluteOwnedPath, AbsolutePath, ROOT};
 
 mod error;
 pub mod node;
+mod stat;
+pub use stat::*;
 
 #[cfg(test)]
 pub mod testing;
@@ -120,14 +122,18 @@ mod tests {
     use alloc::vec;
     use alloc::vec::Vec;
 
-    use crate::Vfs;
     use crate::path::{AbsolutePath, ROOT};
     use crate::testing::TestFs;
+    use crate::{Stat, Vfs};
 
     #[test]
     fn test_read() {
         let mut fs = TestFs::default();
-        fs.insert_file("/foo/bar.txt", (0_u8..=u8::MAX).collect::<Vec<u8>>());
+        fs.insert_file(
+            "/foo/bar.txt",
+            (0_u8..=u8::MAX).collect::<Vec<u8>>(),
+            Stat::default(),
+        );
 
         let mut vfs = Vfs::new();
         vfs.mount(ROOT, fs).unwrap();
@@ -156,7 +162,7 @@ mod tests {
     #[test]
     fn test_mount() {
         let mut fs = TestFs::default();
-        fs.insert_file("/foo/bar.txt", vec![0x00; 1]);
+        fs.insert_file("/foo/bar.txt", vec![0x00; 1], Stat::default());
 
         let mut vfs = Vfs::new();
         vfs.mount(ROOT, fs).unwrap();

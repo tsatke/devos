@@ -6,7 +6,8 @@ use spin::RwLock;
 
 use crate::fs::{FileSystem, FsHandle};
 use crate::path::AbsoluteOwnedPath;
-use crate::{ReadError, WriteError};
+use crate::vfs::stat::Stat;
+use crate::{FsError, ReadError, StatError, WriteError};
 
 #[derive(Clone)]
 pub struct VfsNode {
@@ -71,7 +72,7 @@ impl VfsNode {
     where
         B: AsMut<[u8]>,
     {
-        let fs = self.fs.upgrade().ok_or(ReadError::FileSystemNotOpen)?;
+        let fs = self.fs.upgrade().ok_or(FsError::FileSystemNotOpen)?;
         let buf = buf.as_mut();
 
         let mut guard = fs.write();
@@ -82,11 +83,18 @@ impl VfsNode {
     where
         B: AsRef<[u8]>,
     {
-        let fs = self.fs.upgrade().ok_or(WriteError::FileSystemNotOpen)?;
+        let fs = self.fs.upgrade().ok_or(FsError::FileSystemNotOpen)?;
         let buf = buf.as_ref();
 
         let mut guard = fs.write();
         guard.write(self.fs_handle, buf, offset)
+    }
+
+    pub fn stat(&self, stat: &mut Stat) -> Result<(), StatError> {
+        let fs = self.fs.upgrade().ok_or(FsError::FileSystemNotOpen)?;
+
+        let mut guard = fs.write();
+        guard.stat(self.fs_handle, stat)
     }
 }
 
@@ -96,12 +104,12 @@ mod tests {
 
     use crate::path::{AbsolutePath, ROOT};
     use crate::testing::TestFs;
-    use crate::{CloseError, Vfs};
+    use crate::{CloseError, Stat, Vfs};
 
     #[test]
     fn test_drop() {
         let mut fs = TestFs::default();
-        fs.insert_file("/foo/bar.txt", vec![0_u8; 1]);
+        fs.insert_file("/foo/bar.txt", vec![0_u8; 1], Stat::default());
 
         let mut vfs = Vfs::new();
         vfs.mount(ROOT, fs).unwrap();
@@ -127,7 +135,7 @@ mod tests {
     #[test]
     fn test_no_drop() {
         let mut fs = TestFs::default();
-        fs.insert_file("/foo/bar.txt", vec![0_u8; 1]);
+        fs.insert_file("/foo/bar.txt", vec![0_u8; 1], Stat::default());
 
         let mut vfs = Vfs::new();
         vfs.mount(ROOT, fs).unwrap();

@@ -8,18 +8,18 @@ use core::ptr::NonNull;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
-use cordyceps::mpsc_queue::Links;
 use cordyceps::Linked;
+use cordyceps::mpsc_queue::Links;
 use log::trace;
 use spin::RwLock;
 use x86_64::instructions::hlt;
 
+use crate::U64Ext;
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
 use crate::mem::address_space::AddressSpace;
 use crate::mem::memapi::{LowerHalfAllocation, Writable};
 use crate::mem::virt::VirtualMemoryHigherHalf;
-use crate::U64Ext;
 
 mod id;
 pub use id::*;
