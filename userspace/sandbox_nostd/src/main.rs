@@ -46,7 +46,7 @@ pub extern "C" fn _start() {
             exit(errno_location().read());
         }
 
-        exit(errno_location().read());
+        exit(0);
     }
 }
 
