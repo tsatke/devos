@@ -10,34 +10,34 @@ use core::ptr;
 
 use conquer_once::spin::OnceCell;
 use kernel_elfloader::{ElfFile, ElfLoader};
-use kernel_memapi::{Allocation, Location, MemoryApi, UserAccessible};
-use kernel_vfs::Stat;
+use kernel_memapi::{Allocation, Guarded, Location, MemoryApi, UserAccessible};
 use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath, ROOT};
+use kernel_vfs::Stat;
 use kernel_virtual_memory::VirtualMemoryManager;
 use log::debug;
 use spin::RwLock;
 use thiserror::Error;
-use x86_64::VirtAddr;
 use x86_64::registers::model_specific::FsBase;
 use x86_64::registers::rflags::RFlags;
 use x86_64::structures::idt::InterruptStackFrameValue;
 use x86_64::structures::paging::{PageSize, Size4KiB};
+use x86_64::VirtAddr;
 
-use crate::U64Ext;
-use crate::file::{OpenFileDescription, vfs};
+use crate::file::{vfs, OpenFileDescription};
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::fd::{FdNum, FileDescriptor, FileDescriptorFlags};
 use crate::mcore::mtask::process::tree::process_tree;
-use crate::mcore::mtask::task::{Stack, StackAllocationError, StackUserAccessible, Task};
+use crate::mcore::mtask::task::{HigherHalfStack, StackAllocationError, Task};
 use crate::mem::address_space::AddressSpace;
 use crate::mem::memapi::{Executable, LowerHalfAllocation, LowerHalfMemoryApi};
+use crate::{U64Ext, UsizeExt};
 
 pub mod fd;
 mod id;
 pub use id::*;
 
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
-use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
+use crate::mem::virt::VirtualMemoryAllocator;
 
 mod tree;
 
@@ -120,15 +120,7 @@ impl Process {
         let path = path.as_ref();
         let process = Self::create_new(parent, path.to_string(), Some(path));
 
-        let kstack = Stack::allocate(
-            16,
-            &VirtualMemoryHigherHalf,
-            StackUserAccessible::No,
-            AddressSpace::kernel(),
-            trampoline,
-            ptr::null_mut(),
-            Task::exit,
-        )?;
+        let kstack = HigherHalfStack::allocate(16, trampoline, ptr::null_mut(), Task::exit)?;
         let main_task = Task::create_with_stack(&process, kstack);
         GlobalTaskQueue::enqueue(Box::pin(main_task));
 
@@ -228,6 +220,7 @@ extern "C" fn trampoline(_arg: *mut c_void) {
             Location::Anywhere,
             Layout::from_size_align(stat.size, Size4KiB::SIZE.into_usize()).unwrap(),
             UserAccessible::Yes,
+            Guarded::No,
         )
         .expect("should be able to allocate memory for executable file");
     let buf = executable_file_allocation.as_mut();
@@ -253,7 +246,12 @@ extern "C" fn trampoline(_arg: *mut c_void) {
 
     if let Some(master_tls) = elf_image.tls_allocation() {
         let mut tls_alloc = memapi
-            .allocate(Location::Anywhere, master_tls.layout(), UserAccessible::Yes)
+            .allocate(
+                Location::Anywhere,
+                master_tls.layout(),
+                UserAccessible::Yes,
+                Guarded::No,
+            )
             .expect("should be able to allocate TLS data");
 
         let slice = tls_alloc.as_mut();
@@ -268,18 +266,25 @@ extern "C" fn trampoline(_arg: *mut c_void) {
         }
     }
 
-    let ustack = Stack::allocate_plain(
-        256,
-        &current_process.vmm(),
-        StackUserAccessible::Yes,
-        current_process.address_space(),
-    )
-    .expect("should be able to allocate userspace stack");
-    let ustack_rsp = ustack.initial_rsp();
+    let mut memapi = LowerHalfMemoryApi::new(current_process.clone());
+    let ustack_allocation = memapi
+        .allocate(
+            Location::Anywhere,
+            Layout::from_size_align(
+                Size4KiB::SIZE.into_usize() * 256,
+                Size4KiB::SIZE.into_usize(),
+            )
+            .unwrap(),
+            UserAccessible::Yes,
+            Guarded::Yes,
+        )
+        .expect("should be able to allocate userspace stack");
+
+    let ustack_rsp = ustack_allocation.start() + ustack_allocation.len().into_u64();
     {
         let mut ustack_guard = current_task.ustack().write();
         assert!(ustack_guard.is_none(), "ustack should not exist yet");
-        *ustack_guard = Some(ustack);
+        *ustack_guard = Some(ustack_allocation);
     }
     assert!(ustack_rsp.is_aligned(16_u64));
 

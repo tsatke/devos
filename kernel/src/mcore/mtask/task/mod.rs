@@ -8,18 +8,16 @@ use core::ptr::NonNull;
 use core::sync::atomic::AtomicBool;
 use core::sync::atomic::Ordering::Relaxed;
 
-use cordyceps::Linked;
 use cordyceps::mpsc_queue::Links;
+use cordyceps::Linked;
 use log::trace;
 use spin::RwLock;
 use x86_64::instructions::hlt;
 
-use crate::U64Ext;
 use crate::mcore::context::ExecutionContext;
 use crate::mcore::mtask::process::Process;
-use crate::mem::address_space::AddressSpace;
 use crate::mem::memapi::{LowerHalfAllocation, Writable};
-use crate::mem::virt::VirtualMemoryHigherHalf;
+use crate::U64Ext;
 
 mod id;
 pub use id::*;
@@ -50,10 +48,10 @@ pub struct Task {
     /// The kernel stack of the task. Every task starts with a stack in the higher half.
     /// Userspace tasks will then allocate a stack in the lower half, which will be stored in
     /// `ustack`.
-    kstack: Option<Stack>,
-    /// The user stack of the task. This is only set if the task is a userspace task.
-    ustack: RwLock<Option<Stack>>,
+    kstack: Option<HigherHalfStack>,
 
+    /// The user stack of the task. This is only set if the task is a userspace task.
+    ustack: RwLock<Option<LowerHalfAllocation<Writable>>>,
     tls: RwLock<Option<LowerHalfAllocation<Writable>>>,
     fx_area: RwLock<Option<LowerHalfAllocation<Writable>>>,
 
@@ -95,19 +93,11 @@ impl Task {
         entry_point: extern "C" fn(*mut c_void),
         arg: *mut c_void,
     ) -> Result<Self, StackAllocationError> {
-        let stack = Stack::allocate(
-            16,
-            &VirtualMemoryHigherHalf,
-            StackUserAccessible::No,
-            AddressSpace::kernel(),
-            entry_point,
-            arg,
-            Self::exit,
-        )?;
+        let stack = HigherHalfStack::allocate(16, entry_point, arg, Self::exit)?;
         Ok(Self::create_with_stack(process, stack))
     }
 
-    pub fn create_with_stack(process: &Arc<Process>, stack: Stack) -> Self {
+    pub fn create_with_stack(process: &Arc<Process>, stack: HigherHalfStack) -> Self {
         let tid = TaskId::new();
         let name = format!("task-{tid}");
         let process = process.clone();
@@ -137,7 +127,6 @@ impl Task {
         let should_terminate = AtomicBool::new(false);
         let last_stack_ptr = Box::pin(0);
         let state = State::Finished;
-        let kstack = None;
         let links = Links::new_stub();
         Self {
             tid,
@@ -146,7 +135,7 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            kstack,
+            kstack: None,
             ustack: RwLock::new(None),
             tls: RwLock::new(None),
             fx_area: RwLock::new(None),
@@ -158,7 +147,18 @@ impl Task {
         let task = ExecutionContext::load().current_task();
         trace!("exiting task {}", task.name());
 
-        task.set_should_terminate(true);
+        unsafe {
+            task.ustack.force_write_unlock();
+            task.tls.force_write_unlock();
+            task.fx_area.force_write_unlock();
+
+            let _ = task.fx_area.write().take();
+            let _ = task.tls.write().take();
+            let _ = task.ustack.write().take();
+
+            task.set_should_terminate(true);
+        }
+
         loop {
             hlt();
         }
@@ -180,7 +180,6 @@ impl Task {
         let should_terminate = AtomicBool::new(false);
         let last_stack_ptr = Box::pin(0);
         let state = State::Running;
-        let stack = None;
         Self {
             tid,
             name,
@@ -188,7 +187,7 @@ impl Task {
             should_terminate,
             last_stack_ptr,
             state,
-            kstack: stack,
+            kstack: None,
             ustack: RwLock::new(None),
             tls: RwLock::new(None),
             fx_area: RwLock::new(None),
@@ -220,11 +219,11 @@ impl Task {
         self.state
     }
 
-    pub fn kstack(&self) -> &Option<Stack> {
+    pub fn kstack(&self) -> &Option<HigherHalfStack> {
         &self.kstack
     }
 
-    pub fn ustack(&self) -> &RwLock<Option<Stack>> {
+    pub fn ustack(&self) -> &RwLock<Option<LowerHalfAllocation<Writable>>> {
         &self.ustack
     }
 

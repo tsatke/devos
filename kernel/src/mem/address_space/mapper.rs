@@ -43,7 +43,7 @@ impl AddressSpaceMapper {
     where
         for<'a> RecursivePageTable<'a>: Mapper<S>,
     {
-        assert!(self.is_active()); // TODO: support mapping into non-active address spaces
+        assert!(self.is_active());
 
         #[cfg(debug_assertions)]
         {
@@ -74,7 +74,7 @@ impl AddressSpaceMapper {
     where
         for<'a> RecursivePageTable<'a>: Mapper<S>,
     {
-        assert!(self.is_active()); // TODO: support mapping into non-active address spaces
+        assert!(self.is_active());
 
         let mut frames = frames.into_iter();
 

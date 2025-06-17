@@ -15,6 +15,7 @@ use crate::arch::gdt::create_gdt_and_tss;
 use crate::arch::idt::create_idt;
 use crate::limine::MP_REQUEST;
 use crate::mcore::context::ExecutionContext;
+use crate::mcore::mtask::scheduler::cleanup::TaskCleanup;
 use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::sse;
 
@@ -48,7 +49,9 @@ pub fn init() {
     });
 
     // then call the `cpu_init` function on the bootstrap CPU
-    unsafe { cpu_init_and_return(resp.cpus()[0]) }
+    unsafe { cpu_init_and_return(resp.cpus()[0]) };
+
+    TaskCleanup::init();
 }
 
 unsafe extern "C" fn cpu_init_and_return(cpu: &limine::mp::Cpu) {

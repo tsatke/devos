@@ -4,13 +4,13 @@ use core::slice::from_raw_parts_mut;
 
 use kernel_virtual_memory::Segment;
 use thiserror::Error;
-use x86_64::VirtAddr;
 use x86_64::registers::rflags::RFlags;
 use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
+use x86_64::VirtAddr;
 
 use crate::mem::address_space::AddressSpace;
 use crate::mem::phys::PhysicalMemory;
-use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator};
+use crate::mem::virt::{OwnedSegment, VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::{U64Ext, UsizeExt};
 
 #[derive(Debug, Copy, Clone, Error)]
@@ -21,13 +21,13 @@ pub enum StackAllocationError {
     OutOfPhysicalMemory,
 }
 
-pub struct Stack {
+pub struct HigherHalfStack {
     segment: OwnedSegment<'static>,
     mapped_segment: Segment,
     rsp: VirtAddr,
 }
 
-impl Debug for Stack {
+impl Debug for HigherHalfStack {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Stack")
             .field("segment", &self.segment)
@@ -35,20 +35,14 @@ impl Debug for Stack {
     }
 }
 
-impl Drop for Stack {
+impl Drop for HigherHalfStack {
     fn drop(&mut self) {
         let address_space = AddressSpace::kernel();
         address_space.unmap_range::<Size4KiB>(&*self.segment, PhysicalMemory::deallocate_frame);
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum StackUserAccessible {
-    Yes,
-    No,
-}
-
-impl Stack {
+impl HigherHalfStack {
     /// Allocates a new stack with the given number of pages.
     ///
     /// # Errors
@@ -56,14 +50,11 @@ impl Stack {
     /// physical or virtual.
     pub fn allocate(
         pages: usize,
-        vmm: &impl VirtualMemoryAllocator,
-        user_accessible: StackUserAccessible,
-        address_space: &AddressSpace,
         entry_point: extern "C" fn(*mut c_void),
         arg: *mut c_void,
         exit_fn: extern "C" fn(),
     ) -> Result<Self, StackAllocationError> {
-        let mut stack = Self::allocate_plain(pages, vmm, user_accessible, address_space)?;
+        let mut stack = Self::allocate_plain(pages)?;
         let mapped_segment = stack.mapped_segment;
 
         // set up stack
@@ -106,31 +97,20 @@ impl Stack {
     /// # Errors
     /// Returns an error if stack memory couldn't be allocated, either
     /// physical or virtual, or if mapping failed.
-    pub fn allocate_plain(
-        pages: usize,
-        vmm: &impl VirtualMemoryAllocator,
-        user_accessible: StackUserAccessible,
-        address_space: &AddressSpace,
-    ) -> Result<Self, StackAllocationError> {
-        let segment = vmm
+    pub fn allocate_plain(pages: usize) -> Result<Self, StackAllocationError> {
+        let segment = VirtualMemoryHigherHalf
             .reserve(pages)
             .ok_or(StackAllocationError::OutOfVirtualMemory)?;
 
         let mapped_segment =
             Segment::new(segment.start + Size4KiB::SIZE, segment.len - Size4KiB::SIZE);
 
-        address_space
+        AddressSpace::kernel()
             .map_range::<Size4KiB>(
                 &mapped_segment,
                 PhysicalMemory::allocate_frames_non_contiguous(),
                 // FIXME: must be user accessible for user tasks, but can only be user accessible if in lower half, otherwise it can be modified by unrelated tasks/processes
-                PageTableFlags::PRESENT
-                    | PageTableFlags::WRITABLE
-                    | if user_accessible == StackUserAccessible::Yes {
-                        PageTableFlags::USER_ACCESSIBLE
-                    } else {
-                        PageTableFlags::empty()
-                    },
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
             )
             .map_err(|_| StackAllocationError::OutOfPhysicalMemory)?;
         let rsp = mapped_segment.start + mapped_segment.len;
@@ -142,7 +122,7 @@ impl Stack {
     }
 }
 
-impl Stack {
+impl HigherHalfStack {
     #[must_use]
     pub fn initial_rsp(&self) -> VirtAddr {
         self.rsp
@@ -155,7 +135,7 @@ impl Stack {
     }
 
     /// Returns the full stack segment, including the guard page (which is not mapped).
-    pub fn segment(&self) -> &OwnedSegment {
+    pub fn segment(&self) -> &OwnedSegment<'_> {
         &self.segment
     }
 

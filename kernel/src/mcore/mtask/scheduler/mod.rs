@@ -5,6 +5,7 @@ use core::cell::UnsafeCell;
 use core::mem::swap;
 use core::pin::Pin;
 
+use cleanup::TaskCleanup;
 use x86_64::instructions::interrupts;
 use x86_64::registers::model_specific::FsBase;
 
@@ -12,6 +13,7 @@ use crate::mcore::mtask::scheduler::global::GlobalTaskQueue;
 use crate::mcore::mtask::scheduler::switch::switch_impl;
 use crate::mcore::mtask::task::Task;
 
+pub mod cleanup;
 pub mod global;
 mod switch;
 
@@ -42,18 +44,19 @@ impl Scheduler {
     /// # Safety
     /// Trivially unsafe. If you don't know why, please don't call this function.
     pub unsafe fn reschedule(&mut self) {
-        // in theory, we could move this to the end of this function, but I'd rather not do this right now
-        if let Some(zombie_task) = self.zombie_task.take()
-            && !zombie_task.should_terminate()
-        {
-            GlobalTaskQueue::enqueue(zombie_task);
-        }
+        assert!(!interrupts::are_enabled());
 
-        interrupts::disable();
+        // in theory, we could move this to the end of this function, but I'd rather not do this right now
+        if let Some(zombie_task) = self.zombie_task.take() {
+            if zombie_task.should_terminate() {
+                TaskCleanup::enqueue(zombie_task);
+            } else {
+                GlobalTaskQueue::enqueue(zombie_task);
+            }
+        }
 
         let (next_task, cr3_value) = {
             let Some(next_task) = self.next_task() else {
-                interrupts::enable();
                 return;
             };
 

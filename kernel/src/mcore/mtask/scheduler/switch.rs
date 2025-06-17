@@ -104,7 +104,6 @@ pub unsafe extern "C" fn switch_impl(
         set_task_switched!(),
         "mov cr3, rdx", // write _new_cr3_value into cr3
         pop_context!(),
-        "sti", // enable interrupts
         "ret"
     )
 }

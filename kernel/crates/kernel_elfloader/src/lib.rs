@@ -10,11 +10,11 @@ use core::fmt::Debug;
 
 pub use file::*;
 use itertools::Itertools;
-use kernel_memapi::{Location, MemoryApi, UserAccessible};
+use kernel_memapi::{Guarded, Location, MemoryApi, UserAccessible};
 use log::trace;
 use thiserror::Error;
-use x86_64::VirtAddr;
 use x86_64::addr::VirtAddrNotValid;
+use x86_64::VirtAddr;
 
 pub struct ElfLoader<M>
 where
@@ -95,7 +95,7 @@ where
 
             let mut alloc = self
                 .memory_api
-                .allocate(location, layout, UserAccessible::Yes) // TODO: make user accessibility configurable
+                .allocate(location, layout, UserAccessible::Yes, Guarded::No) // TODO: make user accessibility configurable
                 .ok_or(LoadElfError::AllocationFailed)?;
 
             let slice = alloc.as_mut();
@@ -144,7 +144,7 @@ where
 
         let mut alloc = self
             .memory_api
-            .allocate(Location::Anywhere, layout, UserAccessible::Yes) // TODO: make user accessibility configurable
+            .allocate(Location::Anywhere, layout, UserAccessible::Yes, Guarded::No) // TODO: make user accessibility configurable
             .ok_or(LoadElfError::AllocationFailed)?;
 
         let slice = alloc.as_mut();

@@ -91,7 +91,7 @@ impl Path {
     }
 
     #[must_use]
-    pub fn make_absolute(&self) -> Cow<AbsolutePath> {
+    pub fn make_absolute(&self) -> Cow<'_, AbsolutePath> {
         if let Ok(path) = AbsolutePath::try_new(self) {
             Cow::Borrowed(path)
         } else {

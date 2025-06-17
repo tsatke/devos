@@ -5,10 +5,10 @@ use core::marker::PhantomData;
 use core::ops::Deref;
 use core::slice::{from_raw_parts, from_raw_parts_mut};
 
-use kernel_memapi::{Allocation, Location, MemoryApi, UserAccessible, WritableAllocation};
+use kernel_memapi::{Allocation, Guarded, Location, MemoryApi, UserAccessible, WritableAllocation};
 use kernel_virtual_memory::Segment;
-use x86_64::VirtAddr;
 use x86_64::structures::paging::{PageSize, PageTableFlags, Size4KiB};
+use x86_64::VirtAddr;
 
 use crate::mcore::mtask::process::Process;
 use crate::mem::phys::PhysicalMemory;
@@ -36,32 +36,52 @@ impl MemoryApi for LowerHalfMemoryApi {
         location: Location,
         layout: Layout,
         user_accessible: UserAccessible,
+        guarded: Guarded,
     ) -> Option<Self::WritableAllocation> {
         assert!(layout.align() <= Size4KiB::SIZE.into_usize());
 
+        let num_pages = layout.size().div_ceil(Size4KiB::SIZE.into_usize())
+            + match guarded {
+                Guarded::Yes => 2, // Reserve two extra pages for guard pages
+                Guarded::No => 0,
+            };
+
         let (start, segment) = match location {
             Location::Anywhere => {
-                let segment = self
-                    .process
-                    .vmm()
-                    .reserve(layout.size().div_ceil(Size4KiB::SIZE.into_usize()))?;
-                (segment.start, segment)
+                let segment = self.process.vmm().reserve(num_pages)?;
+                (None, segment)
             }
             Location::Fixed(v) => {
-                let aligned_start_addr = v.align_down(Size4KiB::SIZE);
-                let aligned_end_addr = (v + layout.size().into_u64()).align_up(Size4KiB::SIZE);
+                let aligned_start_addr = v.align_down(Size4KiB::SIZE)
+                    - match guarded {
+                        Guarded::Yes => Size4KiB::SIZE,
+                        Guarded::No => 0,
+                    };
+                let aligned_end_addr = (v + layout.size().into_u64()).align_up(Size4KiB::SIZE)
+                    + match guarded {
+                        Guarded::Yes => Size4KiB::SIZE,
+                        Guarded::No => 0,
+                    };
                 let segment =
                     Segment::new(aligned_start_addr, aligned_end_addr - aligned_start_addr);
                 let vmm = self.process.vmm();
                 let segment = vmm.mark_as_reserved(segment).ok()?;
-                (v, segment)
+                (Some(v), segment)
             }
+        };
+
+        let mapped_segment = match guarded {
+            Guarded::Yes => Segment::new(
+                segment.start + Size4KiB::SIZE,
+                segment.len - (2 * Size4KiB::SIZE),
+            ),
+            Guarded::No => *segment,
         };
 
         self.process
             .address_space()
             .map_range::<Size4KiB>(
-                &*segment,
+                &mapped_segment,
                 PhysicalMemory::allocate_frames_non_contiguous(),
                 PageTableFlags::PRESENT
                     | PageTableFlags::WRITABLE
@@ -74,12 +94,14 @@ impl MemoryApi for LowerHalfMemoryApi {
             )
             .ok()?;
 
+        let start = start.unwrap_or(mapped_segment.start);
         Some(LowerHalfAllocation {
             start,
             layout,
             inner: Inner {
                 process: self.process.clone(),
                 segment,
+                mapped_segment,
             },
             _typ: PhantomData,
         })
@@ -196,6 +218,7 @@ impl<T: AllocationType> LowerHalfAllocation<T> {
 
 pub struct Inner {
     segment: OwnedSegment<'static>,
+    mapped_segment: Segment,
     process: Arc<Process>,
 }
 
@@ -243,6 +266,6 @@ impl Drop for Inner {
     fn drop(&mut self) {
         self.process
             .address_space()
-            .unmap_range::<Size4KiB>(&*self.segment, PhysicalMemory::deallocate_frame);
+            .unmap_range::<Size4KiB>(&self.mapped_segment, PhysicalMemory::deallocate_frame);
     }
 }

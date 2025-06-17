@@ -17,6 +17,12 @@ pub enum UserAccessible {
     Yes,
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Guarded {
+    No,
+    Yes,
+}
+
 /// This functions as an API type that components can require if they need
 /// to allocate mapped memory. When invoking the component, the kernel will pass
 /// a concrete implementation of this trait.
@@ -34,6 +40,10 @@ pub trait MemoryApi {
     /// By default, the returned memory region is writable and *not* executable.
     /// To change this, the caller must convert the allocation with [`MemoryApi::make_executable`].
     ///
+    /// If the allocation should be guarded, then the implementation must ensure that on the lower
+    /// and higher end of the allocation, there is a guard page that will cause a page fault when
+    /// accessed.
+    ///
     /// The implementation chooses the physical addresses, the address space and the memory region,
     /// which is opaque to the caller of this function.
     ///
@@ -47,6 +57,7 @@ pub trait MemoryApi {
         location: Location,
         layout: Layout,
         user_accessible: UserAccessible,
+        guarded: Guarded,
     ) -> Option<Self::WritableAllocation>;
 
     /// # Errors

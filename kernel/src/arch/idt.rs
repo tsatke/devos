@@ -4,13 +4,13 @@ use core::arch::x86_64::{_fxrstor, _fxsave};
 use core::fmt::{Debug, Formatter};
 use core::mem::transmute;
 
-use kernel_memapi::{Location, MemoryApi, UserAccessible};
+use kernel_memapi::{Guarded, Location, MemoryApi, UserAccessible};
 use log::{error, warn};
-use x86_64::PrivilegeLevel;
 use x86_64::instructions::{hlt, interrupts};
 use x86_64::registers::control::Cr2;
 use x86_64::registers::debug::{Dr6, Dr7};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
+use x86_64::PrivilegeLevel;
 
 use crate::arch::gdt;
 use crate::mcore::context::ExecutionContext;
@@ -284,6 +284,7 @@ extern "x86-interrupt" fn device_not_available_handler(_stack_frame: InterruptSt
                 Location::Anywhere,
                 Layout::new::<FxArea>(),
                 UserAccessible::Yes,
+                Guarded::No,
             )
             .expect("should be able to allocate fx area");
 
