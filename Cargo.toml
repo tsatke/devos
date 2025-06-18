@@ -59,7 +59,7 @@ raw-cpuid = "11"
 elf = { version = "0.7", default-features = false, features = ["nightly"] }
 itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
 jiff = { version = "0.2", default-features = false, features = ["alloc"] }
-limine = "0.4"
+limine = "0.5"
 linked_list_allocator = "0.10"
 linkme = "0.3"
 log = "0.4"

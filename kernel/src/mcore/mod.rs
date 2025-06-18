@@ -1,4 +1,5 @@
 use alloc::boxed::Box;
+use core::sync::atomic::Ordering::{Acquire, Release};
 
 use log::{info, trace};
 use x86_64::instructions::segmentation::{CS, DS, SS};
@@ -37,8 +38,8 @@ pub fn init() {
     };
 
     // set the extra field in the CPU structs to the CR3 value
-    resp.cpus_mut().iter_mut().for_each(|cpu| {
-        cpu.extra = cr3_val;
+    resp.cpus().iter().for_each(|cpu| {
+        cpu.extra.store(cr3_val, Release);
     });
 
     GlobalTaskQueue::init();
@@ -55,15 +56,13 @@ pub fn init() {
 }
 
 unsafe extern "C" fn cpu_init_and_return(cpu: &limine::mp::Cpu) {
-    trace!("booting cpu {} with argument {}", cpu.id, cpu.extra);
+    let cpu_arg = cpu.extra.load(Acquire);
+    trace!("booting cpu {} with argument {}", cpu.id, cpu_arg,);
 
     // set the memory mapping that we got as a parameter
     unsafe {
-        let flags = Cr3Flags::from_bits_truncate(cpu.extra);
-        Cr3::write(
-            PhysFrame::containing_address(PhysAddr::new(cpu.extra)),
-            flags,
-        );
+        let flags = Cr3Flags::from_bits_truncate(cpu_arg);
+        Cr3::write(PhysFrame::containing_address(PhysAddr::new(cpu_arg)), flags);
     }
 
     // set up the GDT
