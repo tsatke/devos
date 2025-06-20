@@ -1,5 +1,7 @@
-use kernel_device::RegisterDeviceError;
+use alloc::sync::Arc;
+
 use kernel_device::raw::{RawDevice, RawDeviceRegistry};
+use kernel_device::RegisterDeviceError;
 use spin::RwLock;
 
 use crate::driver::KernelDeviceId;
@@ -11,7 +13,7 @@ pub struct RawDevices;
 
 impl RawDevices {
     #[allow(clippy::missing_errors_doc)] // TODO: add documentation
-    pub fn register_raw_device<D>(device: D) -> Result<(), RegisterDeviceError<D>>
+    pub fn register_raw_device<D>(device: Arc<RwLock<D>>) -> Result<(), RegisterDeviceError>
     where
         D: RawDevice<KernelDeviceId> + 'static,
     {

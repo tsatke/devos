@@ -3,9 +3,9 @@ use alloc::sync::Arc;
 use core::error::Error;
 
 use ext2::Ext2Fs;
-use kernel_device::RegisterDeviceError;
 use kernel_device::block::registry::BlockDeviceRegistry;
 use kernel_device::block::{BlockBuf, BlockDevice};
+use kernel_device::RegisterDeviceError;
 use kernel_vfs::path::ROOT;
 use spin::RwLock;
 
@@ -22,11 +22,11 @@ impl BlockDevices {
     // TODO: add documentation
     #[allow(clippy::missing_errors_doc)]
     #[allow(clippy::missing_panics_doc)]
-    pub fn register_block_device<D>(device: D) -> Result<(), RegisterDeviceError<D>>
+    pub fn register_block_device<D>(device: Arc<RwLock<D>>) -> Result<(), RegisterDeviceError>
     where
         D: BlockDevice<KernelDeviceId, 512> + Send + Sync + 'static,
     {
-        let device = BLOCK_DEVICES.write().register_device(device)?;
+        BLOCK_DEVICES.write().register_device(device.clone())?;
         let wrapper = BlockDeviceWrapper { inner: device };
         let fs = Ext2Fs::try_new(wrapper).unwrap();
         let vext2 = VirtualExt2Fs::from(fs);

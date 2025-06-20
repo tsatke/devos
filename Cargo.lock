@@ -543,6 +543,7 @@ dependencies = [
  "itertools",
  "jiff",
  "kernel_abi",
+ "kernel_devfs",
  "kernel_device",
  "kernel_elfloader",
  "kernel_memapi",
@@ -572,6 +573,17 @@ dependencies = [
 [[package]]
 name = "kernel_abi"
 version = "0.1.0"
+
+[[package]]
+name = "kernel_devfs"
+version = "0.1.0"
+dependencies = [
+ "kernel_device",
+ "kernel_vfs",
+ "log",
+ "spin",
+ "thiserror",
+]
 
 [[package]]
 name = "kernel_device"

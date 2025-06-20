@@ -25,7 +25,7 @@ where
 pub trait DeviceId: Copy + Eq {}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Error)]
-pub enum RegisterDeviceError<D> {
+pub enum RegisterDeviceError {
     #[error("device id is already registered")]
-    AlreadyRegistered(D),
+    AlreadyRegistered,
 }

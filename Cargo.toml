@@ -18,6 +18,7 @@ sandbox_nostd = { path = "userspace/sandbox_nostd", artifact = "bin", target = "
 members = [
     "kernel",
     "kernel/crates/kernel_abi",
+    "kernel/crates/kernel_devfs",
     "kernel/crates/kernel_device",
     "kernel/crates/kernel_elfloader",
     "kernel/crates/kernel_memapi",
@@ -33,6 +34,7 @@ members = [
 default-members = [
     ".",
     "kernel/crates/kernel_abi",
+    "kernel/crates/kernel_devfs",
     "kernel/crates/kernel_device",
     "kernel/crates/kernel_elfloader",
     "kernel/crates/kernel_memapi",

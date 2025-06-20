@@ -130,7 +130,7 @@ mod tests {
     fn test_read() {
         let mut fs = TestFs::default();
         fs.insert_file(
-            "/foo/bar.txt",
+            AbsolutePath::try_new("/foo/bar.txt").unwrap(),
             (0_u8..=u8::MAX).collect::<Vec<u8>>(),
             Stat::default(),
         );
@@ -162,7 +162,11 @@ mod tests {
     #[test]
     fn test_mount() {
         let mut fs = TestFs::default();
-        fs.insert_file("/foo/bar.txt", vec![0x00; 1], Stat::default());
+        fs.insert_file(
+            AbsolutePath::try_new("/foo/bar.txt").unwrap(),
+            vec![0x00; 1],
+            Stat::default(),
+        );
 
         let mut vfs = Vfs::new();
         vfs.mount(ROOT, fs).unwrap();

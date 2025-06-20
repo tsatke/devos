@@ -1,22 +1,27 @@
 use alloc::boxed::Box;
+use alloc::format;
 use alloc::sync::Arc;
 use core::error::Error;
 use core::fmt::{Debug, Formatter};
 
-use kernel_device::Device;
+use kernel_devfs::BlockDeviceFile;
 use kernel_device::block::{BlockBuf, BlockDevice};
+use kernel_device::Device;
+use kernel_vfs::path::AbsoluteOwnedPath;
 use linkme::distributed_slice;
+use spin::rwlock::RwLock;
 use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::transport::{DeviceType, Transport};
 
-use crate::U64Ext;
-use crate::driver::KernelDeviceId;
 use crate::driver::block::BlockDevices;
 use crate::driver::pci::device::PciDevice;
-use crate::driver::pci::{PCI_DRIVERS, PciDriverDescriptor, PciDriverType};
-use crate::driver::virtio::hal::{HalImpl, transport};
+use crate::driver::pci::{PciDriverDescriptor, PciDriverType, PCI_DRIVERS};
+use crate::driver::virtio::hal::{transport, HalImpl};
+use crate::driver::KernelDeviceId;
+use crate::file::devfs::devfs;
+use crate::U64Ext;
 
 #[distributed_slice(PCI_DRIVERS)]
 static VIRTIO_BLK: PciDriverDescriptor = PciDriverDescriptor {
@@ -38,12 +43,19 @@ fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
 
     let blk = VirtIOBlk::<HalImpl, _>::new(transport)?;
 
+    let id = KernelDeviceId::new();
     let device = VirtioBlockDevice {
-        id: KernelDeviceId::new(),
+        id,
         inner: Arc::new(Mutex::new(blk)),
     };
+    let device = Arc::new(RwLock::new(device));
+    BlockDevices::register_block_device(device.clone())?;
 
-    BlockDevices::register_block_device(device)?;
+    let path = AbsoluteOwnedPath::try_from(format!("/disk{id}").as_ref())?;
+    devfs().write().register_file(path.as_ref(), {
+        move || Ok(BlockDeviceFile::new(device.clone()))
+    })?;
+
     Ok(())
 }
 

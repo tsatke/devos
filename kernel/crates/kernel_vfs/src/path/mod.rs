@@ -139,6 +139,10 @@ mod tests {
     #[test]
     fn test_parent() {
         for (path, parent) in [
+            ("/", None),
+            ("//", None),
+            ("///", None),
+            ("", None),
             ("/foo/bar/baz", Some("/foo/bar")),
             ("/foo/bar", Some("/foo")),
             ("/foo//bar", Some("/foo")),

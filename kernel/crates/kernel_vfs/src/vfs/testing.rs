@@ -7,19 +7,19 @@ use core::sync::atomic::Ordering::Relaxed;
 use spin::RwLock;
 
 use crate::fs::{FileSystem, FsHandle};
-use crate::path::{OwnedPath, Path};
+use crate::path::{AbsoluteOwnedPath, AbsolutePath};
 use crate::{CloseError, FsError, OpenError, ReadError, Stat, StatError, WriteError};
 
 #[derive(Default)]
 pub struct TestFs {
     handle_counter: AtomicU64,
-    files: BTreeMap<OwnedPath, RwLock<Vec<u8>>>,
-    stats: BTreeMap<OwnedPath, Stat>,
-    open_files: BTreeMap<FsHandle, OwnedPath>,
+    files: BTreeMap<AbsoluteOwnedPath, RwLock<Vec<u8>>>,
+    stats: BTreeMap<AbsoluteOwnedPath, Stat>,
+    open_files: BTreeMap<FsHandle, AbsoluteOwnedPath>,
 }
 
 impl TestFs {
-    pub fn insert_file(&mut self, path: impl AsRef<Path>, data: Vec<u8>, stat: Stat) {
+    pub fn insert_file(&mut self, path: impl AsRef<AbsolutePath>, data: Vec<u8>, stat: Stat) {
         let path = path.as_ref().to_owned();
         self.files.insert(path.clone(), RwLock::new(data));
         self.stats.insert(path, stat);
@@ -27,7 +27,7 @@ impl TestFs {
 }
 
 impl FileSystem for TestFs {
-    fn open(&mut self, path: &Path) -> Result<FsHandle, OpenError> {
+    fn open(&mut self, path: &AbsolutePath) -> Result<FsHandle, OpenError> {
         let owned = path.to_owned();
         if self.files.contains_key(&owned) {
             let handle = FsHandle::from(self.handle_counter.fetch_add(1, Relaxed));
@@ -93,18 +93,21 @@ impl FileSystem for TestFs {
 
 #[cfg(test)]
 mod tests {
-    use crate::CloseError;
     use crate::fs::FileSystem;
-    use crate::path::{OwnedPath, Path};
+    use crate::path::{AbsoluteOwnedPath, AbsolutePath};
     use crate::testing::TestFs;
+    use crate::CloseError;
 
     #[test]
     fn test_open_close() {
         let mut fs = TestFs::default();
-        fs.files.insert(OwnedPath::new("/foo"), Default::default());
+        fs.files.insert(
+            AbsoluteOwnedPath::try_from("/foo").unwrap(),
+            Default::default(),
+        );
 
-        assert!(fs.open(Path::new("/bar")).is_err());
-        let handle = fs.open(Path::new("/foo")).unwrap();
+        assert!(fs.open(AbsolutePath::try_new("/bar").unwrap()).is_err());
+        let handle = fs.open(AbsolutePath::try_new("/foo").unwrap()).unwrap();
 
         assert!(fs.close(handle).is_ok());
         assert_eq!(Err(CloseError::NotOpen), fs.close(handle));

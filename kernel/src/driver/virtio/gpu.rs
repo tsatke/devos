@@ -3,24 +3,25 @@ use alloc::sync::Arc;
 use core::error::Error;
 use core::fmt::{Debug, Formatter};
 
-use kernel_device::Device;
 use kernel_device::raw::RawDevice;
+use kernel_device::Device;
 use linkme::distributed_slice;
+use spin::rwlock::RwLock;
 use spin::Mutex;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::transport::{DeviceType, Transport};
-use x86_64::VirtAddr;
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PhysFrame, Size4KiB};
+use x86_64::VirtAddr;
 
-use crate::UsizeExt;
-use crate::driver::KernelDeviceId;
 use crate::driver::pci::device::PciDevice;
-use crate::driver::pci::{PCI_DRIVERS, PciDriverDescriptor, PciDriverType};
+use crate::driver::pci::{PciDriverDescriptor, PciDriverType, PCI_DRIVERS};
 use crate::driver::raw::RawDevices;
-use crate::driver::virtio::hal::{HalImpl, transport};
+use crate::driver::virtio::hal::{transport, HalImpl};
+use crate::driver::KernelDeviceId;
 use crate::mem::address_space::AddressSpace;
+use crate::UsizeExt;
 
 #[distributed_slice(PCI_DRIVERS)]
 static VIRTIO_GPU: PciDriverDescriptor = PciDriverDescriptor {
@@ -73,6 +74,7 @@ fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
         _inner: Arc::new(Mutex::new(gpu)),
         physical_memory,
     };
+    let device = Arc::new(RwLock::new(device));
 
     RawDevices::register_raw_device(device)?;
 

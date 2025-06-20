@@ -3,13 +3,10 @@
 #![feature(abi_x86_interrupt, negative_impls)]
 extern crate alloc;
 
-use ::log::info;
 use conquer_once::spin::OnceCell;
-use kernel_vfs::path::AbsoluteOwnedPath;
+use ::log::info;
 
 use crate::driver::pci;
-use crate::file::devfs::DevFs;
-use crate::file::vfs;
 use crate::limine::BOOT_TIME;
 
 mod acpi;
@@ -46,12 +43,8 @@ pub fn init() {
     hpet::init();
     backtrace::init();
     mcore::init();
+    file::init();
     pci::init();
-
-    vfs()
-        .write()
-        .mount(AbsoluteOwnedPath::try_from("/dev").unwrap(), DevFs::new())
-        .expect("Failed to mount root filesystem");
 
     info!("kernel initialized");
 }

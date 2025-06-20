@@ -8,13 +8,13 @@ use core::sync::atomic::Ordering::Relaxed;
 use ext2::{Ext2Fs, Inode, InodeAddress, Type};
 use filesystem::BlockDevice;
 use kernel_vfs::fs::{FileSystem, FsHandle};
-use kernel_vfs::path::{OwnedPath, Path};
+use kernel_vfs::path::{AbsoluteOwnedPath, AbsolutePath, Path};
 use kernel_vfs::{CloseError, FsError, OpenError, ReadError, Stat, StatError, WriteError};
 use spin::RwLock;
 
 pub struct VirtualExt2Fs<T> {
     ext2fs: Ext2Fs<T>,
-    handles: BTreeMap<FsHandle, Arc<(OwnedPath, RwLock<VirtualExt2Inode>)>>,
+    handles: BTreeMap<FsHandle, Arc<(AbsoluteOwnedPath, RwLock<VirtualExt2Inode>)>>,
 }
 
 impl<T> From<Ext2Fs<T>> for VirtualExt2Fs<T> {
@@ -44,11 +44,11 @@ impl<T> FileSystem for VirtualExt2Fs<T>
 where
     T: BlockDevice + Send + Sync,
 {
-    fn open(&mut self, path: &Path) -> Result<FsHandle, OpenError> {
+    fn open(&mut self, path: &AbsolutePath) -> Result<FsHandle, OpenError> {
         static FS_COUNTER: AtomicU64 = AtomicU64::new(0);
 
         // instead of creating a new inode, check whether we already have that inode open behind another handle
-        if let Some(v) = self.handles.values().find(|v| *path == *v.0) {
+        if let Some(v) = self.handles.values().find(|v| &*path == v.0.as_ref()) {
             let handle = FsHandle::from(FS_COUNTER.fetch_add(1, Relaxed));
             self.handles.insert(handle, v.clone());
             return Ok(handle);

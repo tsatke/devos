@@ -1,4 +1,4 @@
-use crate::path::Path;
+use crate::path::AbsolutePath;
 use crate::{CloseError, OpenError, ReadError, Stat, StatError, WriteError};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -14,7 +14,7 @@ pub trait FileSystem: Send + Sync {
     /// # Errors
     /// Returns an error if the path does not point to a file, or if there
     /// was an underlying error during opening (such as a hardware error).
-    fn open(&mut self, path: &Path) -> Result<FsHandle, OpenError>;
+    fn open(&mut self, path: &AbsolutePath) -> Result<FsHandle, OpenError>;
 
     /// # Errors
     /// Returns an error if the handle is invalid or already closed,

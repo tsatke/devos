@@ -1,3 +1,4 @@
+use core::fmt::{Display, Formatter};
 use core::sync::atomic::AtomicU64;
 use core::sync::atomic::Ordering::Relaxed;
 
@@ -15,6 +16,12 @@ pub struct KernelDeviceId(u64);
 impl Default for KernelDeviceId {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Display for KernelDeviceId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
