@@ -7,8 +7,6 @@ use spin::RwLock;
 
 use crate::{Device, DeviceId};
 
-pub mod registry;
-
 #[repr(transparent)]
 pub struct BlockBuf<const N: usize> {
     data: [u8; N],
