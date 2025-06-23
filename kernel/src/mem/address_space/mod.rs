@@ -72,31 +72,38 @@ fn make_mapping_recursive() -> (VirtAddr, PhysFrame) {
         .unwrap()
         .virtual_base();
     assert_eq!(
-        1,
-        MEMORY_MAP_REQUEST
-            .get_response()
-            .unwrap()
-            .entries()
-            .iter()
-            .filter(|e| e.entry_type == EntryType::EXECUTABLE_AND_MODULES)
-            .count()
+        kernel_addr, 0xffff_ffff_8000_0000,
+        "kernel address should be 0xffff_ffff_8000_0000, if it isn't, either check the linker file or you know what you're doing"
     );
-    let kernel_size = MEMORY_MAP_REQUEST
-        .get_response()
-        .unwrap()
-        .entries()
-        .iter()
-        .find(|e| e.entry_type == EntryType::EXECUTABLE_AND_MODULES)
-        .unwrap()
-        .length;
 
     info!("remapping kernel");
     remap(
         &mut current_pt,
         &mut new_pt,
         VirtAddr::new(kernel_addr),
-        kernel_size.into_usize(),
+        usize::MAX - kernel_addr.into_usize() + 1, // remap from the kernel base until the end of the address space
     );
+
+    MEMORY_MAP_REQUEST
+        .get_response()
+        .unwrap()
+        .entries()
+        .iter()
+        .filter(|e| e.entry_type == EntryType::EXECUTABLE_AND_MODULES)
+        .for_each(|e| {
+            info!(
+                "remapping module of size ~{}MiB ({} bytes) at virt={:p}",
+                e.length / 1024 / 1024,
+                e.length,
+                VirtAddr::new(e.base + hhdm_offset),
+            );
+            remap(
+                &mut current_pt,
+                &mut new_pt,
+                VirtAddr::new(e.base + hhdm_offset),
+                e.length.into_usize(),
+            );
+        });
 
     MEMORY_MAP_REQUEST
         .get_response()
@@ -152,7 +159,7 @@ fn remap(
 ) {
     let mut current_addr = start_vaddr;
 
-    while current_addr.as_u64() < start_vaddr.as_u64() + len as u64 {
+    while current_addr.as_u64() <= start_vaddr.as_u64() - 1 + len as u64 {
         let result = current_pt.translate(current_addr);
         let TranslateResult::Mapped {
             frame,
@@ -160,7 +167,7 @@ fn remap(
             flags,
         } = result
         else {
-            unreachable!()
+            break;
         };
 
         let flags = flags.intersection(

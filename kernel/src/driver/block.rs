@@ -1,17 +1,15 @@
-use alloc::boxed::Box;
+use alloc::format;
 use alloc::sync::Arc;
-use core::error::Error;
 
-use ext2::Ext2Fs;
+use kernel_devfs::BlockDeviceFile;
 use kernel_device::block::registry::BlockDeviceRegistry;
-use kernel_device::block::{BlockBuf, BlockDevice};
+use kernel_device::block::BlockDevice;
 use kernel_device::RegisterDeviceError;
-use kernel_vfs::path::ROOT;
+use kernel_vfs::path::AbsoluteOwnedPath;
 use spin::RwLock;
 
 use crate::driver::KernelDeviceId;
-use crate::file::ext2::VirtualExt2Fs;
-use crate::file::vfs;
+use crate::file::devfs::devfs;
 
 static BLOCK_DEVICES: RwLock<BlockDeviceRegistry<KernelDeviceId, 512>> =
     RwLock::new(BlockDeviceRegistry::new());
@@ -27,49 +25,16 @@ impl BlockDevices {
         D: BlockDevice<KernelDeviceId, 512> + Send + Sync + 'static,
     {
         BLOCK_DEVICES.write().register_device(device.clone())?;
-        let wrapper = BlockDeviceWrapper { inner: device };
-        let fs = Ext2Fs::try_new(wrapper).unwrap();
-        let vext2 = VirtualExt2Fs::from(fs);
-        vfs().write().mount(ROOT, vext2).unwrap();
+
+        let id = device.read().id();
+        let path = AbsoluteOwnedPath::try_from(format!("/blk{id}").as_ref()).unwrap();
+        devfs()
+            .write()
+            .register_file(path.as_ref(), {
+                move || Ok(BlockDeviceFile::new(device.clone()))
+            })
+            .unwrap();
 
         Ok(())
-    }
-}
-
-struct BlockDeviceWrapper<T, const N: usize>
-where
-    T: BlockDevice<KernelDeviceId, N>,
-{
-    inner: Arc<RwLock<T>>,
-}
-
-impl<T, const N: usize> filesystem::BlockDevice for BlockDeviceWrapper<T, N>
-where
-    T: BlockDevice<KernelDeviceId, N>,
-{
-    type Error = Box<dyn Error>;
-
-    fn sector_size(&self) -> usize {
-        N
-    }
-
-    fn sector_count(&self) -> usize {
-        self.inner.read().block_count()
-    }
-
-    fn read_sector(&self, sector_index: usize, buf: &mut [u8]) -> Result<usize, Self::Error> {
-        let mut block_buf = BlockBuf::new();
-        self.inner
-            .write()
-            .read_block(sector_index, &mut block_buf)?;
-        buf.copy_from_slice(&*block_buf);
-        Ok(block_buf.len())
-    }
-
-    fn write_sector(&mut self, sector_index: usize, buf: &[u8]) -> Result<usize, Self::Error> {
-        let mut block_buf = BlockBuf::new();
-        block_buf.copy_from_slice(buf);
-        self.inner.write().write_block(sector_index, &block_buf)?;
-        Ok(block_buf.len())
     }
 }

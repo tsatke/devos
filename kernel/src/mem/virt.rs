@@ -8,12 +8,13 @@ use conquer_once::spin::OnceCell;
 use kernel_virtual_memory::{AlreadyReserved, Segment, VirtualMemoryManager};
 use limine::memory_map::EntryType;
 use spin::RwLock;
-use x86_64::VirtAddr;
 use x86_64::structures::paging::{PageSize, Size4KiB};
+use x86_64::VirtAddr;
 
-use crate::limine::{HHDM_REQUEST, MEMORY_MAP_REQUEST};
-use crate::mem::address_space::{RECURSIVE_INDEX, recursive_index_to_virtual_address};
+use crate::limine::{HHDM_REQUEST, KERNEL_ADDRESS_REQUEST, MEMORY_MAP_REQUEST};
+use crate::mem::address_space::{sign_extend_vaddr, RECURSIVE_INDEX};
 use crate::mem::heap::Heap;
+use crate::UsizeExt;
 
 static VMM: OnceCell<RwLock<VirtualMemoryManager>> = OnceCell::uninit();
 
@@ -26,7 +27,7 @@ pub fn init() {
     VMM.init_once(|| {
         RwLock::new(VirtualMemoryManager::new(
             VirtAddr::new(0xFFFF_8000_0000_0000),
-            0x0000_7FFF_FFFF_FFFF,
+            0x0000_8000_0000_0000,
         ))
     });
 
@@ -35,7 +36,7 @@ pub fn init() {
         let recursive_index = *RECURSIVE_INDEX
             .get()
             .expect("recursive index should be initialized");
-        let vaddr = recursive_index_to_virtual_address(recursive_index);
+        let vaddr = VirtAddr::new(sign_extend_vaddr((recursive_index as u64) << 39));
         let len = 512 * 1024 * 1024 * 1024; // 512 GiB
         let segment = Segment::new(vaddr, len);
         let _ = VirtualMemoryHigherHalf
@@ -44,7 +45,28 @@ pub fn init() {
             .leak();
     }
 
-    // kernel code and bootloader reclaimable
+    // kernel code
+    {
+        let kernel_addr = KERNEL_ADDRESS_REQUEST
+            .get_response()
+            .unwrap()
+            .virtual_base();
+        assert_eq!(
+            kernel_addr, 0xffff_ffff_8000_0000,
+            "kernel address should be 0xffff_ffff_8000_0000, if it isn't, either check the linker file or you know what you're doing"
+        );
+
+        let kernel_code_segment = Segment::new(
+            VirtAddr::new(kernel_addr),
+            usize::MAX.into_u64() - kernel_addr + 1,
+        );
+        let _ = VirtualMemoryHigherHalf
+            .mark_as_reserved(kernel_code_segment)
+            .expect("kernel code segment should not be reserved yet")
+            .leak();
+    }
+
+    // kernel file and bootloader reclaimable
     {
         let hhdm_offset = HHDM_REQUEST.get_response().unwrap().offset();
         MEMORY_MAP_REQUEST

@@ -15,6 +15,9 @@ pub const STRUCTURE: Dir<'static> = Dir::new(
     &[],
 );
 
+pub const INITRD_STRUCTURE: Dir<'static> =
+    Dir::new("", &[], &[File::new("init", Kind::Executable)]);
+
 pub struct Dir<'a> {
     pub name: &'a str,
     pub subdirs: &'a [Dir<'a>],

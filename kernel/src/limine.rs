@@ -1,9 +1,9 @@
-use limine::BaseRevision;
 use limine::request::{
     DateAtBootRequest, ExecutableAddressRequest, ExecutableFileRequest, HhdmRequest,
-    MemoryMapRequest, MpRequest, RequestsEndMarker, RequestsStartMarker, RsdpRequest,
-    StackSizeRequest,
+    MemoryMapRequest, ModuleRequest, MpRequest, RequestsEndMarker, RequestsStartMarker,
+    RsdpRequest, StackSizeRequest,
 };
+use limine::BaseRevision;
 
 #[used]
 #[unsafe(link_section = ".requests_start_marker")]
@@ -44,6 +44,10 @@ pub static RSDP_REQUEST: RsdpRequest = RsdpRequest::new();
 #[used]
 #[unsafe(link_section = ".requests")]
 pub static STACK_SIZE_REQUEST: StackSizeRequest = StackSizeRequest::new().with_size(262_144);
+
+#[used]
+#[unsafe(link_section = ".requests")]
+pub static MODULE_REQUEST: ModuleRequest = ModuleRequest::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]

@@ -4,6 +4,7 @@ extern crate alloc;
 
 use alloc::collections::BTreeSet;
 
+use log::debug;
 pub use segment::*;
 use thiserror::Error;
 use x86_64::VirtAddr;
@@ -36,7 +37,7 @@ impl VirtualMemoryManager {
         while let Some(existing) = self.find_overlapping(&segment) {
             segment.start = existing.start + existing.len;
         }
-        if segment.start + segment.len > self.mem_start + self.mem_size {
+        if self.mem_start + (self.mem_size - 1) < segment.start + (segment.len - 1) {
             return None;
         }
 
@@ -58,7 +59,8 @@ impl VirtualMemoryManager {
     ///
     /// Returns an error if the segment overlaps with an already reserved segment.
     pub fn mark_as_reserved(&mut self, segment: Segment) -> Result<(), AlreadyReserved> {
-        if self.find_overlapping(&segment).is_some() {
+        if let Some(overlapping) = self.find_overlapping(&segment) {
+            debug!("segment {segment:x?} overlaps with existing segment: {overlapping:x?}");
             return Err(AlreadyReserved);
         }
         self.segments.insert(segment);
@@ -72,8 +74,8 @@ impl VirtualMemoryManager {
 
     fn find_overlapping(&self, segment: &Segment) -> Option<&Segment> {
         self.segments.iter().find(|existing| {
-            segment.start < existing.start + existing.len
-                && existing.start < segment.start + segment.len
+            segment.start <= existing.start + (existing.len - 1)
+                && existing.start <= segment.start + (segment.len - 1)
         })
     }
 }

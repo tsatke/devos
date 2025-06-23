@@ -7,6 +7,9 @@ use file_structure::{Dir, Kind};
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
 
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=limine.conf");
+
     let limine_dir = limine();
 
     let kernel = PathBuf::from(std::env::var_os("CARGO_BIN_FILE_KERNEL_kernel").unwrap());
@@ -27,6 +30,36 @@ fn main() {
 
     let disk_image = build_os_disk_image();
     println!("cargo:rustc-env=DISK_IMAGE={}", disk_image.display());
+}
+
+fn build_initrd_image() -> PathBuf {
+    let initrd_dir = build_initrd_dir();
+    let initrd_image = initrd_dir.with_extension("img");
+
+    let _ = remove_file(&initrd_image); // if this fails, doesn't matter
+
+    // works on my machine. TODO: use the mkfs-ext2 crate once it's ready
+    let mut cmd = Command::new("mke2fs");
+    cmd.arg("-d").arg(initrd_dir.to_str().unwrap());
+    cmd.arg("-m").arg("5");
+    cmd.arg("-t").arg("ext2");
+    cmd.arg(initrd_image.to_str().unwrap());
+    cmd.arg("5M");
+
+    let rc = cmd.status().unwrap();
+    assert_eq!(0, rc.code().unwrap(), "process should exit successfully");
+
+    initrd_image
+}
+
+fn build_initrd_dir() -> PathBuf {
+    let initrd = out_dir().join("initrd");
+    let _ = remove_dir_all(&initrd);
+    create_dir(&initrd).unwrap();
+
+    build_dir(&initrd, &file_structure::INITRD_STRUCTURE);
+
+    initrd
 }
 
 fn build_os_disk_image() -> PathBuf {
@@ -112,6 +145,9 @@ fn build_iso(limine_checkout: impl AsRef<Path>, kernel_binary: impl AsRef<Path>)
 
     // copy the kernel binary to the location that is specified in limine.conf
     copy(kernel_binary, boot_dir.join("kernel")).unwrap();
+    // copy the initrd image to the location that is specified in limine.conf
+    let initrd_image = build_initrd_image();
+    copy(initrd_image, boot_dir.join("initrd")).unwrap();
 
     // the following is x86_64 specific
 
