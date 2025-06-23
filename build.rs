@@ -41,7 +41,7 @@ fn build_os_disk_image() -> PathBuf {
     cmd.arg("-m").arg("5");
     cmd.arg("-t").arg("ext2");
     cmd.arg(disk_image.to_str().unwrap());
-    cmd.arg("5M");
+    cmd.arg("10M");
 
     let rc = cmd.status().unwrap();
     assert_eq!(0, rc.code().unwrap(), "process should exit successfully");

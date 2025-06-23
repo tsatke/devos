@@ -1,28 +1,30 @@
+use alloc::boxed::Box;
 use core::ptr::NonNull;
 
+use kernel_pci::config::ConfigurationAccess;
+use kernel_pci::PciAddress;
 use kernel_virtual_memory::Segment;
-use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::transport::pci::bus::{DeviceFunction, PciRoot};
+use virtio_drivers::transport::pci::PciTransport;
 use virtio_drivers::{BufferDirection, Hal};
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PageSize, PageTableFlags, PhysFrame, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
-use crate::driver::pci::PortCam;
-use crate::driver::pci::device::PciDevice;
+use crate::driver::pci::VirtIoCam;
 use crate::mem::address_space::AddressSpace;
 use crate::mem::phys::PhysicalMemory;
 use crate::mem::virt::{VirtualMemoryAllocator, VirtualMemoryHigherHalf};
 use crate::{U64Ext, UsizeExt};
 
-pub fn transport(device: &PciDevice) -> PciTransport {
-    let mut root = PciRoot::new(PortCam);
+pub fn transport(addr: PciAddress, cam: Box<dyn ConfigurationAccess>) -> PciTransport {
+    let mut root = PciRoot::new(VirtIoCam::new(cam));
     PciTransport::new::<HalImpl, _>(
         &mut root,
         DeviceFunction {
-            bus: device.bus(),
-            device: device.slot(),
-            function: device.function(),
+            bus: addr.bus,
+            device: addr.device,
+            function: addr.function,
         },
     )
     .unwrap()

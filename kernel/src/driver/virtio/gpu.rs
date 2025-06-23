@@ -5,17 +5,17 @@ use core::fmt::{Debug, Formatter};
 
 use kernel_device::raw::RawDevice;
 use kernel_device::Device;
+use kernel_pci::config::ConfigurationAccess;
+use kernel_pci::PciAddress;
 use linkme::distributed_slice;
 use spin::rwlock::RwLock;
 use spin::Mutex;
 use virtio_drivers::device::gpu::VirtIOGpu;
 use virtio_drivers::transport::pci::PciTransport;
-use virtio_drivers::transport::{DeviceType, Transport};
 use x86_64::structures::paging::frame::PhysFrameRangeInclusive;
 use x86_64::structures::paging::{PhysFrame, Size4KiB};
 use x86_64::VirtAddr;
 
-use crate::driver::pci::device::PciDevice;
 use crate::driver::pci::{PciDriverDescriptor, PciDriverType, PCI_DRIVERS};
 use crate::driver::raw::RawDevices;
 use crate::driver::virtio::hal::{transport, HalImpl};
@@ -31,13 +31,13 @@ static VIRTIO_GPU: PciDriverDescriptor = PciDriverDescriptor {
     init: virtio_init,
 };
 
-fn virtio_probe(device: &PciDevice) -> bool {
-    device.vendor_id() == 0x1af4 && transport(device).device_type() == DeviceType::GPU
+fn virtio_probe(addr: PciAddress, cam: &dyn ConfigurationAccess) -> bool {
+    addr.vendor_id(cam) == 0x1af4 && addr.device_id(cam) == 0x1050
 }
 
 #[allow(clippy::needless_pass_by_value)] // signature is required like this
-fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
-    let transport = transport(&device);
+fn virtio_init(addr: PciAddress, cam: Box<dyn ConfigurationAccess>) -> Result<(), Box<dyn Error>> {
+    let transport = transport(addr, cam);
 
     let mut gpu = VirtIOGpu::<HalImpl, _>::new(transport)?;
     let (width, height) = gpu.resolution()?;
@@ -69,7 +69,7 @@ fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
     let end = PhysFrame::<Size4KiB>::containing_address(phys_addr + buffer_len.into_u64() - 1);
     let physical_memory = PhysFrameRangeInclusive { start, end };
 
-    let device = VirtioRawDevice {
+    let device = VirtIoRawDevice {
         id: KernelDeviceId::new(),
         _inner: Arc::new(Mutex::new(gpu)),
         physical_memory,
@@ -82,28 +82,28 @@ fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
 }
 
 #[derive(Clone)]
-pub struct VirtioRawDevice {
+pub struct VirtIoRawDevice {
     id: KernelDeviceId,
     _inner: Arc<Mutex<VirtIOGpu<HalImpl, PciTransport>>>,
     physical_memory: PhysFrameRangeInclusive,
 }
 
-impl Debug for VirtioRawDevice {
+impl Debug for VirtIoRawDevice {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("VirtioRawDevice")
+        f.debug_struct("VirtIoRawDevice")
             .field("id", &self.id)
             .field("physical_memory", &self.physical_memory)
             .finish_non_exhaustive()
     }
 }
 
-impl Device<KernelDeviceId> for VirtioRawDevice {
+impl Device<KernelDeviceId> for VirtIoRawDevice {
     fn id(&self) -> KernelDeviceId {
         self.id
     }
 }
 
-impl RawDevice<KernelDeviceId> for VirtioRawDevice {
+impl RawDevice<KernelDeviceId> for VirtIoRawDevice {
     fn physical_memory(&self) -> PhysFrameRangeInclusive {
         self.physical_memory
     }

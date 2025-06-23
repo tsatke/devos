@@ -7,16 +7,16 @@ use core::fmt::{Debug, Formatter};
 use kernel_devfs::BlockDeviceFile;
 use kernel_device::block::{BlockBuf, BlockDevice};
 use kernel_device::Device;
+use kernel_pci::config::ConfigurationAccess;
+use kernel_pci::PciAddress;
 use kernel_vfs::path::AbsoluteOwnedPath;
 use linkme::distributed_slice;
 use spin::rwlock::RwLock;
 use spin::Mutex;
 use virtio_drivers::device::blk::VirtIOBlk;
 use virtio_drivers::transport::pci::PciTransport;
-use virtio_drivers::transport::{DeviceType, Transport};
 
 use crate::driver::block::BlockDevices;
-use crate::driver::pci::device::PciDevice;
 use crate::driver::pci::{PciDriverDescriptor, PciDriverType, PCI_DRIVERS};
 use crate::driver::virtio::hal::{transport, HalImpl};
 use crate::driver::KernelDeviceId;
@@ -31,15 +31,15 @@ static VIRTIO_BLK: PciDriverDescriptor = PciDriverDescriptor {
     init: virtio_init,
 };
 
-fn virtio_probe(device: &PciDevice) -> bool {
-    device.vendor_id() == 0x1af4
-        && (0x1000..=0x103f).contains(&device.device_id())
-        && transport(device).device_type() == DeviceType::Block
+fn virtio_probe(addr: PciAddress, cam: &dyn ConfigurationAccess) -> bool {
+    addr.vendor_id(cam) == 0x1af4
+        && (0x1000..=0x103f).contains(&addr.device_id(cam))
+        && addr.subsystem_id(cam) == 0x02
 }
 
 #[allow(clippy::needless_pass_by_value)] // signature is required like this
-fn virtio_init(device: PciDevice) -> Result<(), Box<dyn Error>> {
-    let transport = transport(&device);
+fn virtio_init(addr: PciAddress, cam: Box<dyn ConfigurationAccess>) -> Result<(), Box<dyn Error>> {
+    let transport = transport(addr, cam);
 
     let blk = VirtIOBlk::<HalImpl, _>::new(transport)?;
 

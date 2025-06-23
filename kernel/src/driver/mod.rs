@@ -7,7 +7,6 @@ use kernel_device::DeviceId;
 pub mod block;
 pub mod pci;
 pub mod raw;
-pub mod vga;
 pub mod virtio;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
