@@ -1,4 +1,3 @@
-use log::warn;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::{FlagUpdateError, MapToError, TranslateResult};
 use x86_64::structures::paging::page::PageRangeInclusive;
@@ -48,7 +47,7 @@ impl AddressSpaceMapper {
         #[cfg(debug_assertions)]
         {
             if !flags.contains(PageTableFlags::PRESENT) {
-                warn!(
+                ::log::warn!(
                     "mapping {:p} to {:p} without PRESENT flag",
                     page.start_address(),
                     frame.start_address()
