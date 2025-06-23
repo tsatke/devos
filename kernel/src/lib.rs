@@ -7,7 +7,7 @@ use conquer_once::spin::OnceCell;
 use ::log::info;
 
 use crate::driver::pci;
-use crate::limine::{BOOT_TIME, MODULE_REQUEST};
+use crate::limine::BOOT_TIME;
 
 mod acpi;
 mod apic;
@@ -45,12 +45,6 @@ pub fn init() {
     mcore::init();
     file::init();
     pci::init();
-
-    let modules = MODULE_REQUEST.get_response().unwrap().modules();
-    for module in modules {
-        let path = module.path().to_str().unwrap();
-        info!("have module: {path}");
-    }
 
     info!("kernel initialized");
 }
